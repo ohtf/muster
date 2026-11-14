@@ -75,6 +75,7 @@ jobs:
           - cert_decode_and_validate
           - token_decode
           - relay_frame_decode
+          - core_handle_datagram
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

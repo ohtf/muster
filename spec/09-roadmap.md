@@ -18,7 +18,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 - [x] **R6 - `muster-proto`**: all message types, deterministic CBOR, limits, golden vectors.
 - [x] **R7 - `muster-crypto`**: keys, certs, chain validation, seal and open, KeyShare, recovery kit, tokens.
-- [~] **R8 - Fuzz targets** for all decoders.
+- [x] **R8 - Fuzz targets** for all decoders, plus `core_handle_datagram` (random bytes into an enrolled core by every transport).
 - [~] **R9 - M1 exit**: unit tests for every rule in `03-protocol.md` and `04-security.md`. Fuzzers run clean for 10 minutes each.
 
 ### M2 Core and simulator
@@ -36,14 +36,14 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 - [x] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
 - [x] **R21 - Simulator scenarios S1 to S17.**
 - [x] **R22 - Simulator properties P1 to P12.**
-- [~] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 1,000 cases in one nightly run (scaled down from 10,000 on 2026-11-14 by Marcus Baw, to raise again once the nightly is reliable). **Do not start M4 until this passes.**
+- [x] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 1,000 cases in one nightly run (scaled down from 10,000 on 2026-11-14 by Marcus Baw, to raise again once the nightly is reliable). **Do not start M4 until this passes.** Met 2026-11-14: CI run 43621103526 (256 cases) and nightly run 43642345393 (1,000 cases per property, S13 at 250 devices, 10 minutes of fuzzing per target).
 
 ### M3 Runtime, store, headless agent, CLI
 
 - [x] **R24 - `muster-store`**: SQLite schema and migrations.
 - [x] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
 - [x] **R26 - `muster-agent`**: runtime, control API, headless binary.
-- [~] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands.
+- [~] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands. Done except `device rename/room` (and promote), which need a protocol message for an admin to change another device's label or room; drill reports are now kept in the store (FR-DRL-007).
 - [x] **R28 - netns integration tests** (S1, S2, S4, S7 without relay).
 - [x] **R29 - M3 exit**: three headless agents in netns raise and receive alarms. The CLI can set up a practice end to end.
 
@@ -64,7 +64,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 - [x] **R36 - `muster-relay`**: WebSocket and long-poll, tenants, auth, forwarding, buffer and resume, presence, revocation enforcement, `/source`, metrics.
 - [x] **R37 - Relay client** in `muster-net`, including proxy support and long-poll fallback. NTLM and Kerberos proxy auth are not supported (S for v1, see `06-relay.md`).
 - [x] **R38 - Relay netns tests** S5, S6, S12, S14 with a real relay. Docker image and compose example. Also S5 over long-poll; `packaging/relay/` has the image, compose with Caddy, and a hardened systemd unit.
-- [ ] **R39 - M6 exit**: L3, L5 and L8 equivalents pass in netns.
+- [x] **R39 - M6 exit**: L3, L5 and L8 equivalents pass in netns. L3 is S5 (two VLANs, relay; delivery within 5 s, amber where relay-only), L5 is S6 (Wi-Fi isolation plus relay; laptops receive and raise within 5 s), L8 is S12 (relay down mid-alarm; LAN unaffected, relay-only device catches up).
 
 ### M7 Packaging
 

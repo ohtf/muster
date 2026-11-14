@@ -32,16 +32,36 @@ pub enum TokenCommand {
         #[arg(long = "seed")]
         seeds: Vec<String>,
     },
+    /// List tokens and the devices each enrolled (asks the running agent).
+    List,
+    /// Revoke a token (admin; asks the running agent). Devices it already
+    /// enrolled stay members: review them with `muster token list`.
+    Revoke { token_id: String },
 }
 
 pub fn run(cli: &Cli, c: &TokenCommand) -> anyhow::Result<()> {
+    match c {
+        TokenCommand::List => return crate::ctl::run(cli, &crate::ctl::CtlCommand::Tokens),
+        TokenCommand::Revoke { token_id } => {
+            return crate::ctl::run(
+                cli,
+                &crate::ctl::CtlCommand::TokenRevoke {
+                    token_id: token_id.clone(),
+                },
+            );
+        }
+        TokenCommand::Create { .. } => {}
+    }
     let TokenCommand::Create {
         days,
         label,
         out,
         relays,
         seeds,
-    } = c;
+    } = c
+    else {
+        return Ok(());
+    };
     let t = muster_agent::setup::create_enrolment_token(
         &cli.data_dir(),
         &muster_agent::setup::TokenOptions {

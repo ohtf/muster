@@ -45,6 +45,21 @@ pub enum CtlCommand {
     },
     /// Dropped-message counters.
     Diagnostics,
+    /// Every device in the practice, heard or not.
+    Devices,
+    /// Enrolment tokens and the devices each enrolled.
+    Tokens,
+    /// Revoke an enrolment token (admin). Devices it already enrolled stay.
+    TokenRevoke { token_id: String },
+    /// Drill reports kept on this device.
+    DrillReports,
+    /// One drill report (`--format json` for the details).
+    DrillReport {
+        alarm_id: String,
+        /// Print the report as CSV (FR-DRL-007).
+        #[arg(long)]
+        csv: bool,
+    },
 }
 
 /// Parses durations like `3s`, `500ms`, `2m`.
@@ -115,6 +130,11 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
             json!({"device": device, "cascade": compromised, "reason": reason}),
         ),
         CtlCommand::Diagnostics => ("diagnostics", Value::Null),
+        CtlCommand::Devices => ("devices", Value::Null),
+        CtlCommand::Tokens => ("tokens", Value::Null),
+        CtlCommand::TokenRevoke { token_id } => ("token.revoke", json!({"token_id": token_id})),
+        CtlCommand::DrillReports => ("drill.reports", Value::Null),
+        CtlCommand::DrillReport { alarm_id, .. } => ("drill.report", json!({"alarm_id": alarm_id})),
     };
     let sock = cli.control_socket();
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -129,7 +149,57 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
         let _ = (rt, params);
         anyhow::bail!("the control API is not yet available on this platform");
     };
+    if let CtlCommand::DrillReport { csv: true, .. } = c {
+        print!("{}", v["csv"].as_str().unwrap_or(""));
+        return Ok(());
+    }
+    let lines = |v: &Value, f: &dyn Fn(&Value) -> String| {
+        v.as_array()
+            .map(|a| a.iter().map(f).collect::<Vec<_>>().join("\n"))
+            .unwrap_or_default()
+    };
     emit(cli.format, &v, |v| match c {
+        CtlCommand::Devices => lines(v, &|d| {
+            format!(
+                "{}  {:<6}  {}  {}  {}",
+                d["device_short"].as_str().unwrap_or(""),
+                d["role"].as_str().unwrap_or(""),
+                d["label"].as_str().unwrap_or("-"),
+                d["room"].as_str().unwrap_or("-"),
+                if d["this_device"].as_bool() == Some(true) {
+                    "(this device)"
+                } else {
+                    d["path"].as_str().unwrap_or("not heard")
+                }
+            )
+        }),
+        CtlCommand::Tokens => lines(v, &|t| {
+            let state = if t["revoked"].as_bool() == Some(true) {
+                "revoked"
+            } else if t["expired"].as_bool() == Some(true) {
+                "expired"
+            } else {
+                "valid"
+            };
+            format!(
+                "{}  {:<7}  {}  enrolled {}",
+                t["token_id"].as_str().unwrap_or(""),
+                state,
+                t["label"].as_str().unwrap_or(""),
+                t["enrolled"].as_array().map(|e| e.len()).unwrap_or(0)
+            )
+        }),
+        CtlCommand::DrillReports | CtlCommand::DrillReport { .. } => {
+            let one = |r: &Value| {
+                format!(
+                    "{}  received {} of {}",
+                    r["alarm_id"].as_str().unwrap_or(""),
+                    r["received"],
+                    r["expected"]
+                )
+            };
+            if v.is_array() { lines(v, &one) } else { one(v) }
+        }
         CtlCommand::Status => status_text(v),
         CtlCommand::Alarms => v
             .as_array()

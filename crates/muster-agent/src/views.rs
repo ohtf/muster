@@ -170,3 +170,79 @@ pub fn ui_event(e: &UiEvent) -> Value {
         UiEvent::FewAdmins(n) => json!({"type": "few_admins", "admins": n}),
     }
 }
+
+fn role(r: muster_proto::Role) -> &'static str {
+    match r {
+        muster_proto::Role::Member => "member",
+        muster_proto::Role::Admin => "admin",
+        muster_proto::Role::Enroller => "enroller",
+        muster_proto::Role::Other(_) => "unknown",
+    }
+}
+
+/// Every device with a valid cert (members and admins), whether or not it
+/// has been heard, with what is known of it.
+pub fn devices(core: &Core, now: Mono, wall: u64) -> Value {
+    let Some(t) = core.trust() else {
+        return Value::Array(vec![]);
+    };
+    let me = core.device_id();
+    let mut out = Vec::new();
+    for d in t.members(wall) {
+        let Some(best) = t
+            .valid_certs(&d, wall)
+            .into_iter()
+            .max_by_key(|b| (b.role == muster_proto::Role::Admin, b.issued_at))
+        else {
+            continue;
+        };
+        let peer = core.peers().get(&d);
+        let hb = peer.and_then(|p| p.heartbeat.as_ref());
+        out.push(json!({
+            "device": d.to_hex(),
+            "device_short": d.short(),
+            "this_device": d == me,
+            "label": hb.map(|h| h.label.clone()).unwrap_or_else(|| best.label.clone()),
+            "room": hb.map(|h| h.room.clone()),
+            "user": hb.map(|h| h.user_display.clone()),
+            "role": role(t.role(&d, wall).unwrap_or(best.role)),
+            "enrolled_at": best.issued_at,
+            "token_id": best.token_id.map(|x| x.to_hex()),
+            "path": peer.map(|p| class(p.class(now))),
+            "last_heard_ms": peer.and_then(|p| p.last_heard()).map(|t| now.since(t)),
+            "status": peer.and_then(|p| p.status()).map(level),
+        }));
+    }
+    Value::Array(out)
+}
+
+/// Enrolment tokens this practice knows of (their enroller certs), with the
+/// devices each enrolled.
+pub fn tokens(core: &Core, wall: u64) -> Value {
+    let Some(t) = core.trust() else {
+        return Value::Array(vec![]);
+    };
+    let certs: Vec<_> = t.certs().map(|(_, b)| b).collect();
+    let mut out = Vec::new();
+    for b in certs
+        .iter()
+        .filter(|b| b.role == muster_proto::Role::Enroller)
+    {
+        let Some(id) = b.token_id else { continue };
+        let enrolled: Vec<Value> = certs
+            .iter()
+            .filter(|c| c.role != muster_proto::Role::Enroller && c.token_id == Some(id))
+            .map(|c| json!({"device": c.subject.to_hex(), "label": c.label, "enrolled_at": c.issued_at}))
+            .collect();
+        out.push(json!({
+            "token_id": id.to_hex(),
+            "label": b.label,
+            "issued_at": b.issued_at,
+            "expires_at": b.expires_at,
+            "expired": b.expires_at != 0 && wall > b.expires_at,
+            "revoked": t.is_device_revoked(&b.subject),
+            "enrolled": enrolled,
+        }));
+    }
+    Value::Array(out)
+}

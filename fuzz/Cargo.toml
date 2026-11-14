@@ -19,6 +19,7 @@ members = ["."]
 libfuzzer-sys = "0.4"
 muster-proto = { path = "../crates/muster-proto" }
 muster-crypto = { path = "../crates/muster-crypto" }
+muster-core = { path = "../crates/muster-core" }
 
 [[bin]]
 name = "envelope_decode"
@@ -51,6 +52,13 @@ bench = false
 [[bin]]
 name = "relay_frame_decode"
 path = "fuzz_targets/relay_frame_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "core_handle_datagram"
+path = "fuzz_targets/core_handle_datagram.rs"
 test = false
 doc = false
 bench = false

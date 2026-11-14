@@ -27,7 +27,7 @@ use muster_proto::{CertSerial, MsgId, PracticeId};
 use rusqlite::{Connection, OptionalExtension, params};
 
 /// Schema version (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -125,6 +125,17 @@ impl Store {
                  COMMIT;",
             )?;
         }
+        if version < 2 {
+            db.execute_batch(
+                "BEGIN;
+                 CREATE TABLE drill_reports (
+                     alarm_id BLOB PRIMARY KEY, started_at INTEGER NOT NULL,
+                     received INTEGER NOT NULL, expected INTEGER NOT NULL,
+                     csv TEXT NOT NULL);
+                 PRAGMA user_version = 2;
+                 COMMIT;",
+            )?;
+        }
         Ok(Store { db })
     }
 
@@ -186,6 +197,59 @@ impl Store {
             params![at as i64, kind, format!("{e:?}")],
         )?;
         Ok(())
+    }
+
+    /// Keeps a drill report (FR-DRL-007); a later report for the same drill
+    /// replaces it.
+    pub fn save_drill_report(&self, r: &muster_core::drill::DrillReport) -> Result<()> {
+        self.db.execute(
+            "INSERT OR REPLACE INTO drill_reports VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![
+                &r.alarm_id.0[..],
+                r.started_at as i64,
+                r.received() as i64,
+                r.rows.len() as i64,
+                r.to_csv()
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Drill reports, newest first.
+    pub fn drill_reports(&self) -> Result<Vec<StoredDrillReport>> {
+        let mut s = self.db.prepare(
+            "SELECT alarm_id, started_at, received, expected, csv FROM drill_reports
+             ORDER BY started_at DESC",
+        )?;
+        let rows = s.query_map([], |r| {
+            Ok((
+                r.get::<_, Vec<u8>>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, started_at, received, expected, csv) = row?;
+            out.push(StoredDrillReport {
+                alarm_id: muster_proto::MsgId(id16(&id, "drill report")?),
+                started_at: started_at as u64,
+                received: received as usize,
+                expected: expected as usize,
+                csv,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Deletes drill reports started before `before` (400-day retention).
+    pub fn prune_drill_reports(&self, before: u64) -> Result<usize> {
+        Ok(self.db.execute(
+            "DELETE FROM drill_reports WHERE started_at < ?1",
+            [before as i64],
+        )?)
     }
 
     /// Deletes audit entries older than `before` (FR-LOG-002 retention).
@@ -403,6 +467,16 @@ fn apply_on(db: &Connection, op: &PersistOp) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// A kept drill report.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredDrillReport {
+    pub alarm_id: muster_proto::MsgId,
+    pub started_at: u64,
+    pub received: usize,
+    pub expected: usize,
+    pub csv: String,
 }
 
 #[cfg(test)]

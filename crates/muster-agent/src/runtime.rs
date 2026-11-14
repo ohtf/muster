@@ -240,6 +240,11 @@ impl Runtime {
             }
             Output::Ui(e) => {
                 tracing::debug!("ui: {e:?}");
+                if let UiEvent::DrillReport(r) = e
+                    && let Err(err) = self.store.save_drill_report(r)
+                {
+                    tracing::error!("saving drill report: {err}");
+                }
                 let _ = self.events.send(e.clone());
             }
             Output::Audio(a) => {
@@ -352,6 +357,71 @@ impl Runtime {
                 alarm_id: alarm(p)?,
             }),
             "drill.run" => self.user(UserAction::RunDrill),
+            "drill.reports" => {
+                let rs = self
+                    .store
+                    .drill_reports()
+                    .map_err(|e| RpcError::refused(e.to_string()))?;
+                Ok(Value::Array(
+                    rs.iter()
+                        .map(|r| {
+                            json!({
+                                "alarm_id": r.alarm_id.to_hex(),
+                                "started_at": r.started_at,
+                                "received": r.received,
+                                "expected": r.expected,
+                            })
+                        })
+                        .collect(),
+                ))
+            }
+            "drill.report" => {
+                let id = alarm(p)?;
+                let rs = self
+                    .store
+                    .drill_reports()
+                    .map_err(|e| RpcError::refused(e.to_string()))?;
+                let r = rs
+                    .iter()
+                    .find(|r| r.alarm_id == id)
+                    .ok_or_else(|| RpcError::refused("no report for that drill on this device"))?;
+                Ok(json!({
+                    "alarm_id": r.alarm_id.to_hex(),
+                    "started_at": r.started_at,
+                    "received": r.received,
+                    "expected": r.expected,
+                    "csv": r.csv,
+                }))
+            }
+            "devices" => Ok(crate::views::devices(&self.core, self.now(), wall)),
+            "tokens" => Ok(crate::views::tokens(&self.core, wall)),
+            "token.revoke" => {
+                let id = p
+                    .get("token_id")
+                    .and_then(Value::as_str)
+                    .and_then(muster_proto::TokenId::from_hex)
+                    .ok_or_else(|| {
+                        RpcError::invalid_params("token_id (32 hex characters) required")
+                    })?;
+                let enroller = self
+                    .core
+                    .trust()
+                    .and_then(|t| {
+                        t.certs()
+                            .find(|(_, b)| {
+                                b.role == muster_proto::Role::Enroller && b.token_id == Some(id)
+                            })
+                            .map(|(_, b)| b.subject)
+                    })
+                    .ok_or_else(|| RpcError::refused("no token with that id"))?;
+                // Revoking the enroller stops new enrolments; devices it
+                // already enrolled stay members (ADR 0012).
+                self.user(UserAction::Revoke {
+                    device: enroller,
+                    cascade: false,
+                    reason: "Enrolment token revoked".into(),
+                })
+            }
             "admin.revoke" => self.user(UserAction::Revoke {
                 device: device(p)?,
                 cascade: p.get("cascade").and_then(Value::as_bool).unwrap_or(false),
@@ -490,6 +560,11 @@ pub async fn start(
         events,
         audio,
     };
+    // Drill reports are kept for 400 days (spec/02-architecture.md).
+    let cutoff = wall_now().saturating_sub(400 * 24 * 60 * 60 * 1000);
+    if let Err(e) = rt.store.prune_drill_reports(cutoff) {
+        tracing::warn!("pruning drill reports: {e}");
+    }
     let task = tokio::spawn(agent_loop(rt, in_rx, ctl_rx, auth_rx));
     Ok((handle, task))
 }

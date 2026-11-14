@@ -53,6 +53,23 @@ pub enum Command {
     /// Talk to a running agent.
     #[command(subcommand)]
     Ctl(ctl::CtlCommand),
+    /// Devices in the practice (asks the running agent).
+    #[command(subcommand)]
+    Device(DeviceCommand),
+}
+
+#[derive(Debug, Subcommand)]
+pub enum DeviceCommand {
+    /// Every device in the practice, heard or not.
+    List,
+    /// Remove a device (admin). `--compromised` also removes everything it enrolled.
+    Revoke {
+        device: String,
+        #[arg(long)]
+        compromised: bool,
+        #[arg(long, default_value = "")]
+        reason: String,
+    },
 }
 
 impl Cli {
@@ -80,6 +97,19 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         Command::Practice(c) => practice::run(&cli, c),
         Command::Token(c) => token::run(&cli, c),
         Command::Ctl(c) => ctl::run(&cli, c),
+        Command::Device(DeviceCommand::List) => ctl::run(&cli, &ctl::CtlCommand::Devices),
+        Command::Device(DeviceCommand::Revoke {
+            device,
+            compromised,
+            reason,
+        }) => ctl::run(
+            &cli,
+            &ctl::CtlCommand::Revoke {
+                device: device.clone(),
+                compromised: *compromised,
+                reason: reason.clone(),
+            },
+        ),
     }
 }
 

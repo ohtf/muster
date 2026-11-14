@@ -348,8 +348,43 @@ s14() {
   pass "S14 revoke a relay-only laptop during an open alarm"
 }
 
+# Admin commands (R27): tokens list the devices they enrolled, a drill
+# leaves a report with its receipts, and revoking a token stops it without
+# removing the devices it enrolled.
+admin() {
+  bridge br0
+  for i in 1 2; do attach "n$i" br0 "10.10.0.$i/24"; done
+  practice n1
+  start n1; start n2
+  wait_ready n1 n2
+  for n in n1 n2; do expect_level "$n" green 25; done
+  local tokens token_id
+  tokens=$(ctl n1 --format json token list | tr -d '\n ')
+  token_id=$(sed -n 's/.*"token_id":"\([0-9a-f]*\)".*/\1/p' <<<"$tokens")
+  [[ -n $token_id ]] || fail "token list shows no token: $tokens"
+  grep -q '"enrolled":\[{' <<<"$tokens" || fail "token list does not show n2 as enrolled: $tokens"
+  ctl n1 ctl drill >/dev/null
+  # The report is made when the drill closes itself, after 60 s.
+  local report=
+  for _ in $(seq 160); do
+    report=$(ctl n1 --format json ctl drill-reports | tr -d '\n ')
+    grep -q '"received":1' <<<"$report" && break
+    sleep 0.5
+  done
+  grep -q '"received":1' <<<"$report" || fail "no drill report with n2's receipt: $report"
+  local drill_id
+  drill_id=$(sed -n 's/.*"alarm_id":"\([0-9a-f]*\)".*/\1/p' <<<"$report")
+  ctl n1 ctl drill-report "$drill_id" --csv | grep -q "n2" || fail "drill report CSV lacks n2"
+  ctl n1 token revoke "$token_id" >/dev/null
+  sleep 1
+  ctl n1 --format json token list | tr -d '\n ' | grep -q '"revoked":true' || fail "token not revoked"
+  [[ $(ctl n1 --format json device list | grep -c '"device_short"') == 2 ]] || fail "n2 should stay a member"
+  expect_level n2 green 10
+  pass "admin: tokens, drill report, token revoke"
+}
+
 scenarios=("$@")
-[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s5lp s6 s12 s14)
+[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s5lp s6 s12 s14 admin)
 if [[ ${#scenarios[@]} -gt 1 ]]; then
   # Each scenario in a fresh set of namespaces.
   for s in "${scenarios[@]}"; do
