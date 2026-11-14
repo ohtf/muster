@@ -121,6 +121,7 @@ struct Runtime {
     core: Core,
     store: Store,
     net: Net,
+    relays: muster_net::relay::RelayClients,
     start: Instant,
     events: broadcast::Sender<UiEvent>,
     allow_raise: bool,
@@ -149,9 +150,7 @@ impl Runtime {
     fn output(&mut self, o: Output) {
         match &o {
             Output::SendDatagram { .. } | Output::SendStream { .. } => self.net.send(&o),
-            Output::SendRelay { .. } => {
-                // Relay client: milestone M6.
-            }
+            Output::SendRelay { relay, bytes } => self.relays.send(*relay, bytes),
             Output::Persist(op) => {
                 if let Err(e) = self.store.apply(op) {
                     tracing::error!("persist failed: {e}");
@@ -302,12 +301,19 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
         );
     }
     let core = Core::new(identity, state, local, os_seed()?);
+    let (auth_tx, mut auth_rx) = mpsc::channel::<muster_net::relay::AuthRequest>(16);
+    let relays = muster_net::relay::RelayClients::start(
+        &opts.config.network.relay_urls,
+        in_tx.clone(),
+        auth_tx,
+    );
     tracing::info!("device {} starting", core.device_id());
     let (events, _) = broadcast::channel(1024);
     let mut rt = Runtime {
         core,
         store,
         net,
+        relays,
         start: Instant::now(),
         events,
         allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
@@ -352,6 +358,10 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
                 } else {
                     rt.control(req);
                 }
+            }
+            Some(a) = auth_rx.recv() => {
+                let env = rt.core.relay_auth(a.nonce, a.resume_cursor, wall_now());
+                let _ = a.reply.send(env);
             }
             _ = tokio::time::sleep_until(deadline.into()) => rt.handle(Input::Tick),
             _ = ifaces.tick() => {

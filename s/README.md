@@ -19,7 +19,7 @@ Run rustfmt, clippy, cargo-deny and `reuse lint`, as CI does.
 
 ## `s/netns-test`
 
-Build the release binaries and run the network-namespace scenarios (Linux).
+Build the release binaries (agent, CLI, relay) and run the network-namespace scenarios (Linux). Runs rootless through `unshare` when not root.
 
 - `s/netns-test` - all scenarios
 - `KEEP=1 s/netns-test s7` - one scenario, keeping logs

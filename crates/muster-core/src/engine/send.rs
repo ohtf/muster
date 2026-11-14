@@ -847,6 +847,30 @@ impl Core {
         }
     }
 
+    /// Builds a signed RelayAuth envelope answering a relay's challenge
+    /// (`spec/06-relay.md`, Handshake). `None` if not enrolled or without a
+    /// valid chain.
+    pub fn relay_auth(
+        &mut self,
+        nonce: [u8; 32],
+        resume_cursor: Option<u64>,
+        wall: WallMs,
+    ) -> Option<Vec<u8>> {
+        let p = self.practice.clone()?;
+        let chain = self.trust.as_ref()?.chain_for(&self.me, wall)?;
+        let body = self.body(
+            wall,
+            Payload::RelayAuth(muster_proto::RelayAuth {
+                practice_id: p.practice_id,
+                chain: chain.iter().map(|c| c.to_cbor()).collect(),
+                nonce,
+                client_time: wall,
+                resume_cursor,
+            }),
+        );
+        Some(self.open_env(&body))
+    }
+
     /// Sends our own cert chain back the way a message arrived.
     pub(crate) fn send_own_chain_via(&mut self, now: Mono, wall: WallMs, a: Arrival) {
         let Some(t) = &self.trust else { return };

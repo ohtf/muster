@@ -9,6 +9,7 @@
 
 pub mod interfaces;
 pub mod mdns;
+pub mod relay;
 pub mod tcp;
 pub mod udp;
 
