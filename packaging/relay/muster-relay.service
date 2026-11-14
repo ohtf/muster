@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+# Install the binary as /usr/local/bin/muster-relay and the config as
+# /etc/muster-relay/relay.toml, then: systemctl enable --now muster-relay
+[Unit]
+Description=Muster relay (blind forwarder of sealed alarm envelopes)
+Documentation=https://github.com/ohtf/muster/blob/main/spec/06-relay.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/muster-relay --config /etc/muster-relay/relay.toml serve
+Restart=always
+RestartSec=2
+DynamicUser=yes
+StateDirectory=muster-relay
+ConfigurationDirectory=muster-relay
+Environment=MUSTER_LOG=info
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

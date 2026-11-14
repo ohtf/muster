@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+# muster-relay configuration (spec/06-relay.md). Unknown keys are errors.
+
+# Plain HTTP: terminate TLS in a reverse proxy (Caddy in docker-compose.yml).
+listen = "0.0.0.0:8443"
+# AGPL section 13: GET /source redirects here. Point it at the source of the
+# version you run, including any changes you made.
+public_source_url = "https://github.com/ohtf/muster/tree/v{version}"
+data_dir = "/var/lib/muster-relay"
+# Keep the buffer, learned certs and revocations across restarts.
+persist = true
+
+[limits]
+max_connections_per_tenant = 500
+max_frame_bytes = 65536
+msgs_per_sec_per_conn = 50
+burst_per_conn = 200
+buffer_hours = 24
+buffer_max_envelopes = 10000
+
+# Tenants can be listed here, or managed with `muster-relay tenant add`
+# (stored in <data_dir>/tenants.toml). The practice admin's app shows the
+# practice id and root public key under "Copy relay registration details".
+# [[tenant]]
+# practice_id = "00112233445566778899aabbccddeeff"
+# root_pub    = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+# name        = "Riverside Surgery"
