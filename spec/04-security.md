@@ -48,7 +48,7 @@ A device cert is valid if:
 4. It is not expired (enroller and other certs with `expires_at` set). Expiry is judged against local wall time with 24 h of tolerance.
 5. Neither it nor any issuer in its chain is revoked with `cascade = true`, and the cert itself is not revoked.
 
-**Non-cascading revocation of an issuer does not invalidate certs it issued.** This lets a practice manager leave (their admin cert is revoked) without de-enrolling every PC they set up. Use `cascade = true` only for suspected compromise. The admin UI must explain the difference in plain English:
+**Non-cascading revocation of an issuer does not invalidate certs it issued.** This lets a practice manager leave (their admin cert is revoked) without de-enrolling every PC they set up. Use `cascade = true` only for suspected compromise. Issuers in a chain are judged as of the child's `issued_at` for expiry and non-cascading revocation, and a revocation applies to every cert of the target device (ADR 0012). The admin UI must explain the difference in plain English:
 - "Remove this device" (non-cascade)
 - "This device or account is compromised - also remove everything it enrolled" (cascade)
 

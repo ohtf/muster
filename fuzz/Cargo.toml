@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+[package]
+name = "muster-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Separate workspace: needs nightly and libFuzzer.
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+muster-proto = { path = "../crates/muster-proto" }
+muster-crypto = { path = "../crates/muster-crypto" }
+
+[[bin]]
+name = "envelope_decode"
+path = "fuzz_targets/envelope_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "signed_message_decode"
+path = "fuzz_targets/signed_message_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cert_decode_and_validate"
+path = "fuzz_targets/cert_decode_and_validate.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "token_decode"
+path = "fuzz_targets/token_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_frame_decode"
+path = "fuzz_targets/relay_frame_decode.rs"
+test = false
+doc = false
+bench = false

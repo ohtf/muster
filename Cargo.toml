@@ -8,7 +8,7 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.90"
 license = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
 repository = "https://github.com/ohtf/muster"
 publish = false

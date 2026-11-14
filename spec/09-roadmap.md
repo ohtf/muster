@@ -17,9 +17,9 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 ### M1 Protocol and crypto
 
 - [x] **R6 - `muster-proto`**: all message types, deterministic CBOR, limits, golden vectors.
-- [ ] **R7 - `muster-crypto`**: keys, certs, chain validation, seal and open, KeyShare, recovery kit, tokens.
-- [ ] **R8 - Fuzz targets** for all decoders.
-- [ ] **R9 - M1 exit**: unit tests for every rule in `03-protocol.md` and `04-security.md`. Fuzzers run clean for 10 minutes each.
+- [x] **R7 - `muster-crypto`**: keys, certs, chain validation, seal and open, KeyShare, recovery kit, tokens.
+- [~] **R8 - Fuzz targets** for all decoders.
+- [~] **R9 - M1 exit**: unit tests for every rule in `03-protocol.md` and `04-security.md`. Fuzzers run clean for 10 minutes each.
 
 ### M2 Core and simulator
 

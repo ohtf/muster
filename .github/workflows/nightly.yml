@@ -1,0 +1,58 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  properties:
+    name: Simulator properties (10,000 cases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo test --workspace --all-features --release
+        env:
+          PROPTEST_CASES: "10000"
+          MUSTER_FULL_SCALE: "1"
+
+  fuzz:
+    name: Fuzz (1 h per target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - envelope_decode
+          - signed_message_decode
+          - cert_decode_and_validate
+          - token_decode
+          - relay_frame_decode
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up nightly Rust
+        shell: bash
+        run: rustup toolchain install nightly --profile minimal --no-self-update
+      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
+        with:
+          tool: cargo-fuzz
+          fallback: none
+      - run: cargo +nightly fuzz run --fuzz-dir fuzz "$TARGET" -- -max_total_time=3600
+        env:
+          TARGET: ${{ matrix.target }}
