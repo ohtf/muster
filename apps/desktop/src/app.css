@@ -1,0 +1,159 @@
+/*
+SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+Palette and base styles (spec/05-desktop-agent.md, Visual identity).
+Red means alarm, and only alarm.
+*/
+
+:root {
+  --alarm-red: #c8102e;
+  --alarm-red-pressed: #9e0b23;
+  --alert-deep-red: #7a0019;
+  --ink: #1b1f24;
+  --slate: #4b5563;
+  --mist: #f3f4f6;
+  --line: #d1d5db;
+  --paper: #ffffff;
+  --action-blue: #1f4e8c;
+  --action-blue-hover: #173b6b;
+  --status-green: #1a7f37;
+  --status-amber: #f59e0b;
+  --status-red: #b91c1c;
+  --focus: #1f4e8c;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Noto Sans",
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  min-height: 40px;
+  padding: 0 1.1em;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--mist);
+}
+
+.btn.primary {
+  background: var(--action-blue);
+  border-color: var(--action-blue);
+  color: var(--paper);
+}
+
+.btn.primary:hover {
+  background: var(--action-blue-hover);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.field {
+  display: grid;
+  gap: 0.3em;
+  margin-bottom: 1em;
+}
+
+.field label {
+  font-weight: 600;
+}
+
+.field .hint {
+  color: var(--slate);
+  font-size: 0.9em;
+}
+
+.field input,
+.field textarea,
+.field select {
+  min-height: 40px;
+  padding: 0.4em 0.7em;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.error {
+  color: var(--status-red);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--slate);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Page background per window (set from main.ts). */
+html[data-view="button"],
+html[data-view="button"] body {
+  background: transparent;
+  overflow: hidden;
+}
+
+html[data-view="panel"] body {
+  background: var(--paper);
+  overflow: hidden;
+}
+
+html[data-view="alert"],
+html[data-view="alert"] body {
+  background: var(--alert-deep-red);
+}
+
+html[data-view="main"],
+html[data-view="main"] body {
+  background: var(--mist);
+  min-height: 100vh;
+}

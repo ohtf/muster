@@ -7,6 +7,16 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+# Unmaintained (not vulnerable) crates that only the Linux desktop app pulls
+# in through Tauri 2: GTK 3 bindings (gtk-rs 0.18) and zbus, used by the
+# single-instance plugin. Revisit when Tauri moves to GTK 4 or zbus folds
+# these crates in (apps/desktop).
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros 0.18 (Tauri 2 GTK 3 stack)" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant via zbus 5 (tauri-plugin-single-instance)" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names via zbus 5 (tauri-plugin-single-instance)" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via zbus 5 (tauri-plugin-single-instance)" },
+]
 
 [licenses]
 version = 2

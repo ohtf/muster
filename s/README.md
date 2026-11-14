@@ -24,6 +24,19 @@ Build the release binaries (agent, CLI, relay) and run the network-namespace sce
 - `s/netns-test` - all scenarios
 - `KEEP=1 s/netns-test s7` - one scenario, keeping logs
 
+## `s/gui-dev`
+
+Run the desktop app in development (Vite hot reload plus the Tauri shell).
+
+- `s/gui-dev`
+- `MUSTER_DATA_DIR=/tmp/a MUSTER_CONFIG=/tmp/a.toml s/gui-dev` - a throwaway practice (see `docs/gui/`)
+
+## `s/desktop-check`
+
+Type-check and build the frontend, then clippy and test the Tauri crate. `s/test` and `s/lint` leave the desktop crate out because it needs WebKit and a built frontend.
+
+- `s/desktop-check`
+
 ## `s/fuzz`
 
 Run a cargo-fuzz target (needs nightly and cargo-fuzz).

@@ -16,7 +16,7 @@ Requirements have IDs (for example `FR-ACT-002`), as do properties (`P1`), scena
 
 ADRs record decisions that have been made. Do not reopen them silently. If you believe one is wrong, write a new ADR proposing a change and flag it.
 
-Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not start the desktop UI (M4) until the core simulator properties (M2) pass. Tick roadmap items (`[~]`, `[x]`) in the same commit as the work.
+Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not start the desktop UI (M4) until the core simulator properties (M2) pass. Exception (Marcus Baw, 2026-11-14): M4 started while the first 1,000-case nightly (R23) was still running, so a demo could be ready sooner. Core fixes from R23 still take priority over UI work. Tick roadmap items (`[~]`, `[x]`) in the same commit as the work.
 
 ## Core invariants (hard rules)
 

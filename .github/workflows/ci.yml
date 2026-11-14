@@ -31,7 +31,7 @@ jobs:
           rustup show active-toolchain
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo clippy --workspace --exclude muster-desktop --all-targets --all-features -- -D warnings
 
   test:
     name: Test (${{ matrix.os }})
@@ -50,8 +50,8 @@ jobs:
           rustup toolchain install --no-self-update
           rustup show active-toolchain
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo build --workspace --all-targets --all-features
-      - run: cargo test --workspace --all-features
+      - run: cargo build --workspace --exclude muster-desktop --all-targets --all-features
+      - run: cargo test --workspace --exclude muster-desktop --all-features
 
   properties:
     name: Simulator properties (256 cases)
@@ -85,6 +85,29 @@ jobs:
       - run: sudo --preserve-env=MUSTER_BIN tests/netns/run.sh
         env:
           MUSTER_BIN: ${{ github.workspace }}/target/release
+
+  desktop:
+    name: Desktop app (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install WebKitGTK and audio development files
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: s/desktop-check
 
   deny:
     name: cargo-deny

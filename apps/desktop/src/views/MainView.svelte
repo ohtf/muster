@@ -1,0 +1,598 @@
+<!--
+SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+The main window (`spec/05-desktop-agent.md`, Main window): status, history,
+settings, admin and about; or first run if this computer is not set up.
+-->
+<script lang="ts">
+  import { onMount } from "svelte";
+  import { api, clock, when } from "../lib/api";
+  import StatusIcon from "../lib/StatusIcon.svelte";
+  import FirstRun from "./FirstRun.svelte";
+  import type { AgentConfig, Alarm, AppInfo, Peer, Status } from "../lib/types";
+
+  type Tab = "status" | "history" | "settings" | "admin" | "about";
+  let info = $state<AppInfo | null>(null);
+  let firstRun = $state(false);
+  let tab = $state<Tab>("status");
+  let status = $state<Status | null>(null);
+  let peers = $state<Peer[]>([]);
+  let alarms = $state<Alarm[]>([]);
+  let cfg = $state<AgentConfig | null>(null);
+  let error = $state("");
+  let quitAsk = $state(false);
+
+  let room = $state("");
+  let roomSaved = $state(false);
+  let joins = $state<{ device: string; label: string; code: string }[]>([]);
+  let tokenDays = $state(7);
+  let tokenLabel = $state("");
+  let token = $state<{ text: string; expires_at: number } | null>(null);
+  let copied = $state(false);
+  let removing = $state<Peer | null>(null);
+  let drillSent = $state(false);
+
+  const tabs = $derived<[Tab, string][]>([
+    ["status", "Status"],
+    ["history", "History"],
+    ["settings", "Settings"],
+    ...(status?.admin ? ([["admin", "Admin"]] as [Tab, string][]) : []),
+    ["about", "About"],
+  ]);
+
+  const pathName: Record<Peer["path"], string> = {
+    lan: "Local network",
+    unicast: "Direct",
+    relay: "Via relay",
+    indirect: "Seen through others",
+    stale: "Not heard recently",
+  };
+
+  async function refresh() {
+    try {
+      info = await api.appInfo();
+      if (!info.running) {
+        firstRun = !info.enrolled;
+        return;
+      }
+      const [s, p, a, c] = await Promise.all([api.status(), api.peers(), api.alarms(), api.config()]);
+      status = s;
+      peers = p.filter((x) => x.member).sort((x, y) => (x.room ?? "").localeCompare(y.room ?? ""));
+      alarms = a.sort((x, y) => y.raised_at - x.raised_at);
+      if (!cfg) room = c.room;
+      cfg = c;
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function saveRoom() {
+    error = "";
+    try {
+      await api.setRoom(room);
+      roomSaved = true;
+      setTimeout(() => (roomSaved = false), 2500);
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function makeToken() {
+    error = "";
+    try {
+      token = await api.createToken(tokenDays, tokenLabel || "Enrolment code");
+      copied = false;
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function copyToken() {
+    if (!token) return;
+    await navigator.clipboard.writeText(token.text);
+    copied = true;
+  }
+
+  async function remove(p: Peer) {
+    error = "";
+    try {
+      await api.revoke(p.device, "Removed by a Practice Admin");
+      removing = null;
+      refresh();
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function drill() {
+    await api.runDrill();
+    drillSent = true;
+    setTimeout(() => (drillSent = false), 4000);
+  }
+
+  async function answerJoin(device: string, ok: boolean) {
+    if (ok) await api.approveJoin(device);
+    else await api.rejectJoin(device);
+    joins = joins.filter((j) => j.device !== device);
+  }
+
+  onMount(() => {
+    refresh();
+    const timer = setInterval(() => {
+      if (!firstRun) refresh();
+    }, 5000);
+    const offs = [
+      api.onStarted(refresh),
+      api.onEvent((e) => {
+        if (e.type === "status" && status) {
+          status = { ...status, level: e.level, summary: e.summary, reasons: e.reasons };
+        }
+        if (e.type === "join_requested") {
+          joins = [...joins.filter((j) => j.device !== e.device), e];
+          tab = "admin";
+        }
+        if (e.type.startsWith("alarm_")) refresh();
+      }),
+      api.onNav((t) => {
+        if (t === "quit") quitAsk = true;
+        else tab = t as Tab;
+      }),
+      api.onError((m) => (error = m)),
+    ];
+    return () => {
+      clearInterval(timer);
+      offs.forEach((o) => o.then((f) => f()));
+    };
+  });
+</script>
+
+{#if firstRun && info}
+  <FirstRun
+    {info}
+    ondone={() => {
+      firstRun = false;
+      api.hideWindow("main");
+      refresh();
+    }}
+  />
+{:else}
+  <div class="shell">
+    <header>
+      <div class="title">
+        <strong>Muster</strong>
+        {#if status?.practice}<span class="muted">{status.practice}</span>{/if}
+      </div>
+      <nav aria-label="Sections">
+        {#each tabs as [id, name] (id)}
+          <button class:active={tab === id} aria-current={tab === id ? "page" : undefined} onclick={() => (tab = id)}>
+            {name}
+          </button>
+        {/each}
+      </nav>
+    </header>
+
+    {#if error}
+      <p class="banner error" role="alert">{error} <button class="link" onclick={() => (error = "")}>Dismiss</button></p>
+    {/if}
+
+    <main>
+      {#if tab === "status"}
+        <section class="status-card level-{status?.level ?? 'none'}">
+          <StatusIcon level={status?.level ?? null} size={28} />
+          <div>
+            <h1>{status?.summary ?? "Starting..."}</h1>
+            {#each status?.reasons ?? [] as r (r)}<p>{r}</p>{/each}
+            {#if info?.wayland}
+              <p>On-screen button may be hidden behind windows on this desktop. Use the tray icon to reach Muster.</p>
+            {/if}
+          </div>
+        </section>
+        <section>
+          <h2>Devices in your practice</h2>
+          {#if peers.length}
+            <table>
+              <thead><tr><th>Room</th><th>Person</th><th>Computer</th><th>How it is reached</th></tr></thead>
+              <tbody>
+                {#each peers as p (p.device)}
+                  <tr>
+                    <td>{p.room || "-"}</td>
+                    <td>{p.user || "-"}</td>
+                    <td>{p.label || p.device_short}</td>
+                    <td>{pathName[p.path]}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {:else}
+            <p class="muted">No other devices found yet.</p>
+          {/if}
+        </section>
+        <section>
+          <h2>Sound</h2>
+          {#if info && !info.audio_ok}
+            <p class="error">No sound output found. Alarms on this computer will be silent.</p>
+          {/if}
+          <button class="btn" onclick={() => api.playTestSound(cfg?.sound_pattern)}>Play test sound</button>
+        </section>
+      {:else if tab === "history"}
+        <section>
+          <h1>History</h1>
+          {#if alarms.length}
+            <table>
+              <thead><tr><th>When</th><th>Room</th><th>From</th><th>Outcome</th><th>Coming</th></tr></thead>
+              <tbody>
+                {#each alarms as a (a.alarm_id)}
+                  <tr>
+                    <td>{when(a.raised_at)}</td>
+                    <td>{a.room || "-"}{a.drill ? " (test)" : ""}</td>
+                    <td>{a.own ? "This computer" : a.user}</td>
+                    <td>
+                      {a.state === "open"
+                        ? "Open"
+                        : a.state === "resolved"
+                          ? `Resolved by ${a.resolved_by ?? "someone"}${a.closed_at ? ` at ${clock(a.closed_at)}` : ""}`
+                          : a.state === "cancelled"
+                            ? "Cancelled - sent in error"
+                            : "Expired"}
+                    </td>
+                    <td>{a.coming.join(", ") || "-"}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          {:else}
+            <p class="muted">No alarms yet.</p>
+          {/if}
+        </section>
+      {:else if tab === "settings"}
+        <section>
+          <h1>Settings</h1>
+          <div class="field narrow">
+            <label for="room">Room</label>
+            <input id="room" bind:value={room} disabled={info?.room_from_policy} />
+            <span class="hint">
+              {info?.room_from_policy ? "Set by your practice's IT policy." : "Shown to colleagues when you call for help."}
+            </span>
+          </div>
+          <button class="btn primary" onclick={saveRoom} disabled={info?.room_from_policy}>Save room</button>
+          {#if roomSaved}<span class="saved" role="status">Saved</span>{/if}
+          <h2>Alarm</h2>
+          <dl>
+            <dt>Hold time</dt>
+            <dd>{cfg ? (cfg.hold_ms / 1000).toFixed(1) : "-"} seconds</dd>
+            <dt>Sound</dt>
+            <dd>Pattern {cfg?.sound_pattern ?? "A"}</dd>
+          </dl>
+          <p class="muted">Your Practice Admin sets these for the whole practice.</p>
+        </section>
+      {:else if tab === "admin" && status?.admin}
+        {#if joins.length}
+          <section>
+            <h2>Waiting to join</h2>
+            {#each joins as j (j.device)}
+              <div class="join">
+                <div><strong>{j.label}</strong><br /><span class="muted">Check this code matches their screen:</span> <code class="code">{j.code}</code></div>
+                <button class="btn primary" onclick={() => answerJoin(j.device, true)}>Approve</button>
+                <button class="btn" onclick={() => answerJoin(j.device, false)}>Reject</button>
+              </div>
+            {/each}
+          </section>
+        {/if}
+        <section>
+          <h2>Add a computer</h2>
+          <p>Create an enrolment code and paste it into Muster on the new computer.</p>
+          <div class="inline">
+            <div class="field">
+              <label for="tlabel">Label</label>
+              <input id="tlabel" bind:value={tokenLabel} placeholder="Reception PCs" />
+            </div>
+            <div class="field">
+              <label for="tdays">Valid for (days)</label>
+              <input id="tdays" type="number" min="1" max="365" bind:value={tokenDays} />
+            </div>
+            <button class="btn primary" onclick={makeToken}>Create code</button>
+          </div>
+          {#if token}
+            <div class="token">
+              <textarea readonly rows="3" aria-label="Enrolment code">{token.text}</textarea>
+              <div class="inline">
+                <button class="btn" onclick={copyToken}>{copied ? "Copied" : "Copy"}</button>
+                <span class="muted">Valid until {new Date(token.expires_at).toLocaleDateString("en-GB")}. Treat it like a password.</span>
+              </div>
+            </div>
+          {/if}
+        </section>
+        <section>
+          <h2>Devices</h2>
+          <table>
+            <thead><tr><th>Computer</th><th>Room</th><th>Person</th><th></th></tr></thead>
+            <tbody>
+              {#each peers as p (p.device)}
+                <tr>
+                  <td>{p.label || p.device_short}</td>
+                  <td>{p.room || "-"}</td>
+                  <td>{p.user || "-"}</td>
+                  <td class="right">
+                    {#if removing?.device === p.device}
+                      <span>Remove this computer from the practice?</span>
+                      <button class="btn danger" onclick={() => remove(p)}>Remove</button>
+                      <button class="btn" onclick={() => (removing = null)}>Keep</button>
+                    {:else}
+                      <button class="btn" onclick={() => (removing = p)}>Remove...</button>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </section>
+        <section>
+          <h2>Test alarm</h2>
+          <p>Every device shows "Test alarm received - no action needed". Nobody is alerted.</p>
+          <button class="btn" onclick={drill}>Run a test alarm now</button>
+          {#if drillSent}<span class="saved" role="status">Sent</span>{/if}
+        </section>
+      {:else if tab === "about"}
+        <section>
+          <h1>About Muster</h1>
+          <p>Version {info?.version}. A staff alarm for calling colleagues for help, from the Open Health Technology Foundation.</p>
+          <p>
+            Muster is free software under the GNU Affero General Public License, version 3 or later, with an app store
+            exception. The source is at <code>https://github.com/ohtf/muster</code>.
+          </p>
+          <p class="muted">Data folder: <code>{info?.data_dir}</code></p>
+          {#if info?.allow_quit}
+            <button class="btn" onclick={() => (quitAsk = true)}>Quit Muster...</button>
+          {/if}
+        </section>
+      {/if}
+    </main>
+  </div>
+{/if}
+
+{#if quitAsk}
+  <div class="scrim">
+    <div class="dialog" role="alertdialog" aria-labelledby="quit-h" aria-modal="true">
+      <h2 id="quit-h">Quit Muster?</h2>
+      <p>If you quit, you will not receive alarms on this computer.</p>
+      <div class="inline end">
+        <button class="btn primary" onclick={() => (quitAsk = false)}>Keep running</button>
+        <button class="btn" onclick={() => api.quit().catch((e) => (error = String(e)))}>Quit</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<style>
+  .shell {
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 20px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .title {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 17px;
+  }
+
+  nav {
+    display: flex;
+    gap: 4px;
+  }
+
+  nav button {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    font-weight: 600;
+    color: var(--slate);
+    cursor: pointer;
+  }
+
+  nav button:hover {
+    background: var(--mist);
+  }
+
+  nav button.active {
+    background: var(--mist);
+    color: var(--ink);
+    box-shadow: inset 0 -3px 0 var(--action-blue);
+  }
+
+  main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    gap: 16px;
+  }
+
+  section {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+    margin: 0 0 8px;
+  }
+
+  h2 {
+    font-size: 16px;
+    margin: 0 0 10px;
+  }
+
+  .status-card {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .status-card p {
+    margin: 2px 0;
+  }
+
+  .level-amber {
+    border-left: 6px solid var(--status-amber);
+  }
+
+  .level-red {
+    border-left: 6px solid var(--status-red);
+  }
+
+  .level-green {
+    border-left: 6px solid var(--status-green);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  th,
+  td {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--mist);
+    vertical-align: middle;
+  }
+
+  th {
+    color: var(--slate);
+    font-weight: 600;
+  }
+
+  td.right {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  td.right .btn {
+    min-height: 32px;
+    font-size: 13px;
+  }
+
+  .btn.danger {
+    background: var(--status-red);
+    border-color: var(--status-red);
+    color: var(--paper);
+  }
+
+  .narrow {
+    max-width: 360px;
+  }
+
+  .inline {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .inline .field {
+    margin-bottom: 0;
+  }
+
+  .end {
+    justify-content: flex-end;
+  }
+
+  .token {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .token textarea {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    resize: none;
+  }
+
+  .join {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .join div {
+    flex: 1;
+  }
+
+  .code {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  .saved {
+    margin-left: 10px;
+    color: var(--status-green);
+    font-weight: 600;
+  }
+
+  .banner {
+    margin: 12px 20px 0;
+    padding: 10px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+  }
+
+  .link {
+    border: 0;
+    background: none;
+    color: var(--action-blue);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 0.35);
+    display: grid;
+    place-items: center;
+  }
+
+  .dialog {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 420px;
+  }
+
+  code {
+    word-break: break-all;
+  }
+</style>

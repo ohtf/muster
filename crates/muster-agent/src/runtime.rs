@@ -207,6 +207,7 @@ struct Runtime {
     audio: broadcast::Sender<AudioCmd>,
     allow_raise: bool,
     audit_failures: u64,
+    local: muster_core::config::LocalConfig,
 }
 
 impl Runtime {
@@ -287,6 +288,31 @@ impl Runtime {
                 practice: p.get("practice").and_then(Value::as_bool).unwrap_or(false),
             }),
             "hold.end" => self.user(UserAction::HoldEnd { source: source(p)? }),
+            "config" => {
+                let c = self.core.config();
+                Ok(json!({
+                    "label": c.label,
+                    "room": c.room,
+                    "hold_ms": c.hold_ms,
+                    "cue_mode": format!("{:?}", c.cue_mode).to_lowercase(),
+                    "sound_pattern": format!("{:?}", c.sound_pattern),
+                    "volume_pct": c.volume_pct,
+                    "relay_urls": c.relay_urls,
+                }))
+            }
+            "device.set_room" => {
+                let room = p
+                    .get("room")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| RpcError::invalid_params("room required"))?
+                    .trim();
+                if room.chars().count() > 64 {
+                    return Err(RpcError::invalid_params("room is at most 64 characters"));
+                }
+                self.local.room = room.to_owned();
+                self.handle(Input::ConfigChanged(self.local.clone()));
+                Ok(json!({"ok": true}))
+            }
             "peers" => Ok(crate::views::peers(&self.core, self.now(), wall)),
             "alarms" => Ok(Value::Array(
                 self.core
@@ -414,7 +440,7 @@ pub async fn start(
             opts.config.port()
         );
     }
-    let core = Core::new(identity, state, local, os_seed()?);
+    let core = Core::new(identity, state, local.clone(), os_seed()?);
     let (auth_tx, auth_rx) = mpsc::channel::<muster_net::relay::AuthRequest>(16);
     let relays = muster_net::relay::RelayClients::start(
         &opts.config.network.relay_urls,
@@ -435,6 +461,7 @@ pub async fn start(
         audio: audio.clone(),
         allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
         audit_failures: 0,
+        local,
     };
     if opts.headless {
         rt.handle(Input::AudioStatus {

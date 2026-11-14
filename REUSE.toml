@@ -23,3 +23,15 @@ path = ["sounds/**/*.wav"]
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Open Health Technology Foundation contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["apps/desktop/package.json", "apps/desktop/package-lock.json", "apps/desktop/tsconfig.json", "apps/desktop/src-tauri/tauri.conf.json", "apps/desktop/src-tauri/capabilities/**", ".dockerignore"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Open Health Technology Foundation contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
+
+[[annotations]]
+path = ["apps/desktop/src-tauri/icons/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Open Health Technology Foundation contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

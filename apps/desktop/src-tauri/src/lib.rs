@@ -1,0 +1,506 @@
+// SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+//! The Muster desktop app: a thin shell around the embedded agent
+//! (`muster-agent`). Rust owns behaviour; the webviews render the button,
+//! sender panel, alert window and main window (`spec/05-desktop-agent.md`).
+//!
+//! Environment overrides, for testing several devices on one computer:
+//! `MUSTER_DATA_DIR`, `MUSTER_CONFIG` and `MUSTER_CONTROL_SOCKET`. With
+//! `MUSTER_DATA_DIR` set, the single-instance check is skipped.
+
+mod audio;
+mod windows;
+
+use std::path::{Path, PathBuf};
+
+use muster_agent::config::ConfigFile;
+use muster_agent::{AgentHandle, AgentOptions, paths};
+use muster_core::io::{Input, UiEvent};
+use muster_proto::{AudioStatus, SessionState, SoundPattern};
+use serde::Serialize;
+use serde_json::{Value, json};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::Mutex;
+
+use crate::audio::{Audio, Cmd};
+
+/// State shared by commands.
+struct Shared {
+    data_dir: PathBuf,
+    control_socket: PathBuf,
+    config: Mutex<ConfigFile>,
+    allow_quit: bool,
+    agent: Mutex<Option<AgentHandle>>,
+    audio: Audio,
+    audio_ok: bool,
+}
+
+fn env_path(var: &str) -> Option<PathBuf> {
+    std::env::var_os(var).map(|v| paths::expand(Path::new(&v)))
+}
+
+fn load_optional(p: &Path) -> anyhow::Result<ConfigFile> {
+    if p.exists() {
+        Ok(ConfigFile::load(p)?)
+    } else {
+        Ok(ConfigFile::default())
+    }
+}
+
+/// The user settings file this app writes (room), below machine config and
+/// policy.
+fn user_file(data_dir: &Path) -> PathBuf {
+    data_dir.join("user.toml")
+}
+
+fn load_config(data_dir: &Path) -> anyhow::Result<ConfigFile> {
+    let user = load_optional(&user_file(data_dir))?;
+    let machine =
+        load_optional(&env_path("MUSTER_CONFIG").unwrap_or_else(paths::default_config_file))?;
+    let policy = load_optional(&paths::default_policy_file())?;
+    Ok(user.with_policy(&machine).with_policy(&policy))
+}
+
+/// The person's display name: the OS full name where there is one.
+fn user_display() -> String {
+    let user = std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_default();
+    #[cfg(unix)]
+    if let Ok(pw) = std::fs::read_to_string("/etc/passwd") {
+        for line in pw.lines() {
+            let f: Vec<&str> = line.split(':').collect();
+            if f.len() > 4 && f[0] == user {
+                let full = f[4].split(',').next().unwrap_or("").trim();
+                if !full.is_empty() {
+                    return full.to_owned();
+                }
+            }
+        }
+    }
+    user
+}
+
+fn err(e: impl std::fmt::Display) -> String {
+    e.to_string()
+}
+
+async fn start_agent(app: &AppHandle) -> Result<(), String> {
+    let st = app.state::<Shared>();
+    let mut slot = st.agent.lock().await;
+    if slot.is_some() {
+        return Ok(());
+    }
+    let config = st.config.lock().await.clone();
+    let (h, _task) = muster_agent::start(AgentOptions {
+        data_dir: st.data_dir.clone(),
+        control_socket: st.control_socket.clone(),
+        config,
+        allow_raise: false,
+        label: None,
+        headless: false,
+    })
+    .await
+    .map_err(err)?;
+    h.input(Input::AudioStatus {
+        status: AudioStatus {
+            output_present: st.audio_ok,
+            muted: false,
+            volume_pct: 100,
+        },
+        override_available: false,
+    })
+    .await;
+    h.input(Input::SessionState(SessionState::Active)).await;
+    h.input(Input::UserDisplay(user_display())).await;
+    tauri::async_runtime::spawn(pump_events(app.clone(), h.clone()));
+    tauri::async_runtime::spawn(pump_audio(h.clone(), st.audio.clone()));
+    *slot = Some(h);
+    drop(slot);
+    let _ = app.emit("muster-started", ());
+    refresh_tray(app).await;
+    Ok(())
+}
+
+async fn pump_events(app: AppHandle, h: AgentHandle) {
+    use tokio::sync::broadcast::error::RecvError;
+    let mut rx = h.events();
+    loop {
+        match rx.recv().await {
+            Ok(e) => {
+                match &e {
+                    UiEvent::AlarmShown { alarm, .. } if !alarm.own => windows::show_alert(&app),
+                    UiEvent::SenderPanel { .. } | UiEvent::DrillToast { .. } => {
+                        windows::show_panel(&app)
+                    }
+                    UiEvent::JoinRequested { .. } => windows::show_main(&app),
+                    _ => {}
+                }
+                if matches!(e, UiEvent::StatusChanged(_)) {
+                    refresh_tray(&app).await;
+                }
+                let _ = app.emit("muster", muster_agent::views::ui_event(&e));
+            }
+            Err(RecvError::Lagged(_)) => {}
+            Err(RecvError::Closed) => break,
+        }
+    }
+}
+
+async fn pump_audio(h: AgentHandle, audio: Audio) {
+    use tokio::sync::broadcast::error::RecvError;
+    let mut rx = h.audio();
+    loop {
+        match rx.recv().await {
+            Ok(c) => audio.send(Cmd::Agent(c)),
+            Err(RecvError::Lagged(_)) => {}
+            Err(RecvError::Closed) => break,
+        }
+    }
+}
+
+async fn agent(st: &State<'_, Shared>) -> Result<AgentHandle, String> {
+    st.agent
+        .lock()
+        .await
+        .clone()
+        .ok_or_else(|| "Muster is not set up on this computer yet".to_owned())
+}
+
+#[derive(Debug, Serialize)]
+struct AppInfo {
+    enrolled: bool,
+    running: bool,
+    version: &'static str,
+    data_dir: String,
+    allow_quit: bool,
+    audio_ok: bool,
+    wayland: bool,
+    room_from_policy: bool,
+    token_configured: bool,
+    home_dir: String,
+}
+
+#[tauri::command]
+async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
+    let running = st.agent.lock().await.is_some();
+    let cfg = st.config.lock().await;
+    Ok(AppInfo {
+        enrolled: muster_agent::setup::is_enrolled(&st.data_dir).map_err(err)?,
+        running,
+        version: env!("CARGO_PKG_VERSION"),
+        data_dir: st.data_dir.display().to_string(),
+        allow_quit: st.allow_quit,
+        audio_ok: st.audio_ok,
+        wayland: cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some(),
+        room_from_policy: load_optional(&paths::default_policy_file())
+            .map(|p| p.device.room.is_some())
+            .unwrap_or(false),
+        token_configured: cfg.enrolment.token.is_some() || cfg.enrolment.token_file.is_some(),
+        home_dir: paths::expand(Path::new("~")).display().to_string(),
+    })
+}
+
+/// A control API call on the embedded agent (`status`, `alarms`,
+/// `respond`, `hold.start`, ...).
+#[tauri::command]
+async fn agent_call(st: State<'_, Shared>, method: String, params: Value) -> Result<Value, String> {
+    // Raising directly is for the CLI and tests; the app raises by holding.
+    if method == "raise" {
+        return Err("hold the button to raise an alarm".into());
+    }
+    agent(&st)
+        .await?
+        .call(&method, params)
+        .await
+        .map_err(|e| e.message)
+}
+
+#[tauri::command]
+async fn setup_practice(
+    app: AppHandle,
+    st: State<'_, Shared>,
+    name: String,
+    label: String,
+    passphrase: String,
+    kit_path: String,
+) -> Result<Value, String> {
+    let dir = st.data_dir.clone();
+    let kit = paths::expand(Path::new(kit_path.trim()));
+    let p = tauri::async_runtime::spawn_blocking(move || {
+        muster_agent::setup::init_practice(&dir, &name, label.trim(), &passphrase, &kit)
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)?;
+    start_agent(&app).await?;
+    Ok(json!({
+        "practice": p.name,
+        "practice_id": p.practice_id,
+        "root_pub": p.root_pub,
+        "recovery_kit": p.recovery_kit.display().to_string(),
+    }))
+}
+
+#[tauri::command]
+async fn join_with_token(
+    app: AppHandle,
+    st: State<'_, Shared>,
+    token: String,
+) -> Result<(), String> {
+    let t = token.trim().to_owned();
+    muster_proto::Token::parse(&t)
+        .map_err(|e| format!("That is not a valid enrolment code: {e}"))?;
+    {
+        let mut c = st.config.lock().await;
+        c.enrolment.token = Some(t);
+        c.enrolment.token_file = None;
+    }
+    let r = start_agent(&app).await;
+    // The token is used once; do not keep it in memory.
+    st.config.lock().await.enrolment.token = None;
+    r
+}
+
+#[tauri::command]
+async fn create_token(st: State<'_, Shared>, days: u64, label: String) -> Result<Value, String> {
+    let dir = st.data_dir.clone();
+    let relays = st.config.lock().await.network.relay_urls.clone();
+    let t = tauri::async_runtime::spawn_blocking(move || {
+        muster_agent::setup::create_enrolment_token(
+            &dir,
+            &muster_agent::setup::TokenOptions {
+                days,
+                label,
+                relay_urls: relays,
+                seed_peers: Vec::new(),
+            },
+        )
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)?;
+    Ok(json!({"token_id": t.token_id, "expires_at": t.expires_at, "text": t.text}))
+}
+
+#[tauri::command]
+async fn set_room(st: State<'_, Shared>, room: String) -> Result<(), String> {
+    let room = room.trim().to_owned();
+    agent(&st)
+        .await?
+        .call("device.set_room", json!({ "room": room }))
+        .await
+        .map_err(|e| e.message)?;
+    // Remember it for the next start.
+    let path = user_file(&st.data_dir);
+    let mut doc: toml::Table = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_default();
+    let device = doc
+        .entry("device")
+        .or_insert_with(|| toml::Value::Table(Default::default()));
+    if let toml::Value::Table(t) = device {
+        t.insert("room".into(), toml::Value::String(room.clone()));
+    }
+    std::fs::write(&path, toml::to_string(&doc).map_err(err)?).map_err(err)?;
+    st.config.lock().await.device.room = Some(room);
+    Ok(())
+}
+
+#[tauri::command]
+fn play_test_sound(st: State<'_, Shared>, pattern: Option<String>) {
+    let p = match pattern.as_deref() {
+        Some("B") => SoundPattern::B,
+        Some("C") => SoundPattern::C,
+        _ => SoundPattern::A,
+    };
+    st.audio.send(Cmd::Test(p));
+}
+
+#[tauri::command]
+fn show_window(app: AppHandle, label: String) {
+    match label.as_str() {
+        "main" => windows::show_main(&app),
+        "panel" => windows::show_panel(&app),
+        "alert" => windows::show_alert(&app),
+        "button" => windows::show_button(&app),
+        _ => {}
+    }
+}
+
+#[tauri::command]
+fn hide_window(app: AppHandle, label: String) {
+    if let Some(w) = app.get_webview_window(&label) {
+        let _ = w.hide();
+    }
+}
+
+#[tauri::command]
+fn quit(app: AppHandle, st: State<'_, Shared>) -> Result<(), String> {
+    if !st.allow_quit {
+        return Err("Quitting is turned off by your practice".into());
+    }
+    app.exit(0);
+    Ok(())
+}
+
+/// Tray: the status line, and admin-only items enabled to match.
+async fn refresh_tray(app: &AppHandle) {
+    let st = app.state::<Shared>();
+    let Some(h) = st.agent.lock().await.clone() else {
+        return;
+    };
+    let Ok(s) = h.call("status", json!({})).await else {
+        return;
+    };
+    let summary = s["summary"].as_str().unwrap_or("Starting").to_owned();
+    let admin = s["admin"].as_bool().unwrap_or(false);
+    if let Some(items) = app.try_state::<TrayItems>() {
+        let _ = items.status.set_text(&summary);
+        let _ = items.drill.set_enabled(admin);
+    }
+    if let Some(t) = app.tray_by_id("muster") {
+        let _ = t.set_tooltip(Some(format!("Muster - {summary}")));
+    }
+}
+
+struct TrayItems {
+    status: MenuItem<tauri::Wry>,
+    drill: MenuItem<tauri::Wry>,
+}
+
+fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
+    let status = MenuItem::with_id(app, "status", "Starting...", false, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open Muster", true, None::<&str>)?;
+    let mv = MenuItem::with_id(app, "move", "Move button", true, None::<&str>)?;
+    let drill = MenuItem::with_id(app, "drill", "Run a test alarm", false, None::<&str>)?;
+    let about = MenuItem::with_id(app, "about", "About and source", true, None::<&str>)?;
+    let sep = PredefinedMenuItem::separator(app)?;
+    let menu = Menu::with_items(app, &[&status, &sep, &open, &mv, &drill, &about])?;
+    if allow_quit {
+        let q = MenuItem::with_id(app, "quit", "Quit Muster", true, None::<&str>)?;
+        menu.append(&q)?;
+    }
+    let mut b = TrayIconBuilder::with_id("muster")
+        .menu(&menu)
+        .tooltip("Muster")
+        .on_menu_event(|app, e| match e.id().as_ref() {
+            "open" => windows::show_main(app),
+            "about" => {
+                windows::show_main(app);
+                let _ = app.emit("muster-nav", "about");
+            }
+            "move" => {
+                let _ = app.emit("muster-move", ());
+            }
+            "drill" => {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    let st = app.state::<Shared>();
+                    if let Some(h) = st.agent.lock().await.clone() {
+                        let _ = h.call("drill.run", json!({})).await;
+                    }
+                });
+            }
+            "quit" => {
+                let _ = app.emit("muster-nav", "quit");
+                windows::show_main(app);
+            }
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        b = b.icon(icon.clone());
+    }
+    b.build(app)?;
+    app.manage(TrayItems { status, drill });
+    Ok(())
+}
+
+pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_env("MUSTER_LOG")
+                .unwrap_or_else(|_| "info".into()),
+        )
+        .with_writer(std::io::stderr)
+        .init();
+    let custom_dir = env_path("MUSTER_DATA_DIR");
+    let data_dir = custom_dir
+        .clone()
+        .unwrap_or_else(|| paths::default_data_dir(false));
+    let control_socket = env_path("MUSTER_CONTROL_SOCKET")
+        .unwrap_or_else(|| paths::default_control_socket(&data_dir));
+    let config = match load_config(&data_dir) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("configuration: {e:#}");
+            ConfigFile::default()
+        }
+    };
+    let allow_quit = config.ui.allow_quit.unwrap_or(false) || custom_dir.is_some();
+    let (audio, audio_ok) = Audio::start();
+    let mut builder = tauri::Builder::default();
+    if custom_dir.is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            windows::show_main(app);
+        }));
+    }
+    let token_configured =
+        config.enrolment.token.is_some() || config.enrolment.token_file.is_some();
+    let result = builder
+        .manage(Shared {
+            data_dir: data_dir.clone(),
+            control_socket,
+            config: Mutex::new(config),
+            allow_quit,
+            agent: Mutex::new(None),
+            audio,
+            audio_ok,
+        })
+        .invoke_handler(tauri::generate_handler![
+            app_info,
+            agent_call,
+            setup_practice,
+            join_with_token,
+            create_token,
+            set_room,
+            play_test_sound,
+            show_window,
+            hide_window,
+            quit,
+        ])
+        .setup(move |app| {
+            let handle = app.handle().clone();
+            build_tray(&handle, allow_quit)?;
+            let enrolled = muster_agent::setup::is_enrolled(&data_dir).unwrap_or(false);
+            windows::create_all(&handle, !enrolled)?;
+            if enrolled || token_configured {
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = start_agent(&h).await {
+                        tracing::error!("agent: {e}");
+                        let _ = h.emit("muster-error", e);
+                        windows::show_main(&h);
+                    }
+                });
+            }
+            Ok(())
+        })
+        .on_window_event(|w, e| {
+            // Closing a window hides it: Muster keeps running so alarms
+            // still arrive.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = e {
+                api.prevent_close();
+                let _ = w.hide();
+            }
+        })
+        .run(tauri::generate_context!());
+    if let Err(e) = result {
+        tracing::error!("Muster could not start: {e}");
+        std::process::exit(1);
+    }
+}

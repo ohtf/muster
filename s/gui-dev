@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#
+# Run the desktop app in development: Vite with hot reload plus the Tauri
+# shell. Installs frontend packages on first use.
+#
+#   s/gui-dev
+#   MUSTER_DATA_DIR=/tmp/a MUSTER_CONFIG=/tmp/a.toml s/gui-dev
+#                                   (a throwaway practice; see docs/gui/)
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)/apps/desktop"
+
+[[ -d node_modules ]] || npm ci
+exec npx tauri dev "$@"

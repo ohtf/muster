@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# Check the desktop app: frontend types and build, then clippy and tests for
+# the Tauri crate (needs WebKitGTK and libsoup development files on Linux).
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+(cd apps/desktop && { [[ -d node_modules ]] || npm ci; } && npm run check && npm run build)
+cargo clippy -p muster-desktop --all-targets -- -D warnings
+exec cargo test -p muster-desktop "$@"

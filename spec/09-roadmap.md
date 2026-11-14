@@ -49,8 +49,8 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M4 Desktop app
 
-- [ ] **R30 - Tauri 2 + Svelte 5 app** embedding the agent: floating button, hold ring and cue, sender panel, receiver alert window, tray, status, main window (status, history, settings), first run, practice run.
-- [ ] **R31 - Generated sounds** (CC0).
+- [~] **R30 - Tauri 2 + Svelte 5 app** embedding the agent: floating button, hold ring and cue, sender panel, receiver alert window, tray, status, main window (status, history, settings), first run, practice run. Prototype working end to end on Linux (`docs/gui/`). Still to do: join by approval code, global shortcut, button position memory, eslint and prettier checks.
+- [~] **R31 - Generated sounds** (CC0). Synthesised at run time in `apps/desktop/src-tauri/src/audio.rs` (hold cue, patterns A to C, drill chime), so there are no audio files; needs a listening check on real speakers.
 - [ ] **R32 - Platform modules**: Windows audio endpoint (status and override), session detection, DPAPI; macOS Local Network detection; Linux Wayland fallbacks.
 - [ ] **R33 - M4 exit**: manual run-through of every screen on all three OSes. Accessibility check (keyboard only, screen reader labels, contrast).
 

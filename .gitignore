@@ -43,3 +43,6 @@ dist/
 /playwright-report
 /blob-report
 /test-results
+
+# Tauri generated schemas
+apps/desktop/src-tauri/gen/

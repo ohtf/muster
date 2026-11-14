@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Muster windows: events from the agent, and moving or hiding their own window.",
+  "windows": ["button", "panel", "alert", "main"],
+  "permissions": [
+    "core:event:default",
+    "core:window:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-size"
+  ]
+}
