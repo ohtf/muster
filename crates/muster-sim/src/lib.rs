@@ -4,3 +4,8 @@
 //! Muster deterministic network simulator and property tests.
 
 #![forbid(unsafe_code)]
+
+pub mod practice;
+pub mod world;
+
+pub use world::{NodeSpec, Segment, UserModel, World, WorldEvent, WorldSpec};

@@ -26,3 +26,11 @@ unwrap_used = "warn"
 muster-proto = { path = "crates/muster-proto" }
 muster-crypto = { path = "crates/muster-crypto" }
 muster-core = { path = "crates/muster-core" }
+
+# Crypto-heavy tests and the simulator are much faster with optimised
+# dependencies.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

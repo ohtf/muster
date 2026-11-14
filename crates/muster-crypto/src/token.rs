@@ -30,6 +30,8 @@ pub struct TokenRequest {
     pub relay_urls: Vec<String>,
     pub seed_peers: Vec<String>,
     pub network: NetworkOverrides,
+    /// The admin's chain up to but not including the root (raw certs).
+    pub issuer_chain: Vec<Vec<u8>>,
 }
 
 /// Creates a token: issues an enroller cert (signed by the admin device) for
@@ -75,6 +77,7 @@ pub fn create_token(
         network: req.network,
         token_id: req.token_id,
         expires_at: req.expires_at,
+        issuer_chain: req.issuer_chain,
     };
     Ok((token, cert))
 }

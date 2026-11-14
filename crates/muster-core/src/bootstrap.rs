@@ -84,6 +84,9 @@ pub fn enrol_with_token_state(
 ) -> Result<PersistedState, CryptoError> {
     let serial = CertSerial(rng.bytes());
     let cert = enrol_with_token(token, device, label, serial, now)?;
+    let mut certs = token.issuer_chain.clone();
+    certs.push(token.enroller_cert.clone());
+    certs.push(cert.to_cbor());
     Ok(PersistedState {
         practice: Some(PracticeInfo {
             practice_id: token.practice_id,
@@ -91,7 +94,7 @@ pub fn enrol_with_token_state(
             name: token.practice_name.clone(),
         }),
         own_serial: Some(serial),
-        certs: vec![token.enroller_cert.clone(), cert.to_cbor()],
+        certs,
         group_keys: vec![StoredGroupKey {
             epoch: token.epoch,
             key: GroupKey::from_bytes(token.group_key),

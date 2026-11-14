@@ -75,6 +75,7 @@ pub(crate) struct Reflood {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Pending {
+    pub sender: DeviceId,
     pub bytes: Vec<u8>,
     pub path: PathKind,
     pub from: Option<SocketAddrV4>,
@@ -168,6 +169,12 @@ pub struct Core {
     pub(crate) interfaces: Vec<InterfaceInfo>,
     pub(crate) discovered: BTreeMap<SocketAddrV4, Mono>,
     pub(crate) sync_sent: BTreeMap<DeviceId, Mono>,
+    pub(crate) cert_sync_sent: BTreeMap<DeviceId, Mono>,
+    /// Peers whose last heartbeat had a different state digest.
+    pub(crate) sd_mismatch: BTreeSet<DeviceId>,
+    pub(crate) cert_wanted: BTreeMap<DeviceId, (Mono, recv::Arrival)>,
+    pub(crate) last_announce: Option<Mono>,
+    pub(crate) ad_mismatch: BTreeSet<DeviceId>,
     pub(crate) keyshare_sent: BTreeMap<DeviceId, Mono>,
     pub(crate) skew_logged: BTreeSet<DeviceId>,
 
@@ -186,6 +193,7 @@ pub struct Core {
     pub(crate) next_prune: Mono,
     pub(crate) started_at: Mono,
     pub(crate) last_input: Option<Mono>,
+    pub(crate) last_wall: WallMs,
     pub(crate) status: Option<StatusView>,
     pub(crate) few_admins_warned: Option<usize>,
     pub(crate) diagnostics: BTreeMap<DropReason, u64>,
@@ -246,6 +254,11 @@ impl Core {
             interfaces: Vec::new(),
             discovered: BTreeMap::new(),
             sync_sent: BTreeMap::new(),
+            cert_sync_sent: BTreeMap::new(),
+            sd_mismatch: BTreeSet::new(),
+            cert_wanted: BTreeMap::new(),
+            last_announce: None,
+            ad_mismatch: BTreeSet::new(),
             keyshare_sent: BTreeMap::new(),
             skew_logged: BTreeSet::new(),
             audio: None,
@@ -262,6 +275,7 @@ impl Core {
             next_prune: Mono::ZERO,
             started_at: Mono::ZERO,
             last_input: None,
+            last_wall: 0,
             status: None,
             few_admins_warned: None,
             diagnostics: BTreeMap::new(),
@@ -328,6 +342,7 @@ impl Core {
     /// Feeds one input; returns the effects the runtime must perform, in
     /// order.
     pub fn handle(&mut self, now: Mono, wall: WallMs, input: Input) -> Vec<Output> {
+        self.last_wall = wall;
         if let Some(state) = self.restore.take() {
             self.started_at = now;
             self.restore_state(now, wall, state);
@@ -486,7 +501,8 @@ impl Core {
     /// sync with relays and a few direct peers.
     pub(crate) fn on_wake(&mut self, now: Mono, wall: WallMs) {
         self.next_heartbeat = now;
-        if self.practice.is_some() {
+        if self.practice.is_some() && self.last_announce.is_none_or(|t| now.since(t) >= SECOND) {
+            self.last_announce = Some(now);
             self.send_cert_announce(now, wall);
             self.send_wake_sync(now, wall, false);
         }
@@ -533,6 +549,9 @@ impl Core {
             self.run_refloods(now);
             self.run_event_retx(now);
             self.run_drills(now, wall);
+            if !self.cert_wanted.is_empty() {
+                self.run_cert_requests(now, wall);
+            }
         }
         self.expire_pending(now);
         if now >= self.next_prune {
@@ -581,6 +600,7 @@ impl Core {
         self.known_has
             .retain(|id, _| self.processed.contains_key(id));
         self.sync_sent.retain(|_, t| now.since(*t) <= HOUR);
+        self.cert_sync_sent.retain(|_, t| now.since(*t) <= HOUR);
         self.keyshare_sent.retain(|_, t| now.since(*t) <= HOUR);
         self.discovered.retain(|_, t| now.since(*t) <= HOUR);
         self.join_requests

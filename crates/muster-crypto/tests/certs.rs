@@ -409,6 +409,7 @@ fn token_enrolment_end_to_end() {
             relay_urls: vec![],
             seed_peers: vec![],
             network: Default::default(),
+            issuer_chain: vec![],
         },
     )
     .expect("creates");

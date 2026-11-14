@@ -15,3 +15,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+muster-core.workspace = true
+muster-crypto.workspace = true
+muster-proto.workspace = true
+rand_chacha = "0.10"
+
+[dev-dependencies]
+proptest = "1"

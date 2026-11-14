@@ -146,10 +146,14 @@ impl Core {
         let class = p.class(now);
         let ucast = p.unicast_targets(self.cfg.port);
         let tcp_t = p.tcp_targets();
-        for a in ucast {
-            self.udp(UdpDest::Unicast(a), envs);
+        let tcp_to = if tcp { tcp_t.first().copied() } else { None };
+        // UDP unicast too, unless TCP is going and the peer hears the LAN group.
+        if tcp_to.is_none() || class != PeerClass::LanGroup {
+            for a in ucast {
+                self.udp(UdpDest::Unicast(a), envs);
+            }
         }
-        if tcp && let Some(a) = tcp_t.first().copied() {
+        if let Some(a) = tcp_to {
             self.tcp(a, envs);
         }
         if class == PeerClass::RelayOnly {
@@ -614,6 +618,13 @@ impl Core {
                 if p.device_id == self.me || p.device_id == r.origin || has.contains(&p.device_id) {
                     continue;
                 }
+                if !self
+                    .trust
+                    .as_ref()
+                    .is_some_and(|t| t.is_member(&p.device_id, self.last_wall))
+                {
+                    continue;
+                }
                 if p.class(now) == PeerClass::UnicastOnly {
                     uni.extend(p.unicast_targets(self.cfg.port));
                     if let Some(t) = p.tcp_targets().first() {
@@ -796,10 +807,22 @@ impl Core {
             ids: vec![],
             to: None,
         };
-        let body = self.body(wall, Payload::SyncRequest(req.clone()));
-        let envs = self.seal_all(now, wall, &body);
-        self.processed.insert(body.msg_id, wall);
-        self.relay_all(&envs);
+        // Via relays: ask one present device, not everyone.
+        let present: Vec<DeviceId> = self
+            .relays
+            .values()
+            .filter(|r| r.connected)
+            .flat_map(|r| r.presence.iter().copied())
+            .collect();
+        if !present.is_empty() {
+            let i = self.rng.below_incl(present.len() as u64 - 1) as usize;
+            let mut r = req.clone();
+            r.to = Some(present[i]);
+            let body = self.body(wall, Payload::SyncRequest(r));
+            let envs = self.seal_all(now, wall, &body);
+            self.processed.insert(body.msg_id, wall);
+            self.relay_all(&envs);
+        }
         if relay_only {
             return;
         }

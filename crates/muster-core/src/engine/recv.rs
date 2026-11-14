@@ -8,9 +8,9 @@ use std::net::SocketAddrV4;
 
 use muster_crypto::{GroupKey, RevocationRecord, TrustStore, open, open_keyshare, verify_signed};
 use muster_proto::{
-    AlarmEvent, AlarmRaised, Body, Cbor, Cert, CertAnnounce, CertSerial, Envelope, EventDetail,
-    EventKind, Heartbeat, MsgId, MsgType, PathKind, Payload, PracticeConfig, PracticeId,
-    PresenceSummary, Revocation, SignedMessage, SyncRequest, SyncResponse, want,
+    AlarmEvent, AlarmRaised, Body, Cbor, Cert, CertAnnounce, CertSerial, DeviceId, Envelope,
+    EventDetail, EventKind, Heartbeat, MsgId, MsgType, PathKind, Payload, PracticeConfig,
+    PracticeId, PresenceSummary, Revocation, SignedMessage, SyncRequest, SyncResponse, want,
 };
 
 use super::{AlarmEntry, ConfigMsg, Core, JoinReq, Pending, Reflood};
@@ -148,9 +148,10 @@ impl Core {
         {
             self.known_has.entry(id).or_default().insert(d);
         }
-        // An origin retransmitting means it may not have our receipt: send
-        // it again, rate-limited (ADR 0013).
-        if let Some(e) = self.alarms.get(&id)
+        // An origin unicasting a retransmission to us means it lacks our
+        // receipt: send it again directly, rate-limited (ADR 0013).
+        if matches!(a.path, PathKind::UdpUnicast | PathKind::Tcp)
+            && let Some(e) = self.alarms.get(&id)
             && let Some(env) = e.receipt_env.clone()
             && e.last_receipt_send
                 .is_none_or(|t| now.since(t) >= RECEIPT_RESEND_MIN)
@@ -163,7 +164,6 @@ impl Core {
             if let Some(o) = origin {
                 self.send_direct(now, &o, std::slice::from_ref(&env), true);
             }
-            self.send_lan_group(&[env]);
         }
         let _ = wall;
     }
@@ -238,33 +238,82 @@ impl Core {
     }
 
     fn hold_pending(&mut self, now: Mono, wall: WallMs, bytes: &[u8], a: Arrival, body: &Body) {
-        if self.pending.len() >= 1000 {
-            return self.drop_msg(DropReason::RateLimited);
+        // Record the path now (the signature and group key check out), so the
+        // peer is classed correctly once its cert arrives.
+        if body.msg_type() == MsgType::Heartbeat {
+            self.peers.heard(body.sender, a.path, a.from, now, wall);
         }
-        if self.pending.iter().any(|p| p.bytes == bytes) {
+        // Heartbeats and presence are repeated anyway: only ask for certs.
+        let keep = !matches!(
+            body.msg_type(),
+            MsgType::Heartbeat | MsgType::PresenceSummary | MsgType::SyncRequest
+        );
+        if keep {
+            if self.pending.len() >= 1000 {
+                self.drop_msg(DropReason::RateLimited);
+            } else if !self.pending.iter().any(|p| p.bytes == bytes) {
+                self.pending.push(Pending {
+                    sender: body.sender,
+                    bytes: bytes.to_vec(),
+                    path: a.path,
+                    from: a.from,
+                    relay: a.relay,
+                    until: now + PENDING_CERT_WAIT,
+                });
+            }
+        }
+        // Certs usually arrive by flooding within moments, so wait before
+        // asking (alarms ask at once).
+        let urgent = matches!(body.msg_type(), MsgType::AlarmRaised | MsgType::AlarmEvent);
+        let first = self.cert_wanted.entry(body.sender).or_insert((now, a)).0;
+        if !urgent && now.since(first) < CERT_REQUEST_DELAY {
             return;
         }
-        self.pending.push(Pending {
-            bytes: bytes.to_vec(),
-            path: a.path,
-            from: a.from,
-            relay: a.relay,
-            until: now + PENDING_CERT_WAIT,
-        });
-        // Ask the source for certs.
+        self.request_certs(now, wall, body.sender, a);
+    }
+
+    pub(crate) fn request_certs(&mut self, now: Mono, wall: WallMs, sender: DeviceId, a: Arrival) {
+        if self
+            .cert_sync_sent
+            .get(&sender)
+            .is_some_and(|t| now.since(*t) < SYNC_RATE_LIMIT)
+        {
+            return;
+        }
+        self.cert_sync_sent.insert(sender, now);
         let req = SyncRequest {
             want: want::CERTS | want::REVOCATIONS,
             since: None,
             ids: vec![],
-            to: Some(body.sender),
+            to: Some(sender),
         };
         self.send_sync_request_via(now, wall, req, a);
     }
 
+    /// Asks for certs of senders still unknown after the delay.
+    pub(crate) fn run_cert_requests(&mut self, now: Mono, wall: WallMs) {
+        let Some(t) = &self.trust else { return };
+        self.cert_wanted
+            .retain(|d, _| !t.is_member(d, wall) && !t.is_device_revoked(d));
+        let due: Vec<(DeviceId, Arrival)> = self
+            .cert_wanted
+            .iter()
+            .filter(|(_, (t0, _))| now.since(*t0) >= CERT_REQUEST_DELAY)
+            .map(|(d, (_, a))| (*d, *a))
+            .collect();
+        for (d, a) in due {
+            self.request_certs(now, wall, d, a);
+        }
+    }
+
     /// Re-runs pending messages after new certs arrive.
     pub(crate) fn retry_pending(&mut self, now: Mono, wall: WallMs) {
-        let pending = std::mem::take(&mut self.pending);
-        for p in pending {
+        let Some(trust) = &self.trust else { return };
+        let (ready, waiting): (Vec<Pending>, Vec<Pending>) = std::mem::take(&mut self.pending)
+            .into_iter()
+            .partition(|p| trust.is_member(&p.sender, wall) || trust.is_device_revoked(&p.sender));
+        self.pending = waiting;
+        for p in ready {
             let h = env_hash(&p.bytes);
             self.env_seen.remove(&h);
             let before = self.pending.len();
@@ -302,11 +351,25 @@ impl Core {
         }
         let (my_ad, my_sd) = self.heartbeat_digests(wall);
         let mut w = 0;
+        // Digests differ transiently while messages are in flight, so sync
+        // only when a mismatch persists for two heartbeats. Retransmission
+        // and re-flooding deliver alarms; this is the backstop.
         if ad != my_ad {
-            w |= want::OPEN_ALARMS | want::RECENT_ALARM_EVENTS;
+            if !self.ad_mismatch.insert(sender) {
+                w |= want::OPEN_ALARMS | want::RECENT_ALARM_EVENTS;
+            }
+        } else {
+            self.ad_mismatch.remove(&sender);
         }
+        // State (certs, revocations, config) converges by flooding; only
+        // sync if the mismatch persists for two heartbeats. Alarm state
+        // mismatches sync at once.
         if sd != my_sd {
-            w |= want::CERTS | want::REVOCATIONS | want::CONFIG | want::KEYSHARES_FOR_ME;
+            if !self.sd_mismatch.insert(sender) {
+                w |= want::CERTS | want::REVOCATIONS | want::CONFIG | want::KEYSHARES_FOR_ME;
+            }
+        } else {
+            self.sd_mismatch.remove(&sender);
         }
         if w != 0
             && self
@@ -701,6 +764,26 @@ impl Core {
             return;
         }
         let jitter = self.rng.below_incl(REFLOOD_JITTER);
+        // A single-interface device that got the message by multicast or
+        // broadcast shares that segment with the sender, so every neighbour
+        // got the same copy: re-flooding there only guards against loss,
+        // which the origin's retransmissions also cover. Re-flood on the LAN
+        // with probability about 3 / (LAN-group peers) so a big flat LAN
+        // does not multiply every message (P7, ADR 0013). Multi-homed
+        // devices, and copies that arrived by unicast, TCP or relay, always
+        // re-flood.
+        let mut suppressed = false;
+        if self.interfaces.len() <= 1 && matches!(a.path, PathKind::Multicast | PathKind::Broadcast)
+        {
+            let lan = self
+                .peers
+                .iter()
+                .filter(|p| p.class(now) == crate::peers::PeerClass::LanGroup)
+                .count() as u64;
+            if lan > REFLOOD_LAN_TARGET && self.rng.below_incl(lan - 1) >= REFLOOD_LAN_TARGET {
+                suppressed = true;
+            }
+        }
         self.refloods.insert(
             msg_id,
             Reflood {
@@ -709,7 +792,7 @@ impl Core {
                 envelopes: vec![bytes.to_vec()],
                 first_from: a.from,
                 arrived_via_relay: a.path == PathKind::Relay,
-                suppressed: false,
+                suppressed,
                 origin,
             },
         );

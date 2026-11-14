@@ -33,8 +33,8 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 - [~] **R17 - Core: revocation and rotation.**
 - [~] **R18 - Core: drills.**
 - [~] **R19 - Core: practice config.**
-- [ ] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
-- [ ] **R21 - Simulator scenarios S1 to S17.**
+- [x] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
+- [x] **R21 - Simulator scenarios S1 to S17.**
 - [ ] **R22 - Simulator properties P1 to P12.**
 - [ ] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 10,000 cases in one nightly run. **Do not start M4 until this passes.**
 

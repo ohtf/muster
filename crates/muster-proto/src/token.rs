@@ -9,6 +9,8 @@
 //! 8: relay_urls, 9: seed_peers, 10: network overrides, 11: token_id,
 //! 12: expires_at}`.
 //!
+//! Key 13 (extension) carries the enroller's issuer chain.
+//!
 //! Network overrides (key 10) are `{0: port, 1: multicast_group bstr(4),
 //! 2: multicast_ttl}`, every entry optional.
 
@@ -87,6 +89,10 @@ pub struct Token {
     pub network: NetworkOverrides,
     pub token_id: TokenId,
     pub expires_at: u64,
+    /// Key 13 (extension): raw certs from the enroller cert's issuer up to
+    /// but not including the root, so a newly enrolled device can validate
+    /// its own chain before it hears from an admin.
+    pub issuer_chain: Vec<Vec<u8>>,
 }
 
 impl Drop for Token {
@@ -166,7 +172,7 @@ fn text_list(w: &mut Writer, v: &[String]) {
 
 impl Cbor for Token {
     fn encode(&self, w: &mut Writer) {
-        w.map(13);
+        w.map(if self.issuer_chain.is_empty() { 13 } else { 14 });
         w.u64(0).u64(self.version);
         w.u64(1).bytes(&self.practice_id.0);
         w.u64(2).text(&self.practice_name);
@@ -183,6 +189,12 @@ impl Cbor for Token {
         self.network.encode(w);
         w.u64(11).bytes(&self.token_id.0);
         w.u64(12).u64(self.expires_at);
+        if !self.issuer_chain.is_empty() {
+            w.u64(13).array(self.issuer_chain.len());
+            for c in &self.issuer_chain {
+                w.bytes(c);
+            }
+        }
     }
 
     fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
@@ -199,6 +211,7 @@ impl Cbor for Token {
         let mut net = None;
         let mut tid = None;
         let mut exp = None;
+        let mut chain = None;
         let list = |r: &mut Reader<'_>| r.array_of(64, |r| r.text_max(limits::CONFIG_STRING_MAX));
         let mapped = r.map(|k, r| {
             match k {
@@ -215,6 +228,10 @@ impl Cbor for Token {
                 10 => net = Some(NetworkOverrides::decode(r)?),
                 11 => tid = Some(TokenId::decode(r)?),
                 12 => exp = Some(r.u64()?),
+                13 => {
+                    chain =
+                        Some(r.array_of(limits::CERT_CHAIN_MAX, |r| Ok(r.bytes(4096)?.to_vec()))?)
+                }
                 _ => return Ok(false),
             }
             Ok(true)
@@ -234,6 +251,7 @@ impl Cbor for Token {
                 network: net.take().unwrap_or_default(),
                 token_id: req(tid, 11)?,
                 expires_at: req(exp, 12)?,
+                issuer_chain: chain.take().unwrap_or_default(),
             })
         };
         let out = mapped.and_then(|()| result());
@@ -270,6 +288,7 @@ mod tests {
             },
             token_id: TokenId([6; 16]),
             expires_at: 1_800_000_000_000,
+            issuer_chain: vec![vec![0xa0]],
         }
     }
 

@@ -53,6 +53,8 @@ pub const PEER_FORGET: u64 = 7 * DAY;
 pub const PRESENCE_INTERVAL: u64 = 60 * SECOND;
 pub const ALARM_MAX_LIFE: u64 = 60 * MINUTE;
 pub const REFLOOD_JITTER: u64 = 150;
+/// Expected number of LAN re-floods per message on a flat segment (ADR 0013).
+pub const REFLOOD_LAN_TARGET: u64 = 3;
 pub const SYNC_RATE_LIMIT: u64 = 30 * SECOND;
 pub const PENDING_CERT_WAIT: u64 = 30 * SECOND;
 pub const EPOCH_GRACE: u64 = 7 * DAY;
@@ -88,6 +90,8 @@ pub const RETRANSMIT_SLOW_EVERY: u64 = 10 * SECOND;
 pub const TCP_RESEND: [u64; 2] = [2 * SECOND, 10 * SECOND];
 /// UDP retransmission offsets for alarm events (ADR 0013).
 pub const EVENT_RETRANSMIT: [u64; 3] = [250, 1000, 3000];
+/// Wait this long for a flooded cert before asking for it.
+pub const CERT_REQUEST_DELAY: u64 = 2 * SECOND;
 /// Minimum gap between re-sending our receipt for the same alarm.
 pub const RECEIPT_RESEND_MIN: u64 = SECOND;
 

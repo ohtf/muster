@@ -132,6 +132,12 @@ impl TrustStore {
     /// Adds a cert after checking its signature and practice id. Returns its
     /// serial, and whether it was new.
     pub fn add_cert(&mut self, cert: Cert) -> Result<(CertSerial, bool), CryptoError> {
+        // Exactly this cert is already stored (and was verified then).
+        if let Ok(b) = cert.body()
+            && self.certs.get(&b.serial).is_some_and(|s| s.cert == cert)
+        {
+            return Ok((b.serial, false));
+        }
         let body = verify_cert_signature(&cert)?;
         if body.practice_id != self.practice_id {
             return Err(CryptoError::Cert(CertError::WrongPractice));
