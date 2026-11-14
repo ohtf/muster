@@ -19,7 +19,8 @@ pub struct StatusInputs {
     pub own_revoked: bool,
     pub have_group_key: bool,
     pub remote_session_disabled: bool,
-    /// Other devices with valid membership certs.
+    /// Certs known for subjects other than this device (other members,
+    /// admins or enrolment tokens). Zero means a single-device practice.
     pub other_members: usize,
     /// Peers reachable by a LAN path in the last PEER_STALE.
     pub direct: usize,

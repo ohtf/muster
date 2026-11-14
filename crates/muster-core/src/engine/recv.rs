@@ -138,10 +138,11 @@ impl Core {
         // Re-flood suppression: someone else covered this segment.
         if matches!(a.path, PathKind::Multicast | PathKind::Broadcast)
             && let Some(r) = self.refloods.get_mut(&id)
-            && a.from.is_some()
-            && a.from != r.first_from
         {
-            r.suppressed = true;
+            r.heard_lan = true;
+            if a.from.is_some() && a.from != r.first_from && !r.repeat {
+                r.suppressed = true;
+            }
         }
         if let Some(from) = a.from
             && let Some(d) = self.peers.by_udp_addr(&from)
@@ -191,8 +192,16 @@ impl Core {
         if self.processed.contains_key(&body.msg_id) {
             return self.on_duplicate(now, wall, body.msg_id, a);
         }
-        // Certificate check. Self-authenticating content is exempt.
-        let exempt = matches!(t, MsgType::CertAnnounce | MsgType::SyncResponse);
+        // Certificate check. Self-authenticating content is exempt, as is a
+        // request for certs and revocations only: answering it reveals
+        // nothing a group-key holder could not already see, and without it
+        // two devices that each lack the other's cert would deadlock.
+        let cert_request = matches!(
+            &body.payload,
+            Payload::SyncRequest(r)
+                if r.ids.is_empty() && r.want & !(want::CERTS | want::REVOCATIONS) == 0
+        );
+        let exempt = matches!(t, MsgType::CertAnnounce | MsgType::SyncResponse) || cert_request;
         if !exempt {
             let Some(trust) = &self.trust else { return };
             if !trust.is_member(&body.sender, wall) {
@@ -238,22 +247,32 @@ impl Core {
     }
 
     fn hold_pending(&mut self, now: Mono, wall: WallMs, bytes: &[u8], a: Arrival, body: &Body) {
+        // Not processed yet: a later copy (by sync, say) must not be taken
+        // for a duplicate.
+        self.env_seen.remove(&env_hash(bytes));
         // Record the path now (the signature and group key check out), so the
         // peer is classed correctly once its cert arrives.
         if body.msg_type() == MsgType::Heartbeat {
             self.peers.heard(body.sender, a.path, a.from, now, wall);
         }
-        // Heartbeats and presence are repeated anyway: only ask for certs.
+        // Keep only the latest heartbeat per sender (its addresses matter if
+        // the path it came by fails before the next one); drop repeated
+        // presence and sync requests.
         let keep = !matches!(
             body.msg_type(),
-            MsgType::Heartbeat | MsgType::PresenceSummary | MsgType::SyncRequest
+            MsgType::PresenceSummary | MsgType::SyncRequest
         );
+        if body.msg_type() == MsgType::Heartbeat {
+            self.pending
+                .retain(|p| !(p.sender == body.sender && p.heartbeat));
+        }
         if keep {
             if self.pending.len() >= 1000 {
                 self.drop_msg(DropReason::RateLimited);
             } else if !self.pending.iter().any(|p| p.bytes == bytes) {
                 self.pending.push(Pending {
                     sender: body.sender,
+                    heartbeat: body.msg_type() == MsgType::Heartbeat,
                     bytes: bytes.to_vec(),
                     path: a.path,
                     from: a.from,
@@ -265,7 +284,10 @@ impl Core {
         // Certs usually arrive by flooding within moments, so wait before
         // asking (alarms ask at once).
         let urgent = matches!(body.msg_type(), MsgType::AlarmRaised | MsgType::AlarmEvent);
-        let first = self.cert_wanted.entry(body.sender).or_insert((now, a)).0;
+        // Remember when we first wanted it, but ask by the latest path.
+        let entry = self.cert_wanted.entry(body.sender).or_insert((now, a));
+        entry.1 = a;
+        let first = entry.0;
         if !urgent && now.since(first) < CERT_REQUEST_DELAY {
             return;
         }
@@ -273,21 +295,32 @@ impl Core {
     }
 
     pub(crate) fn request_certs(&mut self, now: Mono, wall: WallMs, sender: DeviceId, a: Arrival) {
-        if self
+        // Back off 5 s, 10 s, 20 s, then every 30 s: a lost request on a
+        // lossy link must not leave a device unheard for long.
+        if let Some((t, n)) = self.cert_sync_sent.get(&sender).copied() {
+            let gap = ((5 * SECOND) << n.min(3)).min(SYNC_RATE_LIMIT);
+            if now.since(t) < gap {
+                return;
+            }
+        }
+        let attempts = self
             .cert_sync_sent
             .get(&sender)
-            .is_some_and(|t| now.since(*t) < SYNC_RATE_LIMIT)
-        {
-            return;
-        }
-        self.cert_sync_sent.insert(sender, now);
+            .map(|(_, n)| n + 1)
+            .unwrap_or(0);
+        self.cert_sync_sent.insert(sender, (now, attempts));
+        // Ask whoever passed the message on. Only a request broadcast via a
+        // relay needs a named responder; the signer has its own cert.
         let req = SyncRequest {
             want: want::CERTS | want::REVOCATIONS,
             since: None,
             ids: vec![],
-            to: Some(sender),
+            to: (a.path == PathKind::Relay).then_some(sender),
+            alarm_digest: None,
         };
         self.send_sync_request_via(now, wall, req, a);
+        // And introduce ourselves the same way, in case they lack our cert.
+        self.send_own_chain_via(now, wall, a);
     }
 
     /// Asks for certs of senders still unknown after the delay.
@@ -354,8 +387,14 @@ impl Core {
         // Digests differ transiently while messages are in flight, so sync
         // only when a mismatch persists for two heartbeats. Retransmission
         // and re-flooding deliver alarms; this is the backstop.
+        // Peers off the LAN group are few and their links are the ones that
+        // lose messages, so they sync at the first mismatch.
+        let lan = self
+            .peers
+            .get(&sender)
+            .is_some_and(|p| p.class(now) == crate::peers::PeerClass::LanGroup);
         if ad != my_ad {
-            if !self.ad_mismatch.insert(sender) {
+            if !self.ad_mismatch.insert(sender) || !lan {
                 w |= want::OPEN_ALARMS | want::RECENT_ALARM_EVENTS;
             }
         } else {
@@ -371,11 +410,16 @@ impl Core {
         } else {
             self.sd_mismatch.remove(&sender);
         }
+        let limit = if lan {
+            SYNC_RATE_LIMIT
+        } else {
+            SYNC_RATE_LIMIT_NON_LAN
+        };
         if w != 0
             && self
                 .sync_sent
                 .get(&sender)
-                .is_none_or(|t| now.since(*t) >= SYNC_RATE_LIMIT)
+                .is_none_or(|t| now.since(*t) >= limit)
         {
             self.sync_sent.insert(sender, now);
             let req = SyncRequest {
@@ -383,6 +427,7 @@ impl Core {
                 since: None,
                 ids: vec![],
                 to: Some(sender),
+                alarm_digest: Some(my_ad),
             };
             self.send_sync_request_to(now, wall, sender, req);
         }
@@ -421,7 +466,7 @@ impl Core {
         if quiet {
             return;
         }
-        let (age, skewed) = alarm::alarm_age(body.created_at, wall);
+        let (_, skewed) = alarm::alarm_age(body.created_at, wall);
         if skewed && !entry.skew_logged {
             entry.skew_logged = true;
             self.log(AuditEvent::ClockSkew {
@@ -429,17 +474,14 @@ impl Core {
                 ahead_ms: body.created_at - wall,
             });
         }
-        let closed = self
-            .alarms
-            .get(&id)
-            .is_some_and(|e| e.msgs.derive().closed.is_some());
-        let expired = age > ALARM_MAX_LIFE;
-        // Send first, then persist (`spec/02-architecture.md`, Runtime).
-        if !expired && !closed {
-            self.send_receipt(now, wall, id, body.sender, p.drill, a.path);
-        }
-        if MsgType::AlarmRaised.floods() && a.path != PathKind::Sync {
+        // Re-flood, including raises first learned by sync while the alarm
+        // is live: our LAN neighbours may have missed it too.
+        let live = alarm::alarm_age(body.created_at, wall).0 <= ALARM_MAX_LIFE;
+        if a.path != PathKind::Sync || live {
             self.schedule_reflood(now, id, bytes, a, body.sender);
+            if let Some(r) = self.refloods.get_mut(&id) {
+                r.repeats_left = REFLOOD_REPEAT.len();
+            }
         }
         self.persist(PersistOp::AddAlarmEnvelope {
             alarm_id: id,
@@ -451,6 +493,30 @@ impl Core {
             origin: body.sender,
             path: a.path,
         });
+        if let Some(d) = self.deferred_raises.as_mut() {
+            // Inside a sync response: decide once every envelope is applied,
+            // so a raise listed before its Resolved event does not alert.
+            d.push((id, a.path));
+            return;
+        }
+        self.after_raise(now, wall, id, a.path);
+    }
+
+    /// Receipt, alert or history for a newly known raise.
+    pub(crate) fn after_raise(&mut self, now: Mono, wall: WallMs, id: MsgId, path: PathKind) {
+        let Some(r) = self.alarms.get(&id).and_then(|e| e.msgs.raised.clone()) else {
+            return;
+        };
+        let p = r.payload.clone();
+        let (age, _) = alarm::alarm_age(r.created_at, wall);
+        let closed = self
+            .alarms
+            .get(&id)
+            .is_some_and(|e| e.msgs.derive().closed.is_some());
+        let expired = age > ALARM_MAX_LIFE;
+        if !expired && !closed {
+            self.send_receipt(now, wall, id, r.origin, p.drill, path);
+        }
         if p.drill {
             // Drills never cause a full alert (P12).
             let audible = self.cfg.drill_mode == muster_proto::DrillMode::Audible;
@@ -575,6 +641,7 @@ impl Core {
                     since: None,
                     ids: vec![id],
                     to: None,
+                    alarm_digest: None,
                 };
                 self.send_sync_request_via(now, wall, req, a);
             }
@@ -600,6 +667,36 @@ impl Core {
     ) {
         if r.to.is_some_and(|t| t != self.me) {
             return;
+        }
+        // The requester's alarm state differs from ours: they may have what
+        // we lack, so ask back.
+        if let Some(theirs) = r.alarm_digest
+            && theirs != self.heartbeat_digests(wall).0
+        {
+            let lan = self
+                .peers
+                .get(&body.sender)
+                .is_some_and(|p| p.class(now) == crate::peers::PeerClass::LanGroup);
+            let limit = if lan {
+                SYNC_RATE_LIMIT
+            } else {
+                SYNC_RATE_LIMIT_NON_LAN
+            };
+            if self
+                .sync_sent
+                .get(&body.sender)
+                .is_none_or(|t| now.since(*t) >= limit)
+            {
+                self.sync_sent.insert(body.sender, now);
+                let back = SyncRequest {
+                    want: want::OPEN_ALARMS | want::RECENT_ALARM_EVENTS,
+                    since: None,
+                    ids: vec![],
+                    to: Some(body.sender),
+                    alarm_digest: None,
+                };
+                self.send_sync_request_via(now, wall, back, a);
+            }
         }
         let mut envs: Vec<Vec<u8>> = Vec::new();
         if r.want & (want::OPEN_ALARMS | want::RECENT_ALARM_EVENTS) != 0 || !r.ids.is_empty() {
@@ -653,8 +750,17 @@ impl Core {
             // No nested sync responses.
             return;
         }
+        let outer = self.deferred_raises.is_none();
+        if outer {
+            self.deferred_raises = Some(Vec::new());
+        }
         for env in r.envelopes {
             self.receive(now, wall, &env, PathKind::Sync, a.from, a.relay, quiet);
+        }
+        if outer {
+            for (id, path) in self.deferred_raises.take().unwrap_or_default() {
+                self.after_raise(now, wall, id, path);
+            }
         }
     }
 
@@ -764,26 +870,6 @@ impl Core {
             return;
         }
         let jitter = self.rng.below_incl(REFLOOD_JITTER);
-        // A single-interface device that got the message by multicast or
-        // broadcast shares that segment with the sender, so every neighbour
-        // got the same copy: re-flooding there only guards against loss,
-        // which the origin's retransmissions also cover. Re-flood on the LAN
-        // with probability about 3 / (LAN-group peers) so a big flat LAN
-        // does not multiply every message (P7, ADR 0013). Multi-homed
-        // devices, and copies that arrived by unicast, TCP or relay, always
-        // re-flood.
-        let mut suppressed = false;
-        if self.interfaces.len() <= 1 && matches!(a.path, PathKind::Multicast | PathKind::Broadcast)
-        {
-            let lan = self
-                .peers
-                .iter()
-                .filter(|p| p.class(now) == crate::peers::PeerClass::LanGroup)
-                .count() as u64;
-            if lan > REFLOOD_LAN_TARGET && self.rng.below_incl(lan - 1) >= REFLOOD_LAN_TARGET {
-                suppressed = true;
-            }
-        }
         self.refloods.insert(
             msg_id,
             Reflood {
@@ -792,8 +878,11 @@ impl Core {
                 envelopes: vec![bytes.to_vec()],
                 first_from: a.from,
                 arrived_via_relay: a.path == PathKind::Relay,
-                suppressed,
+                suppressed: false,
                 origin,
+                repeats_left: 0,
+                repeat: false,
+                heard_lan: matches!(a.path, PathKind::Multicast | PathKind::Broadcast),
             },
         );
     }
@@ -953,6 +1042,7 @@ impl Core {
             at: body.created_at,
         });
         self.revocation_envs.insert(body.msg_id, bytes.to_vec());
+        self.revocation_epochs.insert(r.new_epoch);
         if !added || quiet {
             return;
         }

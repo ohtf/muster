@@ -71,11 +71,17 @@ pub(crate) struct Reflood {
     pub arrived_via_relay: bool,
     pub suppressed: bool,
     pub origin: DeviceId,
+    /// Re-floods of alarm raises repeat on bridge paths (ADR 0013).
+    pub repeats_left: usize,
+    pub repeat: bool,
+    /// Heard by multicast or broadcast (so the LAN segment has it).
+    pub heard_lan: bool,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Pending {
     pub sender: DeviceId,
+    pub heartbeat: bool,
     pub bytes: Vec<u8>,
     pub path: PathKind,
     pub from: Option<SocketAddrV4>,
@@ -169,11 +175,15 @@ pub struct Core {
     pub(crate) interfaces: Vec<InterfaceInfo>,
     pub(crate) discovered: BTreeMap<SocketAddrV4, Mono>,
     pub(crate) sync_sent: BTreeMap<DeviceId, Mono>,
-    pub(crate) cert_sync_sent: BTreeMap<DeviceId, Mono>,
+    pub(crate) cert_sync_sent: BTreeMap<DeviceId, (Mono, u32)>,
     /// Peers whose last heartbeat had a different state digest.
     pub(crate) sd_mismatch: BTreeSet<DeviceId>,
     pub(crate) cert_wanted: BTreeMap<DeviceId, (Mono, recv::Arrival)>,
     pub(crate) last_announce: Option<Mono>,
+    pub(crate) deferred_raises: Option<Vec<(MsgId, PathKind)>>,
+    /// Epochs announced by revocations we hold, and epochs we rotated to.
+    pub(crate) revocation_epochs: BTreeSet<u64>,
+    pub(crate) rotated_epochs: BTreeSet<u64>,
     pub(crate) ad_mismatch: BTreeSet<DeviceId>,
     pub(crate) keyshare_sent: BTreeMap<DeviceId, Mono>,
     pub(crate) skew_logged: BTreeSet<DeviceId>,
@@ -258,6 +268,9 @@ impl Core {
             sd_mismatch: BTreeSet::new(),
             cert_wanted: BTreeMap::new(),
             last_announce: None,
+            deferred_raises: None,
+            revocation_epochs: BTreeSet::new(),
+            rotated_epochs: BTreeSet::new(),
             ad_mismatch: BTreeSet::new(),
             keyshare_sent: BTreeMap::new(),
             skew_logged: BTreeSet::new(),
@@ -317,6 +330,22 @@ impl Core {
         &self.peers
     }
 
+    /// The alarm and state digests this device would put in a heartbeat now
+    /// (diagnostics and tests).
+    #[doc(hidden)]
+    pub fn digests(&self, wall: WallMs) -> ([u8; 16], [u8; 16]) {
+        self.heartbeat_digests(wall)
+    }
+
+    /// Devices known to have a message (diagnostics and tests).
+    #[doc(hidden)]
+    pub fn known_has(&self, id: &MsgId) -> Vec<DeviceId> {
+        self.known_has
+            .get(id)
+            .map(|s| s.iter().copied().collect())
+            .unwrap_or_default()
+    }
+
     pub fn diagnostics(&self) -> &BTreeMap<DropReason, u64> {
         &self.diagnostics
     }
@@ -353,6 +382,7 @@ impl Core {
             self.on_wake(now, wall);
         }
         self.last_input = Some(now);
+        self.peers.set_now(now);
         match input {
             Input::Tick => {}
             Input::Datagram { kind, from, bytes } => {
@@ -484,7 +514,12 @@ impl Core {
         let was = info.connected;
         info.connected = state == RelayLinkState::Connected;
         if !info.connected {
-            info.presence.clear();
+            // We know at once that these devices are no longer reachable
+            // through this relay (FR-STS-003).
+            let gone: Vec<DeviceId> = std::mem::take(&mut info.presence).into_iter().collect();
+            for d in gone {
+                self.peers.relay_gone(&d);
+            }
         }
         if let Some(p) = presence {
             info.presence = p.into_iter().filter(|d| *d != self.me).collect();
@@ -600,7 +635,8 @@ impl Core {
         self.known_has
             .retain(|id, _| self.processed.contains_key(id));
         self.sync_sent.retain(|_, t| now.since(*t) <= HOUR);
-        self.cert_sync_sent.retain(|_, t| now.since(*t) <= HOUR);
+        self.cert_sync_sent
+            .retain(|_, (t, _)| now.since(*t) <= HOUR);
         self.keyshare_sent.retain(|_, t| now.since(*t) <= HOUR);
         self.discovered.retain(|_, t| now.since(*t) <= HOUR);
         self.join_requests
@@ -640,7 +676,9 @@ impl Core {
             Some(t) => {
                 let valid = t.is_member(&self.me, wall);
                 let revoked = t.is_device_revoked(&self.me);
-                let others = t.members(wall).iter().filter(|d| **d != self.me).count();
+                // Any cert for another subject (member, admin or enroller)
+                // means this is not a single-device practice.
+                let others = t.certs().filter(|(_, b)| b.subject != self.me).count();
                 (valid, revoked, others)
             }
             None => (false, false, 0),

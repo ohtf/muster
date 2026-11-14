@@ -335,6 +335,7 @@ impl Core {
 
     fn rotate(&mut self, now: Mono, wall: WallMs, practice_id: PracticeId, epoch: u64) {
         let key = GroupKey::from_bytes(self.rng.bytes());
+        self.rotated_epochs.insert(epoch);
         let members: Vec<(DeviceId, [u8; 32])> = match &self.trust {
             Some(t) => t
                 .members(wall)

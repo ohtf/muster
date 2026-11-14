@@ -533,6 +533,9 @@ pub struct SyncRequest {
     /// Key 3 (extension): the device that should answer. Lets a request sent
     /// via a relay, which reaches every device, be answered by one.
     pub to: Option<DeviceId>,
+    /// Key 4 (extension): the requester's alarm digest, so a responder whose
+    /// digest differs can ask back (repair from either side).
+    pub alarm_digest: Option<[u8; 16]>,
 }
 
 impl Cbor for SyncRequest {
@@ -557,17 +560,23 @@ impl Cbor for SyncRequest {
         if let Some(to) = &self.to {
             m.entry(3, |w| to.encode(w));
         }
+        if let Some(d) = &self.alarm_digest {
+            m.entry(4, |w| {
+                w.bytes(d);
+            });
+        }
         m.write(w);
     }
 
     fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
-        let (mut want, mut since, mut ids, mut to) = (None, None, None, None);
+        let (mut want, mut since, mut ids, mut to, mut ad) = (None, None, None, None, None);
         r.map(|k, r| {
             match k {
                 0 => want = Some(r.u64()?),
                 1 => since = Some(r.u64()?),
                 2 => ids = Some(r.array_of(limits::LIST_MAX, MsgId::decode)?),
                 3 => to = Some(DeviceId::decode(r)?),
+                4 => ad = Some(r.fixed::<16>()?),
                 _ => return Ok(false),
             }
             Ok(true)
@@ -577,6 +586,7 @@ impl Cbor for SyncRequest {
             since,
             ids: ids.unwrap_or_default(),
             to,
+            alarm_digest: ad,
         })
     }
 }

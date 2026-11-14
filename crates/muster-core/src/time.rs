@@ -49,13 +49,22 @@ pub const DAY: u64 = 24 * HOUR;
 pub const HEARTBEAT_INTERVAL: u64 = 15 * SECOND;
 pub const HEARTBEAT_JITTER: u64 = 2 * SECOND;
 pub const PEER_STALE: u64 = 45 * SECOND;
+/// After two missed heartbeats, unicast to every advertised address of a
+/// peer, not just the one it was last heard from (the path may have broken).
+pub const ADDRESS_FALLBACK_AFTER: u64 = 2 * (HEARTBEAT_INTERVAL + HEARTBEAT_JITTER);
 pub const PEER_FORGET: u64 = 7 * DAY;
 pub const PRESENCE_INTERVAL: u64 = 60 * SECOND;
 pub const ALARM_MAX_LIFE: u64 = 60 * MINUTE;
 pub const REFLOOD_JITTER: u64 = 150;
+/// Gaps between repeats of an alarm raise re-flooded across a bridge
+/// (ADR 0013): +0.5 s, +1.5 s, +3 s after the first re-flood.
+pub const REFLOOD_REPEAT: [u64; 3] = [500, 1000, 1500];
 /// Expected number of LAN re-floods per message on a flat segment (ADR 0013).
 pub const REFLOOD_LAN_TARGET: u64 = 3;
 pub const SYNC_RATE_LIMIT: u64 = 30 * SECOND;
+/// Peers off the LAN group (unicast-only, relay-only) are few and on the
+/// lossy links, so they may sync more often (ADR 0013).
+pub const SYNC_RATE_LIMIT_NON_LAN: u64 = 10 * SECOND;
 pub const PENDING_CERT_WAIT: u64 = 30 * SECOND;
 pub const EPOCH_GRACE: u64 = 7 * DAY;
 pub const DRILL_AUTO_CLOSE: u64 = 60 * SECOND;

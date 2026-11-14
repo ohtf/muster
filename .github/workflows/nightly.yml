@@ -13,9 +13,18 @@ env:
 
 jobs:
   properties:
-    name: Simulator properties (10,000 cases)
+    name: Property ${{ matrix.test }} (10,000 cases)
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - p1_p3_p4_p5_p8_p10_p11_p12_random_worlds
+          - p9_clock_skew_up_to_10_minutes
+          - p2_p11_attacks
+          - p6_revocation
+          - p7_bounded_traffic
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -24,9 +33,25 @@ jobs:
         shell: bash
         run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo test --workspace --all-features --release
+      - run: cargo test --release -p muster-sim --test properties -- --exact "$TEST"
         env:
           PROPTEST_CASES: "10000"
+          TEST: ${{ matrix.test }}
+
+  full-scale:
+    name: S13 at 250 devices
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo test --release -p muster-sim --test scenarios s13
+        env:
           MUSTER_FULL_SCALE: "1"
 
   fuzz:

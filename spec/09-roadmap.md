@@ -23,24 +23,24 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M2 Core and simulator
 
-- [~] **R10 - Core: peers and path tracking, heartbeats.**
-- [~] **R11 - Core: alarm raise and receive pipeline**, re-flood with suppression, receipts.
-- [~] **R12 - Core: alarm state merge and expiry.**
-- [~] **R13 - Core: hold machine** (FR-ACT-002, FR-ACT-005, FR-ACT-008, FR-ACT-009).
-- [~] **R14 - Core: status computation** (FR-STS-003).
-- [~] **R15 - Core: anti-entropy** (digests, SyncRequest, SyncResponse).
-- [~] **R16 - Core: enrolment flows** (token and interactive).
-- [~] **R17 - Core: revocation and rotation.**
-- [~] **R18 - Core: drills.**
-- [~] **R19 - Core: practice config.**
+- [x] **R10 - Core: peers and path tracking, heartbeats.**
+- [x] **R11 - Core: alarm raise and receive pipeline**, re-flood with suppression, receipts.
+- [x] **R12 - Core: alarm state merge and expiry.**
+- [x] **R13 - Core: hold machine** (FR-ACT-002, FR-ACT-005, FR-ACT-008, FR-ACT-009).
+- [x] **R14 - Core: status computation** (FR-STS-003).
+- [x] **R15 - Core: anti-entropy** (digests, SyncRequest, SyncResponse).
+- [x] **R16 - Core: enrolment flows** (token and interactive).
+- [x] **R17 - Core: revocation and rotation.**
+- [x] **R18 - Core: drills.**
+- [x] **R19 - Core: practice config.**
 - [x] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
 - [x] **R21 - Simulator scenarios S1 to S17.**
-- [ ] **R22 - Simulator properties P1 to P12.**
-- [ ] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 10,000 cases in one nightly run. **Do not start M4 until this passes.**
+- [x] **R22 - Simulator properties P1 to P12.**
+- [~] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 10,000 cases in one nightly run. **Do not start M4 until this passes.**
 
 ### M3 Runtime, store, headless agent, CLI
 
-- [ ] **R24 - `muster-store`**: SQLite schema and migrations.
+- [~] **R24 - `muster-store`**: SQLite schema and migrations.
 - [ ] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
 - [ ] **R26 - `muster-agent`**: runtime, control API, headless binary.
 - [ ] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands.

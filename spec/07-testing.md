@@ -51,6 +51,13 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 | P11 Cancel authority | Only the origin's Cancelled closes an alarm as cancelled. A Cancelled from any other device is ignored. |
 | P12 Drill isolation | Drill alarms never cause a full alert on any node. |
 
+#### Implementation notes
+
+- The properties live in `crates/muster-sim/tests/properties.rs` and the scenarios in `crates/muster-sim/tests/scenarios.rs`. `cargo test` runs 8 cases per property; CI's property job runs 256 in release mode; the nightly workflow runs 10,000 per property. Failing seeds are saved in `crates/muster-sim/tests/properties.proptest-regressions` and replayed first on every run.
+- P1 and P8 are judged against a ground-truth reachability model (`crates/muster-sim/src/props.rs`) built from the simulated network. Devices learn addresses from heartbeats, so random worlds change topology only before 22 s and raise the first alarm at 90 s, leaving time for status (`PEER_STALE`) and address re-learning to settle. P8 is checked only once the topology has been stable for `PEER_STALE + 1 s`.
+- P3 excludes alerts resumed after a restart (ADR 0013). P7 counts first transmissions only; retransmissions are allowed on top.
+- To investigate, `cargo run --release -p muster-sim --example explore -- world 0 200 30` sweeps seeds and prints the first failing case; `CASE='<Params from the regressions file>' ... -- p4 0 0` re-runs one with diagnostics.
+
 ### Named scenarios (deterministic, always run)
 
 | ID | Scenario | Expected |

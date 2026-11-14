@@ -391,13 +391,18 @@ fn s13_large_flat_lan_all_respond() {
         node.start_at = (i as u64 * 53) % 5_000;
     }
     let mut w = World::new(s);
+    w.classify_traffic = std::env::var_os("CLASSIFY").is_some();
     w.run_until(WARMUP);
+    let before = w.counters.by_type.clone();
     let base = w.first_packets_between(WARMUP - 10_000, WARMUP);
     let t0 = w.now;
     let id = w.raise_now(0).expect("raised");
     w.run_for(10_000);
     delivered_within(&w, &id, t0, 2_000, 1..n);
     let during = w.first_packets_between(t0, t0 + 10_000);
+    for (k, v) in &w.counters.by_type {
+        eprintln!("{k}: {}", v - before.get(k).copied().unwrap_or(0));
+    }
     let alarm_packets = during.saturating_sub(base);
     // P7: no more than 10 x N first transmissions (retransmissions are
     // allowed on top), with background heartbeat traffic subtracted.

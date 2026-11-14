@@ -5,7 +5,8 @@
 #
 # Pass cargo test arguments through, for example:
 #   s/test -p muster-core
-#   PROPTEST_CASES=10000 s/test -p muster-sim   (nightly-scale property run)
+#   PROPTEST_CASES=256 s/test --release -p muster-sim --test properties
+#                                                (CI-scale property run)
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"

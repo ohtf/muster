@@ -65,7 +65,7 @@ pub fn setup(rng: &mut CoreRng, spec: &WorldSpec) -> Vec<PracticeSetup> {
         let practice = np.state.practice.clone().expect("practice");
         let group_key = np.state.group_keys[0].key.clone();
         let issuer_chain = np.state.certs.clone();
-        let (token, _enroller_cert) = create_token(
+        let (token, enroller_cert) = create_token(
             &admin,
             rng.bytes(),
             &group_key,
@@ -87,10 +87,13 @@ pub fn setup(rng: &mut CoreRng, spec: &WorldSpec) -> Vec<PracticeSetup> {
         )
         .expect("token");
         let mut states = BTreeMap::new();
-        states.insert(admin_node, (admin, np.state));
-        let admin_chain = states
+        let mut admin_state = np.state;
+        // The admin keeps the enroller cert it issued.
+        admin_state.certs.push(enroller_cert.to_cbor());
+        states.insert(admin_node, (admin, admin_state));
+        let admin_chain: Vec<Vec<u8>> = states
             .get(&admin_node)
-            .map(|(_, s)| s.certs.clone())
+            .map(|(_, s)| s.certs[..1].to_vec())
             .unwrap_or_default();
         for &m in &members[1..] {
             let keys = new_device_keys(rng);

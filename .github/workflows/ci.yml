@@ -53,6 +53,22 @@ jobs:
       - run: cargo build --workspace --all-targets --all-features
       - run: cargo test --workspace --all-features
 
+  properties:
+    name: Simulator properties (256 cases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo test --release -p muster-sim --test properties --test scenarios
+        env:
+          PROPTEST_CASES: "256"
+
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest

@@ -131,6 +131,7 @@ fn samples() -> Vec<(&'static str, Body)> {
                     since: Some(1_763_000_000_000),
                     ids: vec![MsgId([2; 16])],
                     to: Some(DeviceId([0x22; 32])),
+                    alarm_digest: Some([0x33; 16]),
                 }),
             ),
         ),

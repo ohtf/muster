@@ -389,9 +389,12 @@ impl Core {
             drill_rtt_ref: drill.then_some(alarm_id),
         });
         let envs = self.own_event(now, wall, alarm_id, EventKind::Receipt, detail);
-        // To the origin directly first, by TCP as well, then flood.
+        // To the origin directly first, by TCP as well, then flood, and
+        // retransmit like other events: the receipt is what the sender's
+        // "Delivered to N" counts.
         self.send_direct(now, &origin, &envs, true);
         self.send_flood(now, wall, &envs);
+        self.schedule_event_retx(now, envs.clone());
         if let Some(e) = self.alarms.get_mut(&alarm_id) {
             e.receipt_env = envs.first().cloned();
             e.last_receipt_send = Some(now);
@@ -474,6 +477,21 @@ impl Core {
         self.event_retx.retain(|r| !r.at.is_empty());
         for envs in due {
             self.send_lan_group(&envs);
+            // And to peers that do not hear the LAN group.
+            let mut uni: Vec<SocketAddrV4> = Vec::new();
+            for p in self.peers.iter() {
+                if p.device_id == self.me
+                    || !matches!(p.class(now), PeerClass::UnicastOnly | PeerClass::RelayOnly)
+                {
+                    continue;
+                }
+                uni.extend(p.unicast_targets(self.cfg.port));
+            }
+            uni.sort();
+            uni.dedup();
+            for a in uni {
+                self.udp(UdpDest::Unicast(a), &envs);
+            }
         }
     }
 
@@ -604,14 +622,36 @@ impl Core {
             .map(|r| r.msg_id)
             .collect();
         for id in due {
-            let Some(r) = self.refloods.remove(&id) else {
+            let Some(mut r) = self.refloods.remove(&id) else {
                 continue;
             };
             self.reflooded.insert(id, now);
-            if !r.suppressed {
+            let has = self.known_has.get(&id).cloned().unwrap_or_default();
+            let bridge = self.interfaces.len() > 1 || !r.heard_lan;
+            // A single-interface device that has heard the message on the LAN
+            // shares that segment with its sender, so every neighbour got the
+            // same copy: re-flooding there only guards against loss, which
+            // the origin's retransmissions also cover. Re-flood on the LAN
+            // with probability about 3 / (LAN-group peers), so a big flat LAN
+            // does not multiply every message (P7, ADR 0013).
+            if !r.repeat && !r.suppressed && !bridge {
+                let lan = self
+                    .peers
+                    .iter()
+                    .filter(|p| p.class(now) == PeerClass::LanGroup)
+                    .count() as u64;
+                if lan > REFLOOD_LAN_TARGET && self.rng.below_incl(lan - 1) >= REFLOOD_LAN_TARGET {
+                    r.suppressed = true;
+                }
+            }
+            // Hearing a neighbour's copy says nothing about our other
+            // segments, so a multi-homed device is never suppressed. Repeats
+            // go on the LAN only where this device bridges segments, and by
+            // UDP to unicast-only peers still lacking the message.
+            let multi_homed = self.interfaces.len() > 1;
+            if (!r.repeat && (!r.suppressed || multi_homed)) || (r.repeat && bridge) {
                 self.send_lan_group(&r.envelopes);
             }
-            let has = self.known_has.get(&id).cloned().unwrap_or_default();
             let mut uni = Vec::new();
             let mut tcps = Vec::new();
             for p in self.peers.iter() {
@@ -635,11 +675,27 @@ impl Core {
             for a in uni {
                 self.udp(UdpDest::Unicast(a), &r.envelopes);
             }
-            for a in tcps {
-                self.tcp(a, &r.envelopes);
+            if !r.repeat {
+                for a in tcps {
+                    self.tcp(a, &r.envelopes);
+                }
+                if !r.arrived_via_relay {
+                    self.relay_all(&r.envelopes);
+                }
             }
-            if !r.arrived_via_relay {
-                self.relay_all(&r.envelopes);
+            if r.repeats_left > 0 {
+                let i = REFLOOD_REPEAT.len() - r.repeats_left;
+                let closed = self
+                    .alarms
+                    .get(&id)
+                    .is_some_and(|e| e.msgs.derive().closed.is_some());
+                if !closed {
+                    let mut next = r.clone();
+                    next.repeat = true;
+                    next.repeats_left -= 1;
+                    next.at = now + REFLOOD_REPEAT[i];
+                    self.refloods.insert(id, next);
+                }
             }
         }
     }
@@ -751,7 +807,8 @@ impl Core {
         };
         let certs: Vec<Vec<u8>> = t.certs().map(|(c, _)| c.to_cbor()).collect();
         let mut out = Vec::new();
-        for chunk in certs.chunks(16) {
+        // Three certs per announce keeps each envelope inside one datagram.
+        for chunk in certs.chunks(3) {
             let body = self.body(
                 wall,
                 Payload::CertAnnounce(CertAnnounce {
@@ -790,6 +847,24 @@ impl Core {
         }
     }
 
+    /// Sends our own cert chain back the way a message arrived.
+    pub(crate) fn send_own_chain_via(&mut self, now: Mono, wall: WallMs, a: Arrival) {
+        let Some(t) = &self.trust else { return };
+        let Some(chain) = t.chain_for(&self.me, wall) else {
+            return;
+        };
+        let certs: Vec<Vec<u8>> = chain.iter().map(|c| c.to_cbor()).collect();
+        let body = self.body(wall, Payload::CertAnnounce(CertAnnounce { certs }));
+        self.processed.insert(body.msg_id, wall);
+        self.reflooded.insert(body.msg_id, now);
+        let envs: Vec<_> = self
+            .seal_all(now, wall, &body)
+            .into_iter()
+            .take(1)
+            .collect();
+        self.reply_via(now, a, &envs);
+    }
+
     // ---- Sync ---------------------------------------------------------
 
     /// After waking, a network change or a relay reconnect: sync with every
@@ -806,6 +881,7 @@ impl Core {
             since: None,
             ids: vec![],
             to: None,
+            alarm_digest: Some(self.heartbeat_digests(wall).0),
         };
         // Via relays: ask one present device, not everyone.
         let present: Vec<DeviceId> = self
@@ -860,15 +936,21 @@ impl Core {
         let Some(p) = self.peers.get(&d) else { return };
         let class = p.class(now);
         let tcp = p.tcp_targets().first().copied();
+        // TCP is trusted on the same LAN segment or once seen from them;
+        // otherwise send by UDP too, since a known port does not mean TCP
+        // is routable.
+        let tcp_trusted = p.ever_tcp || class == PeerClass::LanGroup;
         let ucast = p.unicast_targets(self.cfg.port);
-        match (class, tcp) {
-            (PeerClass::RelayOnly, _) | (_, None) => {
-                self.relay_all(&envs);
-                for a in ucast {
-                    self.udp(UdpDest::Unicast(a), &envs);
-                }
+        if class == PeerClass::RelayOnly {
+            self.relay_all(&envs);
+        }
+        if !tcp_trusted || tcp.is_none() {
+            for a in ucast {
+                self.udp(UdpDest::Unicast(a), &envs);
             }
-            (_, Some(a)) => self.tcp(a, &envs),
+        }
+        if let Some(a) = tcp {
+            self.tcp(a, &envs);
         }
     }
 
@@ -896,32 +978,34 @@ impl Core {
         self.reply_via(now, a, &envs);
     }
 
+    /// Replies the way a message arrived: relay to relay, TCP to TCP, UDP to
+    /// UDP. TCP is added for UDP arrivals only if that peer has reached us by
+    /// TCP before, since a known TCP port does not mean TCP is routable.
     fn reply_via(&mut self, now: Mono, a: Arrival, envs: &[Vec<u8>]) {
+        let Some(from) = a.from else {
+            self.relay_all(envs);
+            return;
+        };
+        if a.path == PathKind::Relay {
+            self.relay_all(envs);
+            return;
+        }
+        let peer = self.peers.by_ip(from.ip()).and_then(|d| self.peers.get(&d));
+        let tcp_port = peer.map(|p| p.tcp_port).filter(|p| *p != 0);
+        // Same LAN segment, or TCP seen from them: TCP is likely routable.
+        let tcp_seen = peer.is_some_and(|p| p.ever_tcp || p.class(now) == PeerClass::LanGroup);
+        // TCP to the address its TCP came from, if known.
+        let tcp_ip = peer.and_then(|p| p.tcp_ip).unwrap_or(*from.ip());
         match a.path {
-            PathKind::Relay => self.relay_all(envs),
+            PathKind::Tcp => {
+                let port = tcp_port.unwrap_or(self.cfg.port);
+                self.tcp(SocketAddrV4::new(*from.ip(), port), envs);
+            }
             _ => {
-                let Some(from) = a.from else {
-                    self.relay_all(envs);
-                    return;
-                };
-                // Prefer TCP to the peer's advertised port.
-                let peer = self.peers.by_ip(from.ip());
-                let tcp = peer.and_then(|d| self.peers.get(&d)).and_then(|p| {
-                    (p.tcp_port != 0).then(|| SocketAddrV4::new(*from.ip(), p.tcp_port))
-                });
-                match tcp {
-                    Some(t) => self.tcp(t, envs),
-                    None => {
-                        let to = if a.path == PathKind::Tcp {
-                            SocketAddrV4::new(*from.ip(), self.cfg.port)
-                        } else {
-                            from
-                        };
-                        self.udp(UdpDest::Unicast(to), envs);
-                        self.tcp(SocketAddrV4::new(*from.ip(), self.cfg.port), envs);
-                    }
+                self.udp(UdpDest::Unicast(from), envs);
+                if tcp_seen && let Some(port) = tcp_port {
+                    self.tcp(SocketAddrV4::new(tcp_ip, port), envs);
                 }
-                let _ = now;
             }
         }
     }
@@ -935,6 +1019,28 @@ impl Core {
         a: Arrival,
     ) {
         if envs.is_empty() {
+            return;
+        }
+        // A UDP-only route back cannot carry a wrapped response larger than a
+        // datagram: send each original envelope on its own as well. They are
+        // independently sealed and signed, so this is equivalent.
+        let relay_path = a.path == PathKind::Relay
+            || self
+                .peers
+                .get(&to)
+                .is_some_and(|p| p.class(now) == PeerClass::RelayOnly);
+        let tcp_ok = a.path == PathKind::Tcp
+            || self.peers.get(&to).is_some_and(|p| {
+                p.tcp_port != 0 && (p.ever_tcp || p.class(now) == PeerClass::LanGroup)
+            });
+        if !relay_path && !tcp_ok {
+            // Three times: these links are the lossy ones, and each envelope
+            // has no other retransmission.
+            for _ in 0..3 {
+                for e in &envs {
+                    self.reply_via(now, a, std::slice::from_ref(e));
+                }
+            }
             return;
         }
         let mut chunks: Vec<Vec<Vec<u8>>> = vec![Vec::new()];
@@ -995,6 +1101,15 @@ impl Core {
             return;
         };
         let Some(t) = &self.trust else { return };
+        // Only share an epoch whose cause we know: the revocation that
+        // rotated to it. Otherwise a KeyShare that overtook its Revocation
+        // could hand the new key to the device being revoked (P6).
+        let explained = epoch == 0
+            || self.revocation_epochs.contains(&epoch)
+            || self.rotated_epochs.contains(&epoch);
+        if !explained || t.is_device_revoked(&d) {
+            return;
+        }
         let Some(kx) = t
             .valid_certs(&d, wall)
             .iter()

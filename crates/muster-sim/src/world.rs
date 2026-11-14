@@ -280,6 +280,9 @@ pub struct World {
     pub capture: bool,
     /// Decrypt and count every packet by type (slow; for analysis).
     pub classify_traffic: bool,
+    /// Record every send by these nodes: (t, node, description).
+    pub watch: Vec<usize>,
+    pub watched: Vec<(u64, usize, String)>,
 }
 
 impl std::fmt::Debug for World {
@@ -367,6 +370,8 @@ impl World {
             captured: Vec::new(),
             capture: false,
             classify_traffic: false,
+            watch: Vec::new(),
+            watched: Vec::new(),
         };
         for i in 0..n {
             let at = w.spec.nodes[i].start_at;
@@ -541,6 +546,7 @@ impl World {
         self.handle(i, Input::SessionState(SessionState::Active));
         self.handle(i, Input::UserDisplay(format!("User {i}")));
         self.update_relays();
+        self.refresh_relay_state(i);
     }
 
     fn world_event(&mut self, e: WorldEvent) {
@@ -559,10 +565,11 @@ impl World {
                 self.update_relays();
             }
             WorldEvent::Wake(n) => {
-                if self.nodes[n].core.is_some() {
+                if self.nodes[n].core.is_some() && !self.nodes[n].awake {
                     self.nodes[n].awake = true;
                     self.handle(n, Input::Tick);
                     self.update_relays();
+                    self.refresh_relay_state(n);
                 }
             }
             WorldEvent::Crash(n) => {
@@ -707,6 +714,42 @@ impl World {
         }
     }
 
+    /// Tells a node the current state of each configured relay (the runtime
+    /// always knows whether its own sessions are up).
+    fn refresh_relay_state(&mut self, i: usize) {
+        for r in self.spec.nodes[i].relays.clone() {
+            let practice = self.spec.nodes[i].practice;
+            let connected = self.nodes[i].relay_connected[r];
+            let presence: Vec<DeviceId> = (0..self.nodes.len())
+                .filter(|j| {
+                    *j != i
+                        && self.nodes[*j].relay_connected[r]
+                        && self.spec.nodes[*j].practice == practice
+                })
+                .map(|j| self.device_id(j))
+                .collect();
+            let rid = self.relay_id(i, r);
+            let epoch = self.nodes[i].epoch;
+            let t = self.now + 1;
+            self.push(
+                t,
+                Ev::Deliver {
+                    node: i,
+                    epoch,
+                    input: Input::RelayState {
+                        relay: rid,
+                        state: if connected {
+                            RelayLinkState::Connected
+                        } else {
+                            RelayLinkState::Disconnected
+                        },
+                        presence: Some(presence),
+                    },
+                },
+            );
+        }
+    }
+
     fn relay_id(&self, node: usize, relay: usize) -> u16 {
         self.spec.nodes[node]
             .relays
@@ -786,6 +829,9 @@ impl World {
                     if let Ok(m) = muster_crypto::open(&p.group_key, &s)
                         && let Ok(b) = muster_proto::Body::from_cbor(&m.body)
                     {
+                        if let muster_proto::Payload::AlarmEvent(e) = &b.payload {
+                            return format!("AlarmEvent/{:?}/{}", e.event, b.msg_id);
+                        }
                         return format!("{:?}", b.msg_type());
                     }
                 }
@@ -794,7 +840,15 @@ impl World {
             Ok(Envelope::Open(o)) => SignedMessage::from_cbor(&o.payload)
                 .ok()
                 .and_then(|m| muster_proto::Body::from_cbor(&m.body).ok())
-                .map(|b| format!("{:?}", b.msg_type()))
+                .map(|b| match &b.payload {
+                    muster_proto::Payload::KeyShare(k) => format!(
+                        "KeyShare/to {:?}/epoch {}/from {:?}",
+                        self.node_of(&k.recipient),
+                        k.epoch,
+                        self.node_of(&b.sender)
+                    ),
+                    _ => format!("{:?}", b.msg_type()),
+                })
                 .unwrap_or_else(|| "open?".into()),
             Err(_) => "garbage".into(),
         }
@@ -815,6 +869,21 @@ impl World {
     }
 
     fn apply_output(&mut self, node: usize, o: Output) {
+        if self.watch.contains(&node) {
+            let d = match &o {
+                Output::SendDatagram { dest, bytes } => {
+                    Some(format!("udp {dest:?} {}", self.classify(bytes)))
+                }
+                Output::SendStream { to, bytes } => {
+                    Some(format!("tcp {to} {}", self.classify(bytes)))
+                }
+                Output::SendRelay { bytes, .. } => Some(format!("relay {}", self.classify(bytes))),
+                _ => None,
+            };
+            if let Some(d) = d {
+                self.watched.push((self.now, node, d));
+            }
+        }
         match o {
             Output::SendDatagram { dest, bytes } => {
                 if self.capture {
@@ -1179,6 +1248,22 @@ impl World {
             .range(a / 100..b.div_ceil(100))
             .map(|(_, n)| *n)
             .sum()
+    }
+
+    pub fn link_up(&self, node: usize, segment: usize) -> bool {
+        self.nodes[node]
+            .link_up
+            .get(segment)
+            .copied()
+            .unwrap_or(false)
+    }
+
+    pub fn relay_connected(&self, node: usize, relay: usize) -> bool {
+        self.nodes[node]
+            .relay_connected
+            .get(relay)
+            .copied()
+            .unwrap_or(false)
     }
 
     pub fn keys(&self, node: usize) -> &DeviceKeys {

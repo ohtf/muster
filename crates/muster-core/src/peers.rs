@@ -13,7 +13,7 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 
 use muster_proto::{AudioStatus, DeviceId, Heartbeat, PathKind, SessionState, StatusLevel};
 
-use crate::time::{Mono, PEER_FORGET, PEER_STALE, WallMs};
+use crate::time::{ADDRESS_FALLBACK_AFTER, Mono, PEER_FORGET, PEER_STALE, WallMs};
 
 /// Path indices.
 const MCAST: usize = 0;
@@ -61,6 +61,13 @@ pub struct Peer {
     pub udp_addr: Option<SocketAddrV4>,
     pub addrs: Vec<Ipv4Addr>,
     pub tcp_port: u16,
+    /// Has ever reached us by TCP (so TCP replies are likely routable).
+    pub ever_tcp: bool,
+    /// The address its TCP connections came from: TCP to it is known to be
+    /// routable, unlike its other addresses.
+    pub tcp_ip: Option<Ipv4Addr>,
+    /// The time of the last table update, for staleness checks.
+    pub last_check: Mono,
     pub heartbeat: Option<Heartbeat>,
 }
 
@@ -75,6 +82,9 @@ impl Peer {
             udp_addr: None,
             addrs: Vec::new(),
             tcp_port: 0,
+            ever_tcp: false,
+            tcp_ip: None,
+            last_check: Mono::ZERO,
             heartbeat: None,
         }
     }
@@ -126,16 +136,27 @@ impl Peer {
         }
     }
 
-    /// Unicast UDP destinations: the observed source address, else the
-    /// advertised interface addresses on the practice port.
+    /// Unicast UDP destinations: the observed source address while it is
+    /// working; once the peer goes quiet, every advertised address too, in
+    /// case the path through the observed one has broken.
     pub fn unicast_targets(&self, port: u16) -> Vec<SocketAddrV4> {
-        if let Some(a) = self.udp_addr {
-            return vec![a];
-        }
-        self.addrs
+        let mut v: Vec<SocketAddrV4> = self.udp_addr.into_iter().collect();
+        let quiet = self
+            .heard
             .iter()
-            .map(|ip| SocketAddrV4::new(*ip, port))
-            .collect()
+            .take(4)
+            .flatten()
+            .max()
+            .is_none_or(|t| self.last_check.since(*t) > ADDRESS_FALLBACK_AFTER);
+        if v.is_empty() || quiet {
+            for ip in &self.addrs {
+                let a = SocketAddrV4::new(*ip, port);
+                if !v.contains(&a) {
+                    v.push(a);
+                }
+            }
+        }
+        v
     }
 
     /// TCP destinations.
@@ -143,8 +164,10 @@ impl Peer {
         if self.tcp_port == 0 {
             return Vec::new();
         }
-        let mut ips: Vec<Ipv4Addr> = Vec::new();
-        if let Some(a) = self.udp_addr {
+        let mut ips: Vec<Ipv4Addr> = self.tcp_ip.into_iter().collect();
+        if let Some(a) = self.udp_addr
+            && !ips.contains(a.ip())
+        {
             ips.push(*a.ip());
         }
         for ip in &self.addrs {
@@ -185,6 +208,13 @@ impl PeerTable {
         self.peers.values()
     }
 
+    /// Advances the table's notion of now (used by address selection).
+    pub fn set_now(&mut self, now: Mono) {
+        for p in self.peers.values_mut() {
+            p.last_check = now;
+        }
+    }
+
     fn entry(&mut self, d: DeviceId) -> &mut Peer {
         self.peers.entry(d).or_insert_with(|| Peer::new(d))
     }
@@ -203,6 +233,10 @@ impl PeerTable {
             p.heard[i] = Some(now);
         }
         p.last_seen_wall = wall;
+        if path == PathKind::Tcp {
+            p.ever_tcp = true;
+            p.tcp_ip = from.map(|a| *a.ip());
+        }
         if let (Some(a), PathKind::Multicast | PathKind::Broadcast | PathKind::UdpUnicast) =
             (from, path)
         {
@@ -224,6 +258,14 @@ impl PeerTable {
 
     pub fn indirect(&mut self, d: DeviceId, now: Mono) {
         self.entry(d).indirect = Some(now);
+    }
+
+    /// A relay this device was present on disconnected.
+    pub fn relay_gone(&mut self, d: &DeviceId) {
+        if let Some(p) = self.peers.get_mut(d) {
+            p.relay_presence = None;
+            p.heard[RELAY] = None;
+        }
     }
 
     pub fn relay_present(&mut self, d: DeviceId, now: Mono) {

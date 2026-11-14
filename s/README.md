@@ -8,7 +8,8 @@ Run the full test suite, including simulator scenarios and properties.
 
 - `s/test` - everything
 - `s/test -p muster-core` - one crate
-- `PROPTEST_CASES=10000 s/test -p muster-sim` - nightly-scale property run
+- `PROPTEST_CASES=256 s/test --release -p muster-sim --test properties` - CI-scale property run
+- `PROPTEST_CASES=10000 s/test --release -p muster-sim --test properties` - nightly-scale property run
 
 ## `s/lint`
 

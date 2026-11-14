@@ -6,6 +6,8 @@
 #![forbid(unsafe_code)]
 
 pub mod practice;
+pub mod props;
 pub mod world;
+pub mod worlds;
 
 pub use world::{NodeSpec, Segment, UserModel, World, WorldEvent, WorldSpec};
