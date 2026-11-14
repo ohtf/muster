@@ -7,6 +7,7 @@ pub mod config;
 pub mod control;
 pub mod paths;
 pub mod runtime;
+pub mod setup;
 pub mod views;
 
 pub use runtime::{AgentError, AgentHandle, AgentOptions, run, start};
