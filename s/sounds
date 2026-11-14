@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Regenerate the built-in alarm and drill sounds in sounds/ (CC0) from the
+# synthesiser in apps/desktop/src-tauri/src/audio.rs. Commit the result;
+# a test checks the files match the generator.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+exec cargo run -p muster-desktop --example generate_sounds "$@"

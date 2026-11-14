@@ -53,6 +53,10 @@ This type-checks and builds the frontend, then runs clippy and the tests for the
 
 Each view also runs in an ordinary browser against a mock agent, for layout work and screenshots. Run `npm run dev` in `apps/desktop`, then open `http://localhost:1420/?view=alert&mock=alert`. Views: `button`, `panel`, `alert`, `main`. Mock scenarios: `idle`, `alert`, `sender`, `firstrun`, `amber`, `red`.
 
+## Changing the alarm sound
+
+The built-in sounds are in `sounds/` in the repository: `alarm-a.wav`, `alarm-b.wav`, `alarm-c.wav` and `drill-chime.wav`. To use a different sound on a computer, put a WAV file with the same name in the `sounds` folder of Muster's data folder. On Linux that is `~/.local/share/muster/sounds`; Settings shows the exact folder. An alarm file is looped until someone acts, so make it one short cycle. If the file cannot be read, Muster plays the built-in sound instead and logs why.
+
 ## Wayland
 
 On Wayland the app cannot place windows or keep them on top; the compositor decides. The status tab says so (`spec/05-desktop-agent.md`, Platform notes). On niri, a window rule keeps the button floating in the corner and on top:

@@ -20,7 +20,9 @@
 | Status Red | `#B91C1C` | Status: nobody reachable (square) | |
 
 - On the red button, the status dot has a 2 px Paper outline so it stays visible, and its shape (circle, triangle, square) carries the meaning without colour (NFR-ACC-001).
-- All sounds are generated programmatically. They are synthesised at run time (`apps/desktop/src-tauri/src/audio.rs`), so no audio files are committed; if files are ever needed, generate them from the same code and commit them under CC0.
+- All sounds are generated programmatically (`apps/desktop/src-tauri/src/audio.rs`, run with `s/sounds`). The alarm patterns and drill chime are committed as WAV files under CC0 in `sounds/` (`alarm-a.wav`, `alarm-b.wav`, `alarm-c.wav`, `drill-chime.wav`) and built into the app. An alarm file holds one cycle; the app loops it and applies the volume ramp.
+- A practice can replace a sound by putting a WAV file with the same name in the `sounds` folder of the data directory (for example if pattern A resembles their fire alarm). A replacement that cannot be read, or is larger than 16 MB, is logged and the built-in sound plays instead, so a bad file never silences an alarm.
+- The hold cue is synthesised at run time, because its pitch rises over the configured hold time.
 
 ## Floating button
 

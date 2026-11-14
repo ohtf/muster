@@ -152,6 +152,7 @@ export const mock = {
           room_from_policy: false,
           token_configured: false,
           home_dir: "/home/user",
+          sounds_dir: "~/.local/share/muster/sounds",
         };
       case "setup_practice":
         await new Promise((r) => setTimeout(r, 1500));

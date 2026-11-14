@@ -71,6 +71,7 @@ export interface AppInfo {
   room_from_policy: boolean;
   token_configured: boolean;
   home_dir: string;
+  sounds_dir: string;
 }
 
 export type SenderPhase = "requested" | "delivered" | "not_yet_delivered" | "could_not_reach";

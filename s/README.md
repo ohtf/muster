@@ -37,6 +37,12 @@ Type-check and build the frontend, then clippy and test the Tauri crate. `s/test
 
 - `s/desktop-check`
 
+## `s/sounds`
+
+Regenerate the built-in sounds in `sounds/` from the synthesiser, then commit them. A test checks the files match.
+
+- `s/sounds`
+
 ## `s/fuzz`
 
 Run a cargo-fuzz target (needs nightly and cargo-fuzz).

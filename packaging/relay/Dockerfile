@@ -11,6 +11,9 @@ ENV RUSTUP_TOOLCHAIN=1.100.0
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
+# A workspace member: cargo needs its manifest and sources to load the
+# workspace, though only the relay is built.
+COPY apps/desktop/src-tauri apps/desktop/src-tauri
 RUN cargo build --release --locked -p muster-relay \
  && mkdir -p /out/var/lib/muster-relay /out/etc/muster-relay \
  && cp target/release/muster-relay /out/muster-relay

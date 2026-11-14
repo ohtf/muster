@@ -265,6 +265,10 @@ settings, admin and about; or first run if this computer is not set up.
             <dd>Pattern {cfg?.sound_pattern ?? "A"}</dd>
           </dl>
           <p class="muted">Your Practice Admin sets these for the whole practice.</p>
+          <p class="muted">
+            To use a different sound on this computer, put a WAV file named <code>alarm-a.wav</code> (or
+            <code>alarm-b.wav</code>, <code>alarm-c.wav</code>) in <code>{info?.sounds_dir}</code>.
+          </p>
         </section>
       {:else if tab === "admin" && status?.admin}
         {#if joins.length}

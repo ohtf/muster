@@ -9,7 +9,7 @@
 //! `MUSTER_DATA_DIR`, `MUSTER_CONFIG` and `MUSTER_CONTROL_SOCKET`. With
 //! `MUSTER_DATA_DIR` set, the single-instance check is skipped.
 
-mod audio;
+pub mod audio;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -182,6 +182,7 @@ struct AppInfo {
     room_from_policy: bool,
     token_configured: bool,
     home_dir: String,
+    sounds_dir: String,
 }
 
 #[tauri::command]
@@ -201,6 +202,7 @@ async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
             .unwrap_or(false),
         token_configured: cfg.enrolment.token.is_some() || cfg.enrolment.token_file.is_some(),
         home_dir: paths::expand(Path::new("~")).display().to_string(),
+        sounds_dir: st.data_dir.join("sounds").display().to_string(),
     })
 }
 
@@ -442,7 +444,7 @@ pub fn run() {
         }
     };
     let allow_quit = config.ui.allow_quit.unwrap_or(false) || custom_dir.is_some();
-    let (audio, audio_ok) = Audio::start();
+    let (audio, audio_ok) = Audio::start(data_dir.join("sounds"));
     let mut builder = tauri::Builder::default();
     if custom_dir.is_none() {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
