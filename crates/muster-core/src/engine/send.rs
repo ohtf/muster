@@ -939,7 +939,7 @@ impl Core {
         // TCP is trusted on the same LAN segment or once seen from them;
         // otherwise send by UDP too, since a known port does not mean TCP
         // is routable.
-        let tcp_trusted = p.ever_tcp || class == PeerClass::LanGroup;
+        let tcp_trusted = p.tcp_trusted(now);
         let ucast = p.unicast_targets(self.cfg.port);
         if class == PeerClass::RelayOnly {
             self.relay_all(&envs);
@@ -993,7 +993,7 @@ impl Core {
         let peer = self.peers.by_ip(from.ip()).and_then(|d| self.peers.get(&d));
         let tcp_port = peer.map(|p| p.tcp_port).filter(|p| *p != 0);
         // Same LAN segment, or TCP seen from them: TCP is likely routable.
-        let tcp_seen = peer.is_some_and(|p| p.ever_tcp || p.class(now) == PeerClass::LanGroup);
+        let tcp_seen = peer.is_some_and(|p| p.tcp_trusted(now));
         // TCP to the address its TCP came from, if known.
         let tcp_ip = peer.and_then(|p| p.tcp_ip).unwrap_or(*from.ip());
         match a.path {
@@ -1030,9 +1030,10 @@ impl Core {
                 .get(&to)
                 .is_some_and(|p| p.class(now) == PeerClass::RelayOnly);
         let tcp_ok = a.path == PathKind::Tcp
-            || self.peers.get(&to).is_some_and(|p| {
-                p.tcp_port != 0 && (p.ever_tcp || p.class(now) == PeerClass::LanGroup)
-            });
+            || self
+                .peers
+                .get(&to)
+                .is_some_and(|p| p.tcp_port != 0 && p.tcp_trusted(now));
         if !relay_path && !tcp_ok {
             // Three times: these links are the lossy ones, and each envelope
             // has no other retransmission.

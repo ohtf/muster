@@ -85,8 +85,18 @@ impl Core {
     ) {
         let arrival = Arrival { path, from, relay };
         let h = env_hash(bytes);
-        if let Some((id, _)) = self.env_seen.get(&h).copied() {
-            // Exactly the same envelope again: already verified.
+        if let Some((id, tracker, _)) = self.env_seen.get(&h).copied() {
+            // Exactly the same envelope again: already verified. A duplicate
+            // still updates path tracking (`spec/03-protocol.md`, step 3).
+            if let Some(sender) = tracker
+                && sender != self.me
+                && self
+                    .trust
+                    .as_ref()
+                    .is_some_and(|t| t.is_member(&sender, wall))
+            {
+                self.peers.heard(sender, path, from, now, wall);
+            }
             self.on_duplicate(now, wall, id, arrival);
             return;
         }
@@ -115,7 +125,12 @@ impl Core {
                     Err(_) => return self.drop_msg(DropReason::BadSignature),
                 };
                 let _ = epoch;
-                self.env_seen.insert(h, (body.msg_id, now));
+                let tracker = matches!(
+                    body.msg_type(),
+                    MsgType::Heartbeat | MsgType::PresenceSummary
+                )
+                .then_some(body.sender);
+                self.env_seen.insert(h, (body.msg_id, tracker, now));
                 self.on_body(now, wall, body, bytes, arrival, quiet);
             }
             Envelope::Open(o) => {
@@ -127,7 +142,7 @@ impl Core {
                     Ok(b) => b,
                     Err(_) => return self.drop_msg(DropReason::BadSignature),
                 };
-                self.env_seen.insert(h, (body.msg_id, now));
+                self.env_seen.insert(h, (body.msg_id, None, now));
                 self.on_open(now, wall, o.practice_id, body, bytes, arrival, quiet);
             }
         }

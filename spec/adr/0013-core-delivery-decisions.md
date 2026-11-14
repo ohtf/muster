@@ -28,9 +28,11 @@ Building `muster-core` and the simulator exposed gaps and tensions in `spec/03-p
 17. **Address fallback.** After two missed heartbeats, unicast goes to every advertised address of a peer, not just the one it was last heard from.
 18. **Key shares only for an explained epoch.** A device shares epoch E with a stale peer only if it holds the revocation that rotated to E (or did the rotation itself). Otherwise a KeyShare that overtook its Revocation could hand the new key to the device being revoked (P6).
 19. **Relay disconnects take effect at once.** Devices seen only through a relay stop counting as reachable the moment that relay session drops, not `PEER_STALE` later.
+20. **Duplicate copies update path tracking.** A byte-identical heartbeat or presence summary arriving again by another path (for example LAN after the relay copy) is not re-verified or re-processed, but still marks its sender as heard on that path. Otherwise a relay faster than the LAN would hide a working LAN path, and status would claim relay-only reachability. Our own messages echoed back are ignored.
+21. **TCP trust is not sticky.** TCP to a peer counts as routable only while it is on our LAN segment or has reached us by TCP within `PEER_STALE`. A network change (client isolation switched on, a device moved) can break a TCP path that once worked while UDP by another address still does. With sticky trust, both sync directions went only by the dead TCP path and a receipt count never repaired (P4).
 
 ## Consequences
 
 - All named scenarios S1 to S17 pass, including S13 at 250 devices within P7's 10 x N first transmissions.
-- Properties P1 to P12 pass over random worlds of 2 to 60 devices (see `spec/07-testing.md`). Items 12 to 19 were each found by a failing property case and are covered by the saved regression seeds.
+- Properties P1 to P12 pass over random worlds of 2 to 60 devices (see `spec/07-testing.md`). Items 12 to 19 and 21 were each found by a failing property case and are covered by the saved regression seeds.
 - Items 2 and 3 change the security analysis in `spec/04-security.md` slightly; the threat model table should be reviewed with them in mind.

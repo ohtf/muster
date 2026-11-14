@@ -159,7 +159,9 @@ pub struct Core {
     pub(crate) alarms: BTreeMap<MsgId, AlarmEntry>,
     pub(crate) own_alarms: BTreeMap<MsgId, OwnAlarm>,
     pub(crate) processed: BTreeMap<MsgId, WallMs>,
-    pub(crate) env_seen: BTreeMap<[u8; 16], (MsgId, Mono)>,
+    /// Envelopes already verified: hash -> (msg id, the sender if the
+    /// message is one that tracks paths, first seen).
+    pub(crate) env_seen: BTreeMap<[u8; 16], (MsgId, Option<DeviceId>, Mono)>,
     pub(crate) pending: Vec<Pending>,
     pub(crate) refloods: BTreeMap<MsgId, Reflood>,
     pub(crate) reflooded: BTreeMap<MsgId, Mono>,
@@ -635,7 +637,7 @@ impl Core {
             }
         }
         self.env_seen
-            .retain(|_, (_, at)| now.since(*at) <= 5 * MINUTE);
+            .retain(|_, (_, _, at)| now.since(*at) <= 5 * MINUTE);
         self.reflooded.retain(|_, at| now.since(*at) <= DAY);
         self.known_has
             .retain(|id, _| self.processed.contains_key(id));

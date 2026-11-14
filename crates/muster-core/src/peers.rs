@@ -61,8 +61,6 @@ pub struct Peer {
     pub udp_addr: Option<SocketAddrV4>,
     pub addrs: Vec<Ipv4Addr>,
     pub tcp_port: u16,
-    /// Has ever reached us by TCP (so TCP replies are likely routable).
-    pub ever_tcp: bool,
     /// The address its TCP connections came from: TCP to it is known to be
     /// routable, unlike its other addresses.
     pub tcp_ip: Option<Ipv4Addr>,
@@ -82,7 +80,6 @@ impl Peer {
             udp_addr: None,
             addrs: Vec::new(),
             tcp_port: 0,
-            ever_tcp: false,
             tcp_ip: None,
             last_check: Mono::ZERO,
             heartbeat: None,
@@ -106,6 +103,14 @@ impl Peer {
         } else {
             PeerClass::Stale
         }
+    }
+
+    /// TCP to this peer is likely routable: it is on our LAN segment, or
+    /// has reached us by TCP recently. Not sticky, since a network change
+    /// (client isolation, a moved device) can break a TCP path that once
+    /// worked while UDP by another address still does.
+    pub fn tcp_trusted(&self, now: Mono) -> bool {
+        Self::fresh(self.heard[TCP], now) || self.class(now) == PeerClass::LanGroup
     }
 
     /// Reachable for status purposes: direct or via relay (not indirect).
@@ -234,7 +239,6 @@ impl PeerTable {
         }
         p.last_seen_wall = wall;
         if path == PathKind::Tcp {
-            p.ever_tcp = true;
             p.tcp_ip = from.map(|a| *a.ip());
         }
         if let (Some(a), PathKind::Multicast | PathKind::Broadcast | PathKind::UdpUnicast) =
