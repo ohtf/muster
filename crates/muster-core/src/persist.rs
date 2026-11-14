@@ -161,3 +161,73 @@ impl PersistedState {
         }
     }
 }
+
+impl PersistedState {
+    /// Operations that rebuild this state from empty (used to save the
+    /// result of a bootstrap flow through the same path as live updates).
+    pub fn to_ops(&self) -> Vec<PersistOp> {
+        let mut v = Vec::new();
+        if let Some(p) = &self.practice {
+            v.push(PersistOp::SetPractice(p.clone()));
+        }
+        if let Some(s) = self.own_serial {
+            v.push(PersistOp::SetOwnSerial(s));
+        }
+        v.extend(self.certs.iter().cloned().map(PersistOp::AddCert));
+        v.extend(
+            self.revocations
+                .iter()
+                .cloned()
+                .map(PersistOp::AddRevocation),
+        );
+        v.extend(self.group_keys.iter().cloned().map(PersistOp::AddGroupKey));
+        v.extend(self.keyshares.iter().cloned().map(PersistOp::AddKeyShare));
+        if let Some(c) = &self.config {
+            v.push(PersistOp::SetConfig(c.clone()));
+        }
+        for (id, a) in &self.alarms {
+            for (m, b) in &a.envelopes {
+                v.push(PersistOp::AddAlarmEnvelope {
+                    alarm_id: *id,
+                    msg_id: *m,
+                    bytes: b.clone(),
+                });
+            }
+            v.push(PersistOp::SetAlarmLocal {
+                alarm_id: *id,
+                local: a.local,
+            });
+        }
+        for (m, at) in &self.processed {
+            v.push(PersistOp::Processed {
+                msg_id: *m,
+                at: *at,
+            });
+        }
+        v
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_ops_rebuilds_the_state() {
+        let mut s = PersistedState::default();
+        s.apply(PersistOp::AddCert(vec![1]));
+        s.apply(PersistOp::Processed {
+            msg_id: MsgId([1; 16]),
+            at: 5,
+        });
+        s.apply(PersistOp::SetAlarmLocal {
+            alarm_id: MsgId([2; 16]),
+            local: AlarmLocal::default(),
+        });
+        let mut t = PersistedState::default();
+        for op in s.to_ops() {
+            t.apply(op);
+        }
+        assert_eq!(s, t);
+    }
+}

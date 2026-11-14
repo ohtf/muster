@@ -1,6 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
 
-//! The muster admin and diagnostics command-line tool.
+use clap::Parser;
 
-fn main() {}
+#[allow(unsafe_code)]
+fn reset_sigpipe() {
+    #[cfg(unix)]
+    // SAFETY: called once at start-up, before any threads exist; restoring the
+    // default SIGPIPE disposition lets output pipe cleanly into `head`.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+}
+
+fn main() -> anyhow::Result<()> {
+    reset_sigpipe();
+    muster_cli::run(muster_cli::Cli::parse())
+}

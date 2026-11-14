@@ -74,7 +74,16 @@ fn ack_from(c: i64) -> Option<LocalAck> {
 impl Store {
     /// Opens (creating if needed) the database at `path`.
     pub fn open(path: &Path) -> Result<Self> {
-        Self::init(Connection::open(path)?)
+        let s = Self::init(Connection::open(path)?)?;
+        // Holds key material: owner-only (the WAL and shared-memory files
+        // inherit the database's mode).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .map_err(|_| StoreError::Corrupt("cannot restrict database permissions"))?;
+        }
+        Ok(s)
     }
 
     /// An in-memory database, for tests and the simulator.

@@ -326,6 +326,11 @@ impl Core {
         self.current.as_ref().map(|(e, _)| *e)
     }
 
+    /// The practice tag of the current epoch (for mDNS advertising).
+    pub fn practice_tag(&self) -> Option<PracticeTag> {
+        self.current.as_ref().map(|(_, k)| k.tag())
+    }
+
     pub fn peers(&self) -> &PeerTable {
         &self.peers
     }

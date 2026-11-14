@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Build the release agent and CLI, then run the network-namespace
+# integration scenarios (tests/netns/run.sh) against them. Linux only.
+#
+#   s/netns-test          all scenarios
+#   s/netns-test s1 s7    some of them
+#
+# Runs rootless where the kernel allows unprivileged user namespaces;
+# otherwise run it with sudo (as CI does). KEEP=1 keeps logs.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+cargo build --release -p muster-agent -p muster-cli
+exec tests/netns/run.sh "$@"

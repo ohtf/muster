@@ -17,6 +17,13 @@ Run rustfmt, clippy, cargo-deny and `reuse lint`, as CI does.
 
 - `s/lint`
 
+## `s/netns-test`
+
+Build the release binaries and run the network-namespace scenarios (Linux).
+
+- `s/netns-test` - all scenarios
+- `KEEP=1 s/netns-test s7` - one scenario, keeping logs
+
 ## `s/fuzz`
 
 Run a cargo-fuzz target (needs nightly and cargo-fuzz).

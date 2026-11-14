@@ -1,0 +1,368 @@
+// SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+//! The agent runtime: one task owns the [`Core`], feeds it inputs from the
+//! network drivers, the control API and timers, and performs its outputs
+//! (`spec/02-architecture.md`, Runtime).
+
+use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+use muster_core::bootstrap::{enrol_with_token_state, new_device_keys};
+use muster_core::io::{AlarmView, Input, Output, UiEvent, UserAction};
+use muster_core::persist::PersistedState;
+use muster_core::rng::CoreRng;
+use muster_core::{Core, Identity, Mono};
+use muster_net::{Net, NetConfig};
+use muster_proto::{AudioStatus, DeviceId, MsgId, SessionState, Source, Token};
+use muster_store::Store;
+use serde_json::{Value, json};
+use tokio::sync::{broadcast, mpsc};
+
+use crate::config::ConfigFile;
+use crate::control::{self, Request, RpcError};
+
+#[derive(Debug, thiserror::Error)]
+pub enum AgentError {
+    #[error("store: {0}")]
+    Store(#[from] muster_store::StoreError),
+    #[error("network: {0}")]
+    Net(#[from] muster_net::NetError),
+    #[error("enrolment token: {0}")]
+    Token(String),
+    #[error("I/O: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("random number generator unavailable")]
+    Rng,
+}
+
+#[derive(Debug, Clone)]
+pub struct AgentOptions {
+    pub data_dir: PathBuf,
+    pub control_socket: PathBuf,
+    pub config: ConfigFile,
+    /// Allow `raise` over the control API (test builds, headless, or policy
+    /// `allow_cli_raise`).
+    pub allow_raise: bool,
+    pub label: String,
+}
+
+pub fn os_seed() -> Result<[u8; 32], AgentError> {
+    let mut s = [0u8; 32];
+    getrandom::fill(&mut s).map_err(|_| AgentError::Rng)?;
+    Ok(s)
+}
+
+fn wall_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// Opens the store, loads or creates the identity, and enrols with a token
+/// if one is configured and the device is not yet enrolled.
+pub fn prepare(opts: &AgentOptions) -> Result<(Store, Identity, PersistedState), AgentError> {
+    std::fs::create_dir_all(&opts.data_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&opts.data_dir, std::fs::Permissions::from_mode(0o700))?;
+    }
+    let mut store = Store::open(&opts.data_dir.join("muster.db"))?;
+    let mut rng = CoreRng::from_seed(os_seed()?);
+    let keys = match store.load_identity()? {
+        Some(k) => k,
+        None => {
+            let k = new_device_keys(&mut rng);
+            store.save_identity(&k)?;
+            tracing::info!("created device identity {}", k.device_id());
+            k
+        }
+    };
+    let mut state = store.load()?;
+    if state.practice.is_none() {
+        let token_text = match (
+            &opts.config.enrolment.token,
+            &opts.config.enrolment.token_file,
+        ) {
+            (Some(t), _) => Some(t.clone()),
+            (None, Some(path)) => match std::fs::read_to_string(path) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    tracing::warn!("cannot read token file {}: {e}", path.display());
+                    None
+                }
+            },
+            (None, None) => None,
+        };
+        if let Some(text) = token_text {
+            let token = Token::parse(&text).map_err(|e| AgentError::Token(e.to_string()))?;
+            let enrolled = enrol_with_token_state(&mut rng, &keys, &token, &opts.label, wall_now())
+                .map_err(|e| AgentError::Token(e.to_string()))?;
+            store.apply_all(enrolled.to_ops().iter())?;
+            state = store.load()?;
+            tracing::info!("enrolled in {} with token", token.practice_name);
+            // Blank the token where we can (`spec/04-security.md`, flow B).
+            if let Some(path) = &opts.config.enrolment.token_file
+                && std::fs::write(path, b"").is_err()
+            {
+                tracing::info!(
+                    "could not blank {}; it remains valid until it expires",
+                    path.display()
+                );
+            }
+        }
+    }
+    Ok((store, Identity { keys }, state))
+}
+
+struct Runtime {
+    core: Core,
+    store: Store,
+    net: Net,
+    start: Instant,
+    events: broadcast::Sender<UiEvent>,
+    allow_raise: bool,
+    audit_failures: u64,
+}
+
+impl Runtime {
+    fn now(&self) -> Mono {
+        Mono(self.start.elapsed().as_millis() as u64)
+    }
+
+    fn handle(&mut self, input: Input) {
+        let now = self.now();
+        let outs = self.core.handle(now, wall_now(), input);
+        for o in outs {
+            self.output(o);
+        }
+        if self.core.needs_reseed()
+            && let Ok(s) = os_seed()
+        {
+            self.core.reseed(s);
+        }
+        self.net.set_mdns_tag(self.core.practice_tag().map(|t| t.0));
+    }
+
+    fn output(&mut self, o: Output) {
+        match &o {
+            Output::SendDatagram { .. } | Output::SendStream { .. } => self.net.send(&o),
+            Output::SendRelay { .. } => {
+                // Relay client: milestone M6.
+            }
+            Output::Persist(op) => {
+                if let Err(e) = self.store.apply(op) {
+                    tracing::error!("persist failed: {e}");
+                }
+            }
+            Output::Ui(e) => {
+                tracing::debug!("ui: {e:?}");
+                let _ = self.events.send(e.clone());
+            }
+            Output::Audio(a) => tracing::info!("audio: {a:?}"),
+            Output::SetSystemVolumeOverride(on) => tracing::info!("volume override: {on}"),
+            Output::Log(e) => {
+                if self.store.audit(wall_now(), e).is_err() {
+                    self.audit_failures += 1;
+                }
+            }
+        }
+    }
+
+    fn control(&mut self, req: Request) {
+        let r = self.dispatch(&req.method, &req.params);
+        let _ = req.reply.send(r);
+    }
+
+    fn dispatch(&mut self, method: &str, p: &Value) -> Result<Value, RpcError> {
+        let alarm = |p: &Value| -> Result<MsgId, RpcError> {
+            p.get("alarm_id")
+                .and_then(Value::as_str)
+                .and_then(MsgId::from_hex)
+                .ok_or_else(|| RpcError::invalid_params("alarm_id (32 hex characters) required"))
+        };
+        let device = |p: &Value| -> Result<DeviceId, RpcError> {
+            p.get("device")
+                .and_then(Value::as_str)
+                .and_then(DeviceId::from_hex)
+                .ok_or_else(|| RpcError::invalid_params("device (64 hex characters) required"))
+        };
+        let wall = wall_now();
+        match method {
+            "status" => Ok(crate::views::status(&self.core, self.now(), wall)),
+            "peers" => Ok(crate::views::peers(&self.core, self.now(), wall)),
+            "alarms" => Ok(Value::Array(
+                self.core
+                    .alarm_views(wall)
+                    .iter()
+                    .map(crate::views::alarm)
+                    .collect(),
+            )),
+            "diagnostics" => Ok(crate::views::diagnostics(&self.core, self.audit_failures)),
+            "raise" => {
+                if !self.allow_raise {
+                    return Err(RpcError::refused(
+                        "raising from the control API is disabled (policy allow_cli_raise)",
+                    ));
+                }
+                self.handle(Input::User(UserAction::RaiseNow {
+                    source: Source::Cli,
+                }));
+                let own = self
+                    .core
+                    .alarm_views(wall)
+                    .into_iter()
+                    .filter(|v| v.own && !v.drill)
+                    .max_by_key(|v| v.raised_at);
+                Ok(own.map(|v| crate::views::alarm(&v)).unwrap_or(Value::Null))
+            }
+            "respond" => self.user(UserAction::Respond {
+                alarm_id: alarm(p)?,
+            }),
+            "seen" => self.user(UserAction::Seen {
+                alarm_id: alarm(p)?,
+            }),
+            "resolve" => self.user(UserAction::Resolve {
+                alarm_id: alarm(p)?,
+            }),
+            "cancel" => self.user(UserAction::Cancel {
+                alarm_id: alarm(p)?,
+            }),
+            "drill.run" => self.user(UserAction::RunDrill),
+            "admin.revoke" => self.user(UserAction::Revoke {
+                device: device(p)?,
+                cascade: p.get("cascade").and_then(Value::as_bool).unwrap_or(false),
+                reason: p
+                    .get("reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_owned(),
+            }),
+            "admin.approve_join" => self.user(UserAction::ApproveJoin { device: device(p)? }),
+            "admin.reject_join" => self.user(UserAction::RejectJoin { device: device(p)? }),
+            _ => Err(RpcError::not_found(method)),
+        }
+    }
+
+    fn user(&mut self, a: UserAction) -> Result<Value, RpcError> {
+        self.handle(Input::User(a));
+        Ok(json!({"ok": true}))
+    }
+}
+
+/// Waits for the next alert (`wait_alarm`), answered outside the core task.
+async fn wait_alarm(
+    mut rx: broadcast::Receiver<UiEvent>,
+    timeout: Duration,
+) -> Result<Value, RpcError> {
+    let r = tokio::time::timeout(timeout, async move {
+        loop {
+            match rx.recv().await {
+                Ok(UiEvent::AlarmShown { alarm, .. }) => return Ok(alarm),
+                Ok(_) => {}
+                Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => return Err(()),
+            }
+        }
+    })
+    .await;
+    match r {
+        Ok(Ok(a)) => Ok(crate::views::alarm(&a as &AlarmView)),
+        Ok(Err(())) => Err(RpcError::refused("agent stopping")),
+        Err(_) => Err(RpcError::refused("timed out waiting for an alarm")),
+    }
+}
+
+/// Runs the agent until the process is stopped.
+pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
+    let (store, identity, state) = prepare(&opts)?;
+    let local = opts.config.local_config(&opts.label);
+    let (in_tx, mut in_rx) = mpsc::channel::<Input>(4096);
+    let net = Net::start(
+        NetConfig {
+            port: opts.config.port(),
+            multicast_group: opts
+                .config
+                .network
+                .multicast_group
+                .unwrap_or_else(|| muster_proto::limits::DEFAULT_MCAST_GROUP.into()),
+            multicast_ttl: u32::from(opts.config.network.multicast_ttl.unwrap_or(1)),
+            mdns: opts.config.network.mdns.unwrap_or(true),
+        },
+        in_tx.clone(),
+    )
+    .await?;
+    if net.tcp_port() != opts.config.port() {
+        tracing::warn!(
+            "TCP listening on {} rather than {}; peers reach us by UDP",
+            net.tcp_port(),
+            opts.config.port()
+        );
+    }
+    let core = Core::new(identity, state, local, os_seed()?);
+    tracing::info!("device {} starting", core.device_id());
+    let (events, _) = broadcast::channel(1024);
+    let mut rt = Runtime {
+        core,
+        store,
+        net,
+        start: Instant::now(),
+        events,
+        allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
+        audit_failures: 0,
+    };
+    // A headless agent has no audio device or interactive session.
+    rt.handle(Input::AudioStatus {
+        status: AudioStatus {
+            output_present: true,
+            muted: false,
+            volume_pct: 100,
+        },
+        override_available: false,
+    });
+    rt.handle(Input::SessionState(SessionState::Active));
+    rt.handle(Input::UserDisplay(opts.label.clone()));
+
+    let (ctl_tx, mut ctl_rx) = mpsc::channel::<Request>(64);
+    let path = opts.control_socket.clone();
+    tokio::spawn(async move {
+        if let Err(e) = control::serve(&path, ctl_tx).await {
+            tracing::error!("control API: {e}");
+        }
+    });
+    let mut ifaces = tokio::time::interval(Duration::from_secs(5));
+    loop {
+        let deadline = rt
+            .core
+            .next_deadline()
+            .map(|d| rt.start + Duration::from_millis(d.0))
+            .unwrap_or_else(|| Instant::now() + Duration::from_secs(1));
+        tokio::select! {
+            Some(input) = in_rx.recv() => rt.handle(input),
+            Some(req) = ctl_rx.recv() => {
+                if req.method == "wait_alarm" {
+                    let ms = req.params.get("timeout_ms").and_then(Value::as_u64).unwrap_or(10_000);
+                    let rx = rt.events.subscribe();
+                    tokio::spawn(async move {
+                        let r = wait_alarm(rx, Duration::from_millis(ms)).await;
+                        let _ = req.reply.send(r);
+                    });
+                } else {
+                    rt.control(req);
+                }
+            }
+            _ = tokio::time::sleep_until(deadline.into()) => rt.handle(Input::Tick),
+            _ = ifaces.tick() => {
+                if let Some(i) = rt.net.poll_interfaces() {
+                    rt.handle(i);
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                tracing::info!("stopping");
+                return Ok(());
+            }
+        }
+    }
+}

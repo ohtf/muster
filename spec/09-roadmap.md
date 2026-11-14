@@ -40,12 +40,12 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M3 Runtime, store, headless agent, CLI
 
-- [~] **R24 - `muster-store`**: SQLite schema and migrations.
-- [ ] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
-- [ ] **R26 - `muster-agent`**: runtime, control API, headless binary.
-- [ ] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands.
-- [ ] **R28 - netns integration tests** (S1, S2, S4, S7 without relay).
-- [ ] **R29 - M3 exit**: three headless agents in netns raise and receive alarms. The CLI can set up a practice end to end.
+- [x] **R24 - `muster-store`**: SQLite schema and migrations.
+- [x] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
+- [x] **R26 - `muster-agent`**: runtime, control API, headless binary.
+- [~] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands.
+- [x] **R28 - netns integration tests** (S1, S2, S4, S7 without relay).
+- [x] **R29 - M3 exit**: three headless agents in netns raise and receive alarms. The CLI can set up a practice end to end.
 
 ### M4 Desktop app
 
