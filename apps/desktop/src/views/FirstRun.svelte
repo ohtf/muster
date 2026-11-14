@@ -29,6 +29,7 @@ alerts nobody.
   let room = $state("");
   let practiced = $state(false);
   let holdMs = $state(1500);
+  let roomLocked = false;
 
   onMount(() => {
     // Enrolled already (for example by a token in the config): skip to the room.
@@ -45,10 +46,11 @@ alerts nobody.
       const c = await api.config();
       room = c.room;
       holdMs = c.hold_ms;
+      roomLocked = c.room_locked;
     } catch {
       /* the agent may still be starting */
     }
-    step = info.room_from_policy ? "practice" : "room";
+    step = roomLocked ? "practice" : "room";
   }
 
   async function join() {

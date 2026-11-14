@@ -206,12 +206,12 @@ settings, admin and about; or first run if this computer is not set up.
           <h1>Settings</h1>
           <div class="field narrow">
             <label for="room">Room</label>
-            <input id="room" bind:value={room} disabled={info?.room_from_policy} />
+            <input id="room" bind:value={room} disabled={cfg?.room_locked} />
             <span class="hint">
-              {info?.room_from_policy ? "Set by your practice's IT policy." : "Shown to colleagues when you call for help."}
+              {cfg?.room_locked ? "Set by this computer's IT configuration." : "Shown to colleagues when you call for help."}
             </span>
           </div>
-          <button class="btn primary" onclick={saveRoom} disabled={info?.room_from_policy}>Save room</button>
+          <button class="btn primary" onclick={saveRoom} disabled={cfg?.room_locked}>Save room</button>
           {#if roomSaved}<span class="saved" role="status">Saved</span>{/if}
           <h2>Alarm</h2>
           <dl>

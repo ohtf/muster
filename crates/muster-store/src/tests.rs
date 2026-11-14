@@ -40,6 +40,7 @@ fn ops() -> Vec<PersistOp> {
         PersistOp::AddKeyShare(vec![8, 8]),
         PersistOp::SetConfig(vec![1]),
         PersistOp::SetConfig(vec![2]),
+        PersistOp::SetOwnSettings(vec![3]),
         PersistOp::AddAlarmEnvelope {
             alarm_id: a,
             msg_id: a,

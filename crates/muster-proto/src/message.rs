@@ -50,6 +50,7 @@ open_enum!(
         CertAnnounce = 0x06,
         PracticeConfig = 0x07,
         PresenceSummary = 0x08,
+        DeviceSettings = 0x09,
         JoinRequest = 0x40,
         JoinApproval = 0x41,
         KeyShare = 0x42,
@@ -72,6 +73,7 @@ impl MsgType {
                 | MsgType::AlarmEvent
                 | MsgType::CertAnnounce
                 | MsgType::PracticeConfig
+                | MsgType::DeviceSettings
                 | MsgType::KeyShare
                 | MsgType::Revocation
         )
@@ -691,6 +693,60 @@ impl Cbor for PracticeConfig {
     }
 }
 
+/// 0x09 DeviceSettings: an admin sets a device's label and room
+/// (ADR 0014). Also the stored form of a device's own label and room.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeviceSettings {
+    pub target: DeviceId,
+    /// `None` leaves it unchanged.
+    pub label: Option<String>,
+    /// `None` leaves it unchanged.
+    pub room: Option<String>,
+    /// When the change was made (wall ms); the newest change wins.
+    pub assigned_at: u64,
+}
+
+impl Cbor for DeviceSettings {
+    fn encode(&self, w: &mut Writer) {
+        let mut m = MapBuilder::new();
+        m.entry(0, |w| self.target.encode(w));
+        if let Some(l) = &self.label {
+            m.entry(1, |w| {
+                w.text(l);
+            });
+        }
+        if let Some(r) = &self.room {
+            m.entry(2, |w| {
+                w.text(r);
+            });
+        }
+        m.entry(3, |w| {
+            w.u64(self.assigned_at);
+        });
+        m.write(w);
+    }
+
+    fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let (mut target, mut label, mut room, mut at) = (None, None, None, None);
+        r.map(|k, r| {
+            match k {
+                0 => target = Some(DeviceId::decode(r)?),
+                1 => label = Some(r.text()?),
+                2 => room = Some(r.text()?),
+                3 => at = Some(r.u64()?),
+                _ => return Ok(false),
+            }
+            Ok(true)
+        })?;
+        Ok(DeviceSettings {
+            target: req(target, 0)?,
+            label,
+            room,
+            assigned_at: req(at, 3)?,
+        })
+    }
+}
+
 /// One entry of a PresenceSummary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PresenceEntry {
@@ -1027,6 +1083,7 @@ pub enum Payload {
     CertAnnounce(CertAnnounce),
     PracticeConfig(PracticeConfig),
     PresenceSummary(PresenceSummary),
+    DeviceSettings(DeviceSettings),
     JoinRequest(JoinRequest),
     JoinApproval(JoinApproval),
     KeyShare(KeyShare),
@@ -1045,6 +1102,7 @@ impl Payload {
             Payload::CertAnnounce(_) => MsgType::CertAnnounce,
             Payload::PracticeConfig(_) => MsgType::PracticeConfig,
             Payload::PresenceSummary(_) => MsgType::PresenceSummary,
+            Payload::DeviceSettings(_) => MsgType::DeviceSettings,
             Payload::JoinRequest(_) => MsgType::JoinRequest,
             Payload::JoinApproval(_) => MsgType::JoinApproval,
             Payload::KeyShare(_) => MsgType::KeyShare,
@@ -1063,6 +1121,7 @@ impl Payload {
             Payload::CertAnnounce(p) => p.encode(w),
             Payload::PracticeConfig(p) => p.encode(w),
             Payload::PresenceSummary(p) => p.encode(w),
+            Payload::DeviceSettings(p) => p.encode(w),
             Payload::JoinRequest(p) => p.encode(w),
             Payload::JoinApproval(p) => p.encode(w),
             Payload::KeyShare(p) => p.encode(w),
@@ -1081,6 +1140,7 @@ impl Payload {
             MsgType::CertAnnounce => Payload::CertAnnounce(CertAnnounce::from_cbor(raw)?),
             MsgType::PracticeConfig => Payload::PracticeConfig(PracticeConfig::from_cbor(raw)?),
             MsgType::PresenceSummary => Payload::PresenceSummary(PresenceSummary::from_cbor(raw)?),
+            MsgType::DeviceSettings => Payload::DeviceSettings(DeviceSettings::from_cbor(raw)?),
             MsgType::JoinRequest => Payload::JoinRequest(JoinRequest::from_cbor(raw)?),
             MsgType::JoinApproval => Payload::JoinApproval(JoinApproval::from_cbor(raw)?),
             MsgType::KeyShare => Payload::KeyShare(KeyShare::from_cbor(raw)?),

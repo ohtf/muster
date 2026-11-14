@@ -183,6 +183,120 @@ impl Core {
         self.on_wake(now, wall);
     }
 
+    // ---- Own label and room (ADR 0014) ----------------------------------
+
+    /// Sets this device's label or room if the change is newer than the
+    /// current one. Machine config and policy still win (recompute_config).
+    pub(crate) fn apply_own_settings(
+        &mut self,
+        label: Option<String>,
+        room: Option<String>,
+        at: WallMs,
+        by: Option<DeviceId>,
+    ) -> bool {
+        let label = label.map(|s| muster_proto::cbor::truncate_utf8(s.trim(), 64).to_owned());
+        let room = room.map(|s| muster_proto::cbor::truncate_utf8(s.trim(), 64).to_owned());
+        let cur = self.own_settings.clone();
+        if cur
+            .as_ref()
+            .is_some_and(|c| c.assigned_at >= at && by.is_some())
+        {
+            return false;
+        }
+        let mut next = cur.unwrap_or(muster_proto::DeviceSettings {
+            target: self.me,
+            label: None,
+            room: None,
+            assigned_at: 0,
+        });
+        if label.is_some() {
+            next.label = label;
+        }
+        if room.is_some() {
+            next.room = room;
+        }
+        next.assigned_at = next.assigned_at.max(at);
+        self.persist(PersistOp::SetOwnSettings(next.to_cbor()));
+        self.own_settings = Some(next);
+        self.recompute_config();
+        if let Some(by) = by {
+            self.log(AuditEvent::DeviceSettingsAssigned { by });
+        }
+        true
+    }
+
+    /// Admin: sets another device's label or room and keeps re-sending it
+    /// until that device's heartbeat shows it.
+    pub(crate) fn assign_device_settings(
+        &mut self,
+        now: Mono,
+        wall: WallMs,
+        device: DeviceId,
+        label: Option<String>,
+        room: Option<String>,
+    ) {
+        if device == self.me {
+            self.apply_own_settings(label, room, wall, None);
+            return;
+        }
+        if !self.require_admin(wall) || (label.is_none() && room.is_none()) {
+            return;
+        }
+        let ds = muster_proto::DeviceSettings {
+            target: device,
+            label: label.map(|s| s.trim().to_owned()),
+            room: room.map(|s| s.trim().to_owned()),
+            assigned_at: wall,
+        };
+        let body = self.body(wall, Payload::DeviceSettings(ds.clone()));
+        self.processed.insert(body.msg_id, wall);
+        self.reflooded.insert(body.msg_id, now);
+        let envs = self.seal_all(now, wall, &body);
+        self.flood_new(now, wall, &envs);
+        self.send_direct(now, &device, &envs, true);
+        self.pending_settings.insert(
+            device,
+            PendingSettings {
+                settings: ds,
+                envs,
+                last_sent: now,
+                created: now,
+            },
+        );
+    }
+
+    /// Admin: a heartbeat from a device with pending settings. Done when it
+    /// shows them; otherwise re-sent at most every 30 s, for up to 7 days.
+    pub(crate) fn check_pending_settings(
+        &mut self,
+        now: Mono,
+        device: DeviceId,
+        label: &str,
+        room: &str,
+    ) {
+        let Some(p) = self.pending_settings.get(&device) else {
+            return;
+        };
+        let trunc = |s: &str| muster_proto::cbor::truncate_utf8(s, 64).to_owned();
+        let done = p
+            .settings
+            .label
+            .as_deref()
+            .is_none_or(|l| trunc(l) == label)
+            && p.settings.room.as_deref().is_none_or(|r| trunc(r) == room);
+        if done || now.since(p.created) > crate::time::DAY * 7 {
+            self.pending_settings.remove(&device);
+            return;
+        }
+        if now.since(p.last_sent) >= 30 * crate::time::SECOND {
+            let envs = p.envs.clone();
+            if let Some(p) = self.pending_settings.get_mut(&device) {
+                p.last_sent = now;
+            }
+            self.send_direct(now, &device, &envs, true);
+        }
+    }
+
     // ---- Admin device -------------------------------------------------
 
     fn require_admin(&self, wall: WallMs) -> bool {
@@ -472,4 +586,14 @@ impl Core {
         self.reflooded.insert(body.msg_id, now);
         self.flood_new(now, wall, &envs);
     }
+}
+
+/// An admin's label or room change waiting to show in the target's
+/// heartbeat.
+#[derive(Debug, Clone)]
+pub(crate) struct PendingSettings {
+    pub settings: muster_proto::DeviceSettings,
+    pub envs: Vec<Vec<u8>>,
+    pub last_sent: Mono,
+    pub created: Mono,
 }

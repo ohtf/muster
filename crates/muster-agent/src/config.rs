@@ -277,6 +277,8 @@ impl ConfigFile {
                 .clone()
                 .unwrap_or_else(|| default_label.to_owned()),
             room: self.device.room.clone().unwrap_or_default(),
+            label_locked: self.device.label.is_some(),
+            room_locked: self.device.room.is_some(),
             machine: MachineSettings {
                 hold_ms: self.alarm.hold_ms,
                 cue_mode: self.alarm.cue_mode.map(|c| match c {

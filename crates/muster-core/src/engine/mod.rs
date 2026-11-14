@@ -154,6 +154,11 @@ pub struct Core {
     pub(crate) current: Option<(u64, GroupKey)>,
     pub(crate) higher_epoch_seen: Option<u64>,
     pub(crate) config_msg: Option<ConfigMsg>,
+    /// This device's own label and room, set by the person or an admin.
+    pub(crate) own_settings: Option<muster_proto::DeviceSettings>,
+    /// Admin: label and room changes not yet seen in the target's
+    /// heartbeat, re-sent until they are (ADR 0014).
+    pub(crate) pending_settings: BTreeMap<DeviceId, admin::PendingSettings>,
 
     pub(crate) peers: PeerTable,
     pub(crate) alarms: BTreeMap<MsgId, AlarmEntry>,
@@ -247,6 +252,8 @@ impl Core {
             current: None,
             higher_epoch_seen: None,
             config_msg: None,
+            own_settings: None,
+            pending_settings: BTreeMap::new(),
             peers: PeerTable::default(),
             alarms: BTreeMap::new(),
             own_alarms: BTreeMap::new(),
@@ -507,6 +514,14 @@ impl Core {
             .map(|c| c.settings.clone())
             .unwrap_or_default();
         self.cfg = EffectiveConfig::resolve(&self.local, &practice);
+        if let Some(own) = &self.own_settings {
+            if let Some(l) = own.label.as_ref().filter(|_| !self.local.label_locked) {
+                self.cfg.label = l.clone();
+            }
+            if let Some(r) = own.room.as_ref().filter(|_| !self.local.room_locked) {
+                self.cfg.room = r.clone();
+            }
+        }
     }
 
     fn on_relay_state(
@@ -803,6 +818,14 @@ impl Core {
                 self.join_requests.remove(&device);
             }
             UserAction::Promote { device } => self.promote(now, wall, device),
+            UserAction::SetOwnSettings { label, room } => {
+                self.apply_own_settings(label, room, wall, None);
+            }
+            UserAction::AssignDeviceSettings {
+                device,
+                label,
+                room,
+            } => self.assign_device_settings(now, wall, device, label, room),
             UserAction::Revoke {
                 device,
                 cascade,
@@ -1014,6 +1037,14 @@ impl Core {
         }
         if let Some(c) = &s.config {
             self.receive(now, wall, c, PathKind::Sync, None, None, true);
+        }
+        if let Some(own) = s
+            .own_settings
+            .as_ref()
+            .and_then(|b| muster_proto::DeviceSettings::from_cbor(b).ok())
+        {
+            self.own_settings = Some(own);
+            self.recompute_config();
         }
         for (id, stored) in &s.alarms {
             let entry = self.alarms.entry(*id).or_default();

@@ -100,6 +100,17 @@ pub enum UserAction {
     Promote {
         device: DeviceId,
     },
+    /// Set this device's own label or room (`None` leaves it unchanged).
+    SetOwnSettings {
+        label: Option<String>,
+        room: Option<String>,
+    },
+    /// Admin: set another device's label or room (ADR 0014).
+    AssignDeviceSettings {
+        device: DeviceId,
+        label: Option<String>,
+        room: Option<String>,
+    },
     /// Admin: revoke a device. `cascade` = "compromised".
     Revoke {
         device: DeviceId,
@@ -362,6 +373,10 @@ pub enum AuditEvent {
     CertAdded {
         device: DeviceId,
         role: muster_proto::Role,
+    },
+    /// An admin set this device's label or room (ADR 0014).
+    DeviceSettingsAssigned {
+        by: DeviceId,
     },
     Revoked {
         device: DeviceId,

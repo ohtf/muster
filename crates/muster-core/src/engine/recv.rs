@@ -242,6 +242,9 @@ impl Core {
             Payload::CertAnnounce(c) => self.on_cert_announce(now, wall, &body, c, bytes, a, quiet),
             Payload::PracticeConfig(c) => self.on_config(now, wall, &body, c, bytes, a, quiet),
             Payload::PresenceSummary(p) => self.on_presence(now, wall, &body, p, a),
+            Payload::DeviceSettings(d) => {
+                self.on_device_settings(now, wall, &body, d, bytes, a, quiet)
+            }
             _ => self.drop_msg(DropReason::UnknownType),
         }
     }
@@ -388,6 +391,10 @@ impl Core {
         }
         let their_epoch = hb.epoch;
         let (ad, sd) = (hb.alarm_digest, hb.state_digest);
+        if self.pending_settings.contains_key(&sender) {
+            let (l, r) = (hb.label.clone(), hb.room.clone());
+            self.check_pending_settings(now, sender, &l, &r);
+        }
         self.peers.heartbeat(sender, hb);
         let Some(cur) = self.current_epoch() else {
             return;
@@ -854,6 +861,32 @@ impl Core {
             if a.path != PathKind::Sync {
                 self.schedule_reflood(now, body.msg_id, bytes, a, body.sender);
             }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn on_device_settings(
+        &mut self,
+        now: Mono,
+        wall: WallMs,
+        body: &Body,
+        d: muster_proto::DeviceSettings,
+        bytes: &[u8],
+        a: Arrival,
+        quiet: bool,
+    ) {
+        let admin = self
+            .trust
+            .as_ref()
+            .is_some_and(|t| t.is_admin(&body.sender, wall));
+        if !admin {
+            return self.drop_msg(DropReason::NotAuthorised);
+        }
+        if d.target == self.me {
+            self.apply_own_settings(d.label, d.room, d.assigned_at, Some(body.sender));
+        }
+        if !quiet && a.path != PathKind::Sync {
+            self.schedule_reflood(now, body.msg_id, bytes, a, body.sender);
         }
     }
 

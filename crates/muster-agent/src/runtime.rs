@@ -279,6 +279,17 @@ impl Runtime {
                 .ok_or_else(|| RpcError::invalid_params("device (64 hex characters) required"))
         };
         let wall = wall_now();
+        // A display string param: at most 64 bytes (`spec/03-protocol.md`).
+        let text = |p: &Value, key: &str| -> Result<Option<String>, RpcError> {
+            match p.get(key) {
+                None | Some(Value::Null) => Ok(None),
+                Some(Value::String(s)) if s.trim().len() <= 64 => Ok(Some(s.trim().to_owned())),
+                Some(Value::String(_)) => Err(RpcError::invalid_params(format!(
+                    "{key} is at most 64 bytes"
+                ))),
+                _ => Err(RpcError::invalid_params(format!("{key} must be text"))),
+            }
+        };
         let source = |p: &Value| -> Result<Source, RpcError> {
             match p.get("source").and_then(Value::as_str).unwrap_or("button") {
                 "button" => Ok(Source::Button),
@@ -303,20 +314,40 @@ impl Runtime {
                     "sound_pattern": format!("{:?}", c.sound_pattern),
                     "volume_pct": c.volume_pct,
                     "relay_urls": c.relay_urls,
+                    "label_locked": self.local.label_locked,
+                    "room_locked": self.local.room_locked,
                 }))
             }
-            "device.set_room" => {
-                let room = p
-                    .get("room")
-                    .and_then(Value::as_str)
-                    .ok_or_else(|| RpcError::invalid_params("room required"))?
-                    .trim();
-                if room.chars().count() > 64 {
-                    return Err(RpcError::invalid_params("room is at most 64 characters"));
+            "device.set_room" | "device.set_label" => {
+                let (key, locked) = if method == "device.set_room" {
+                    ("room", self.local.room_locked)
+                } else {
+                    ("label", self.local.label_locked)
+                };
+                let v = Some(
+                    text(p, key)?
+                        .ok_or_else(|| RpcError::invalid_params(format!("{key} required")))?,
+                );
+                if locked {
+                    return Err(RpcError::refused(format!(
+                        "the {key} is set by this computer's configuration"
+                    )));
                 }
-                self.local.room = room.to_owned();
-                self.handle(Input::ConfigChanged(self.local.clone()));
-                Ok(json!({"ok": true}))
+                let (label, room) = if key == "room" { (None, v) } else { (v, None) };
+                self.user(UserAction::SetOwnSettings { label, room })
+            }
+            "admin.device_settings" => {
+                let d = device(p)?;
+                let label = text(p, "label").ok().flatten();
+                let room = text(p, "room").ok().flatten();
+                if label.is_none() && room.is_none() {
+                    return Err(RpcError::invalid_params("label or room required"));
+                }
+                self.user(UserAction::AssignDeviceSettings {
+                    device: d,
+                    label,
+                    room,
+                })
             }
             "peers" => Ok(crate::views::peers(&self.core, self.now(), wall)),
             "alarms" => Ok(Value::Array(

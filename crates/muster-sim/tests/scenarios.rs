@@ -617,3 +617,93 @@ fn promote_member_to_admin() {
     let c = w.core(0).expect("core");
     assert!(!c.trust().is_some_and(|t| t.is_admin(&other, w.wall_of(0))));
 }
+
+/// ADR 0014: an admin sets another device's label and room. Everyone sees
+/// them in that device's heartbeat; a device asleep at the time gets them
+/// when it wakes; the person's own later change wins; and a room set by IT
+/// configuration cannot be changed.
+#[test]
+fn admin_assigns_label_and_room() {
+    let mut w = World::new(WorldSpec::flat(5, 22));
+    w.run_until(WARMUP);
+    let heard = |w: &World, at: usize, of: usize| {
+        let c = w.core(at).expect("core");
+        let p = c.peers().get(&w.device_id(of)).expect("peer");
+        let hb = p.heartbeat.as_ref().expect("heartbeat");
+        (hb.label.clone(), hb.room.clone())
+    };
+    let d2 = w.device_id(2);
+    w.act_now(
+        0,
+        UserAction::AssignDeviceSettings {
+            device: d2,
+            label: Some("ROOM4-PC".into()),
+            room: Some("Consulting Room 4".into()),
+        },
+    );
+    w.run_for(25_000);
+    for i in [0, 1, 3, 4] {
+        assert_eq!(
+            heard(&w, i, 2),
+            ("ROOM4-PC".to_owned(), "Consulting Room 4".to_owned()),
+            "node {i}"
+        );
+    }
+
+    // Node 4 is asleep when its room is set; it gets it on waking.
+    w.at(w.now, WorldEvent::Sleep(4));
+    w.run_for(1_000);
+    let d4 = w.device_id(4);
+    w.act_now(
+        0,
+        UserAction::AssignDeviceSettings {
+            device: d4,
+            label: None,
+            room: Some("Treatment Room 1".into()),
+        },
+    );
+    w.run_for(20_000);
+    w.at(w.now, WorldEvent::Wake(4));
+    w.run_for(90_000);
+    assert_eq!(heard(&w, 1, 4).1, "Treatment Room 1");
+
+    // The person on node 2 changes their room later: theirs wins.
+    w.act_now(
+        2,
+        UserAction::SetOwnSettings {
+            label: None,
+            room: Some("Room 2".into()),
+        },
+    );
+    w.run_for(25_000);
+    assert_eq!(heard(&w, 1, 2).1, "Room 2");
+
+    // A room from IT configuration on node 3 cannot be changed.
+    w.configure(3, |l| {
+        l.room = "Reception".into();
+        l.room_locked = true;
+    });
+    let d3 = w.device_id(3);
+    w.act_now(
+        0,
+        UserAction::AssignDeviceSettings {
+            device: d3,
+            label: None,
+            room: Some("Elsewhere".into()),
+        },
+    );
+    w.run_for(25_000);
+    assert_eq!(heard(&w, 1, 3).1, "Reception");
+
+    // A member cannot set another device's room.
+    w.act_now(
+        1,
+        UserAction::AssignDeviceSettings {
+            device: d2,
+            label: None,
+            room: Some("Nowhere".into()),
+        },
+    );
+    w.run_for(25_000);
+    assert_eq!(heard(&w, 0, 2).1, "Room 2");
+}

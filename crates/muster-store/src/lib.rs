@@ -288,6 +288,7 @@ impl Store {
             s.own_serial = Some(CertSerial(id16(&v, "own_serial")?));
         }
         s.config = self.meta("config")?;
+        s.own_settings = self.meta("own_settings")?;
         for (table, out) in [
             ("certs", &mut s.certs),
             ("revocations", &mut s.revocations),
@@ -422,6 +423,7 @@ fn apply_on(db: &Connection, op: &PersistOp) -> Result<()> {
             )?;
         }
         PersistOp::SetConfig(c) => set_meta(db, "config", c)?,
+        PersistOp::SetOwnSettings(c) => set_meta(db, "own_settings", c)?,
         PersistOp::AddAlarmEnvelope {
             alarm_id,
             msg_id,

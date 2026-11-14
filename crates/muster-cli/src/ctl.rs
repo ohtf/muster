@@ -45,6 +45,15 @@ pub enum CtlCommand {
     },
     /// Make a device a Practice Admin (admin).
     Promote { device: String },
+    /// Set a device's label or room (admin; this device's own needs no
+    /// admin rights).
+    DeviceSettings {
+        device: String,
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long)]
+        room: Option<String>,
+    },
     /// Dropped-message counters.
     Diagnostics,
     /// Every device in the practice, heard or not.
@@ -132,6 +141,14 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
             json!({"device": device, "cascade": compromised, "reason": reason}),
         ),
         CtlCommand::Promote { device } => ("admin.promote", json!({"device": device})),
+        CtlCommand::DeviceSettings {
+            device,
+            label,
+            room,
+        } => (
+            "admin.device_settings",
+            json!({"device": device, "label": label, "room": room}),
+        ),
         CtlCommand::Diagnostics => ("diagnostics", Value::Null),
         CtlCommand::Devices => ("devices", Value::Null),
         CtlCommand::Tokens => ("tokens", Value::Null),

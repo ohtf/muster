@@ -50,18 +50,13 @@ fn load_optional(p: &Path) -> anyhow::Result<ConfigFile> {
     }
 }
 
-/// The user settings file this app writes (room), below machine config and
-/// policy.
-fn user_file(data_dir: &Path) -> PathBuf {
-    data_dir.join("user.toml")
-}
-
-fn load_config(data_dir: &Path) -> anyhow::Result<ConfigFile> {
-    let user = load_optional(&user_file(data_dir))?;
+/// Machine config with policy over it. The person's own room and label are
+/// kept by the agent (ADR 0014).
+fn load_config() -> anyhow::Result<ConfigFile> {
     let machine =
         load_optional(&env_path("MUSTER_CONFIG").unwrap_or_else(paths::default_config_file))?;
     let policy = load_optional(&paths::default_policy_file())?;
-    Ok(user.with_policy(&machine).with_policy(&policy))
+    Ok(machine.with_policy(&policy))
 }
 
 /// The person's display name: the OS full name where there is one.
@@ -179,7 +174,6 @@ struct AppInfo {
     allow_quit: bool,
     audio_ok: bool,
     wayland: bool,
-    room_from_policy: bool,
     token_configured: bool,
     home_dir: String,
     sounds_dir: String,
@@ -197,9 +191,6 @@ async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
         allow_quit: st.allow_quit,
         audio_ok: st.audio_ok,
         wayland: cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some(),
-        room_from_policy: load_optional(&paths::default_policy_file())
-            .map(|p| p.device.room.is_some())
-            .unwrap_or(false),
         token_configured: cfg.enrolment.token.is_some() || cfg.enrolment.token_file.is_some(),
         home_dir: paths::expand(Path::new("~")).display().to_string(),
         sounds_dir: st.data_dir.join("sounds").display().to_string(),
@@ -290,26 +281,11 @@ async fn create_token(st: State<'_, Shared>, days: u64, label: String) -> Result
 
 #[tauri::command]
 async fn set_room(st: State<'_, Shared>, room: String) -> Result<(), String> {
-    let room = room.trim().to_owned();
     agent(&st)
         .await?
-        .call("device.set_room", json!({ "room": room }))
+        .call("device.set_room", json!({ "room": room.trim() }))
         .await
         .map_err(|e| e.message)?;
-    // Remember it for the next start.
-    let path = user_file(&st.data_dir);
-    let mut doc: toml::Table = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or_default();
-    let device = doc
-        .entry("device")
-        .or_insert_with(|| toml::Value::Table(Default::default()));
-    if let toml::Value::Table(t) = device {
-        t.insert("room".into(), toml::Value::String(room.clone()));
-    }
-    std::fs::write(&path, toml::to_string(&doc).map_err(err)?).map_err(err)?;
-    st.config.lock().await.device.room = Some(room);
     Ok(())
 }
 
@@ -436,7 +412,7 @@ pub fn run() {
         .unwrap_or_else(|| paths::default_data_dir(false));
     let control_socket = env_path("MUSTER_CONTROL_SOCKET")
         .unwrap_or_else(|| paths::default_control_socket(&data_dir));
-    let config = match load_config(&data_dir) {
+    let config = match load_config() {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("configuration: {e:#}");

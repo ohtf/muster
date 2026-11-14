@@ -45,6 +45,10 @@ pub struct LocalConfig {
     pub profile: Profile,
     pub label: String,
     pub room: String,
+    /// The label or room comes from machine config or policy, so neither
+    /// the person nor an admin can change it here (ADR 0014).
+    pub label_locked: bool,
+    pub room_locked: bool,
     /// Sources 1 and 2, already merged (1 wins) by the runtime.
     pub machine: MachineSettings,
     pub user: UserPrefs,
@@ -62,6 +66,8 @@ impl Default for LocalConfig {
             profile: Profile::Practice,
             label: String::new(),
             room: String::new(),
+            label_locked: false,
+            room_locked: false,
             machine: MachineSettings::default(),
             user: UserPrefs::default(),
             port: muster_proto::limits::DEFAULT_PORT,

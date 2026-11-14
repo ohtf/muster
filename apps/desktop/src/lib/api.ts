@@ -47,6 +47,8 @@ export const api = {
   runDrill: () => call("drill.run"),
   revoke: (device: string, reason: string) => call("admin.revoke", { device, reason }),
   promote: (device: string) => call("admin.promote", { device }),
+  assignSettings: (device: string, label: string | null, room: string | null) =>
+    call("admin.device_settings", { device, label, room }),
   approveJoin: (device: string) => call("admin.approve_join", { device }),
   rejectJoin: (device: string) => call("admin.reject_join", { device }),
   setupPractice: (name: string, label: string, passphrase: string, kitPath: string) =>

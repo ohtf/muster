@@ -189,6 +189,18 @@ fn samples() -> Vec<(&'static str, Body)> {
             ),
         ),
         (
+            "device_settings",
+            body(
+                16,
+                Payload::DeviceSettings(DeviceSettings {
+                    target: DeviceId([0x22; 32]),
+                    label: Some("RECEPTION-1".into()),
+                    room: Some("Reception".into()),
+                    assigned_at: 1_763_115_000_000,
+                }),
+            ),
+        ),
+        (
             "join_request",
             body(
                 11,
@@ -271,7 +283,7 @@ fn every_message_type_round_trips_and_matches_golden() {
     let mut types: Vec<_> = samples.iter().map(|(_, b)| b.msg_type()).collect();
     types.sort();
     types.dedup();
-    assert_eq!(types.len(), 13, "one sample per message type");
+    assert_eq!(types.len(), 14, "one sample per message type");
     for (name, b) in samples {
         let bytes = b.to_cbor();
         let back = Body::from_cbor(&bytes).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -423,7 +435,7 @@ proptest! {
     }
 
     #[test]
-    fn mutated_messages_never_panic(idx in 0usize..15, pos in any::<usize>(), byte in any::<u8>()) {
+    fn mutated_messages_never_panic(idx in 0usize..16, pos in any::<usize>(), byte in any::<u8>()) {
         let (_, b) = samples().swap_remove(idx);
         let mut bytes = b.to_cbor();
         let p = pos % bytes.len();

@@ -1217,6 +1217,16 @@ impl World {
         if after != before { after } else { None }
     }
 
+    /// Changes a node's machine config or policy, as a restart or an IT
+    /// change would, and tells its core.
+    pub fn configure(&mut self, node: usize, f: impl FnOnce(&mut LocalConfig)) {
+        f(&mut self.nodes[node].local);
+        if self.is_up(node) {
+            let local = self.nodes[node].local.clone();
+            self.handle(node, Input::ConfigChanged(local));
+        }
+    }
+
     pub fn act_now(&mut self, node: usize, action: UserAction) {
         if self.is_up(node) {
             self.handle(node, Input::User(action));

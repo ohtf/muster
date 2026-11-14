@@ -58,6 +58,8 @@ pub enum PersistOp {
     AddGroupKey(StoredGroupKey),
     AddKeyShare(Vec<u8>),
     SetConfig(Vec<u8>),
+    /// This device's own label and room (a DeviceSettings, ADR 0014).
+    SetOwnSettings(Vec<u8>),
     AddAlarmEnvelope {
         alarm_id: MsgId,
         msg_id: MsgId,
@@ -102,6 +104,7 @@ pub struct PersistedState {
     pub group_keys: Vec<StoredGroupKey>,
     pub keyshares: Vec<Vec<u8>>,
     pub config: Option<Vec<u8>>,
+    pub own_settings: Option<Vec<u8>>,
     pub alarms: BTreeMap<MsgId, StoredAlarm>,
     pub processed: BTreeMap<MsgId, WallMs>,
 }
@@ -136,6 +139,7 @@ impl PersistedState {
                 }
             }
             PersistOp::SetConfig(c) => self.config = Some(c),
+            PersistOp::SetOwnSettings(s) => self.own_settings = Some(s),
             PersistOp::AddAlarmEnvelope {
                 alarm_id,
                 msg_id,
@@ -184,6 +188,9 @@ impl PersistedState {
         v.extend(self.keyshares.iter().cloned().map(PersistOp::AddKeyShare));
         if let Some(c) = &self.config {
             v.push(PersistOp::SetConfig(c.clone()));
+        }
+        if let Some(s) = &self.own_settings {
+            v.push(PersistOp::SetOwnSettings(s.clone()));
         }
         for (id, a) in &self.alarms {
             for (m, b) in &a.envelopes {

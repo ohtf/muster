@@ -149,7 +149,6 @@ export const mock = {
           allow_quit: true,
           audio_ok: true,
           wayland: scenario === "amber",
-          room_from_policy: false,
           token_configured: false,
           home_dir: "/home/user",
           sounds_dir: "~/.local/share/muster/sounds",
@@ -207,6 +206,8 @@ export const mock = {
           sound_pattern: "A",
           volume_pct: 80,
           relay_urls: [],
+          label_locked: false,
+          room_locked: false,
         };
       case "hold.start":
         if (hold) return { ok: true };

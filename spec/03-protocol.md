@@ -80,6 +80,7 @@ Body = {
 | 0x06 | CertAnnounce | sealed | yes | UDP if it fits, otherwise TCP/relay |
 | 0x07 | PracticeConfig | sealed | yes | TCP, relay, UDP if it fits |
 | 0x08 | PresenceSummary | sealed | no | UDP, relay |
+| 0x09 | DeviceSettings | sealed | yes | all; also sent directly to the target |
 | 0x40 | JoinRequest | open | no | multicast, broadcast |
 | 0x41 | JoinApproval | open | no | UDP unicast, TCP |
 | 0x42 | KeyShare | open | yes | all |
@@ -161,6 +162,10 @@ Responses carry **original signed envelopes**, so authenticity is preserved end 
 ### 0x08 PresenceSummary
 
 Every 60 s: `{ 0: peers [ {0: device_id, 1: last_seen_age_s uint, 2: path uint} ] }`, listing direct peers only (max 20 entries per message so it fits in one datagram; split if needed). Not flooded. Used to build a 2-hop view for the coverage screen.
+
+### 0x09 DeviceSettings
+
+`{ 0: target DeviceId, 1: label tstr (optional), 2: room tstr (optional), 3: assigned_at uint }`, signed by an admin device. Sets the target device's label or room; a missing field leaves it unchanged. Only the target applies it, and only if it is newer than the device's current own label and room; machine configuration and policy still win. The admin re-sends it directly when the target's heartbeat does not yet show it. See ADR 0014.
 
 ### 0x40 JoinRequest (interactive enrolment)
 

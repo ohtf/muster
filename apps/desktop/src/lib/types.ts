@@ -90,6 +90,8 @@ export interface AgentConfig {
   sound_pattern: string;
   volume_pct: number;
   relay_urls: string[];
+  label_locked: boolean;
+  room_locked: boolean;
 }
 
 export interface AppInfo {
@@ -100,7 +102,6 @@ export interface AppInfo {
   allow_quit: boolean;
   audio_ok: boolean;
   wayland: boolean;
-  room_from_policy: boolean;
   token_configured: boolean;
   home_dir: string;
   sounds_dir: string;

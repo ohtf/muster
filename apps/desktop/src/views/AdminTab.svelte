@@ -25,6 +25,9 @@ enrolment codes, and test alarms with their reports.
   let filter = $state<"all" | "attention">("all");
   let removing = $state<string | null>(null);
   let promoting = $state<string | null>(null);
+  let editing = $state<string | null>(null);
+  let editLabel = $state("");
+  let editRoom = $state("");
   let revokingToken = $state<string | null>(null);
   let tokenDays = $state(7);
   let tokenLabel = $state("");
@@ -70,6 +73,24 @@ enrolment codes, and test alarms with their reports.
       await api.promote(d.device);
       promoting = null;
       refresh();
+    } catch (e) {
+      onerror(String(e));
+    }
+  }
+
+  function startEdit(d: Device) {
+    editing = d.device;
+    editLabel = d.label;
+    editRoom = d.room ?? "";
+  }
+
+  async function saveEdit(d: Device) {
+    try {
+      const label = editLabel.trim() !== d.label ? editLabel.trim() : null;
+      const room = editRoom.trim() !== (d.room ?? "") ? editRoom.trim() : null;
+      if (label !== null || room !== null) await api.assignSettings(d.device, label, room);
+      editing = null;
+      setTimeout(refresh, 1500);
     } catch (e) {
       onerror(String(e));
     }
@@ -180,17 +201,25 @@ enrolment codes, and test alarms with their reports.
       {#each shown as d (d.device)}
         <tr>
           <td><StatusIcon level={d.status} size={12} /></td>
-          <td>
-            {d.label || d.device_short}
-            {#if d.role === "admin"}<span class="tag">Admin</span>{/if}
-            {#if d.token_id && tokenOf(d.token_id)}<br /><span class="muted small">Joined with "{tokenOf(d.token_id)}"</span>{/if}
-          </td>
-          <td>{d.room || "-"}</td>
+          {#if editing === d.device}
+            <td><input class="cell" aria-label="Computer name" bind:value={editLabel} maxlength="64" /></td>
+            <td><input class="cell" aria-label="Room" bind:value={editRoom} maxlength="64" /></td>
+          {:else}
+            <td>
+              {d.label || d.device_short}
+              {#if d.role === "admin"}<span class="tag">Admin</span>{/if}
+              {#if d.token_id && tokenOf(d.token_id)}<br /><span class="muted small">Joined with "{tokenOf(d.token_id)}"</span>{/if}
+            </td>
+            <td>{d.room || "-"}</td>
+          {/if}
           <td>{d.user || "-"}</td>
           <td>{heard(d)}</td>
           <td class="right">
-            {#if d.this_device}
-              <span></span>
+            {#if editing === d.device}
+              <button class="btn primary" onclick={() => saveEdit(d)}>Save</button>
+              <button class="btn" onclick={() => (editing = null)}>Cancel</button>
+            {:else if d.this_device}
+              <button class="btn" onclick={() => startEdit(d)}>Edit</button>
             {:else if removing === d.device}
               <span>Remove from the practice?</span>
               <button class="btn danger" onclick={() => remove(d)}>Remove</button>
@@ -200,6 +229,7 @@ enrolment codes, and test alarms with their reports.
               <button class="btn primary" onclick={() => promote(d)}>Make admin</button>
               <button class="btn" onclick={() => (promoting = null)}>Back</button>
             {:else}
+              <button class="btn" onclick={() => startEdit(d)}>Edit</button>
               {#if d.role !== "admin"}
                 <button class="btn" onclick={() => (promoting = d.device)}>Make admin...</button>
               {/if}
@@ -383,6 +413,14 @@ enrolment codes, and test alarms with their reports.
     background: var(--status-red);
     border-color: var(--status-red);
     color: var(--paper);
+  }
+
+  .cell {
+    width: 100%;
+    min-height: 32px;
+    padding: 2px 6px;
+    border: 1px solid #9ca3af;
+    border-radius: 6px;
   }
 
   .tag {

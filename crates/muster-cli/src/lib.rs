@@ -64,6 +64,10 @@ pub enum DeviceCommand {
     List,
     /// Make a device a Practice Admin (admin).
     Promote { device: String },
+    /// Rename a device (admin).
+    Rename { device: String, label: String },
+    /// Set a device's room (admin).
+    Room { device: String, room: String },
     /// Remove a device (admin). `--compromised` also removes everything it enrolled.
     Revoke {
         device: String,
@@ -100,6 +104,22 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         Command::Token(c) => token::run(&cli, c),
         Command::Ctl(c) => ctl::run(&cli, c),
         Command::Device(DeviceCommand::List) => ctl::run(&cli, &ctl::CtlCommand::Devices),
+        Command::Device(DeviceCommand::Rename { device, label }) => ctl::run(
+            &cli,
+            &ctl::CtlCommand::DeviceSettings {
+                device: device.clone(),
+                label: Some(label.clone()),
+                room: None,
+            },
+        ),
+        Command::Device(DeviceCommand::Room { device, room }) => ctl::run(
+            &cli,
+            &ctl::CtlCommand::DeviceSettings {
+                device: device.clone(),
+                label: None,
+                room: Some(room.clone()),
+            },
+        ),
         Command::Device(DeviceCommand::Promote { device }) => ctl::run(
             &cli,
             &ctl::CtlCommand::Promote {

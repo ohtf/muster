@@ -43,7 +43,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 - [x] **R24 - `muster-store`**: SQLite schema and migrations.
 - [x] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
 - [x] **R26 - `muster-agent`**: runtime, control API, headless binary.
-- [~] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands. Done except `device rename/room` (and promote), which need a protocol message for an admin to change another device's label or room; drill reports are now kept in the store (FR-DRL-007).
+- [x] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands. Also `device promote`. Rename and room use the DeviceSettings message (ADR 0014); drill reports are kept in the store (FR-DRL-007).
 - [x] **R28 - netns integration tests** (S1, S2, S4, S7 without relay).
 - [x] **R29 - M3 exit**: three headless agents in netns raise and receive alarms. The CLI can set up a practice end to end.
 
@@ -56,7 +56,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M5 Admin and drills in the app
 
-- [~] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export. Done: devices with a needs-attention filter and remove, join approvals, enrolment codes (create, copy, revoke, devices per code), test alarms with reports and CSV copy. Still to do: rename, rooms and promote (need a protocol message), drill schedules, practice settings, admins and recovery, audit export.
+- [~] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export. Done: devices with a needs-attention filter, rename, room, promote and remove; join approvals; enrolment codes (create, copy, revoke, devices per code); test alarms with reports and CSV copy; a warning when there is only one admin. Still to do: drill schedules, practice settings, recovery, audit export.
 - [ ] **R35 - M5 exit**: a practice can be set up, enrolled, drilled and administered entirely from the GUI.
 
 ### M6 Relay
