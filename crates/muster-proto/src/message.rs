@@ -530,6 +530,9 @@ pub struct SyncRequest {
     pub want: u64,
     pub since: Option<u64>,
     pub ids: Vec<MsgId>,
+    /// Key 3 (extension): the device that should answer. Lets a request sent
+    /// via a relay, which reaches every device, be answered by one.
+    pub to: Option<DeviceId>,
 }
 
 impl Cbor for SyncRequest {
@@ -551,16 +554,20 @@ impl Cbor for SyncRequest {
                 }
             });
         }
+        if let Some(to) = &self.to {
+            m.entry(3, |w| to.encode(w));
+        }
         m.write(w);
     }
 
     fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
-        let (mut want, mut since, mut ids) = (None, None, None);
+        let (mut want, mut since, mut ids, mut to) = (None, None, None, None);
         r.map(|k, r| {
             match k {
                 0 => want = Some(r.u64()?),
                 1 => since = Some(r.u64()?),
                 2 => ids = Some(r.array_of(limits::LIST_MAX, MsgId::decode)?),
+                3 => to = Some(DeviceId::decode(r)?),
                 _ => return Ok(false),
             }
             Ok(true)
@@ -569,6 +576,7 @@ impl Cbor for SyncRequest {
             want: req(want, 0)?,
             since,
             ids: ids.unwrap_or_default(),
+            to,
         })
     }
 }
@@ -744,6 +752,9 @@ pub struct JoinRequest {
     pub label: String,
     pub practice_hint: Option<PracticeId>,
     pub code: String,
+    /// Key 4 (extension): the joining device's TCP port, so the approval
+    /// (which may not fit a datagram) can be sent by TCP.
+    pub tcp_port: Option<u16>,
 }
 
 impl Cbor for JoinRequest {
@@ -763,17 +774,23 @@ impl Cbor for JoinRequest {
         m.entry(3, |w| {
             w.text(&self.code);
         });
+        if let Some(p) = self.tcp_port {
+            m.entry(4, |w| {
+                w.u64(u64::from(p));
+            });
+        }
         m.write(w);
     }
 
     fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
-        let (mut kx, mut label, mut hint, mut code) = (None, None, None, None);
+        let (mut kx, mut label, mut hint, mut code, mut port) = (None, None, None, None, None);
         r.map(|k, r| {
             match k {
                 0 => kx = Some(r.fixed::<32>()?),
                 1 => label = Some(r.text()?),
                 2 => hint = Some(PracticeId::decode(r)?),
                 3 => code = Some(r.text_max(16)?),
+                4 => port = Some(r.u16()?),
                 _ => return Ok(false),
             }
             Ok(true)
@@ -783,6 +800,7 @@ impl Cbor for JoinRequest {
             label: req(label, 1)?,
             practice_hint: hint,
             code: req(code, 3)?,
+            tcp_port: port,
         })
     }
 }

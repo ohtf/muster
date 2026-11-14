@@ -19,7 +19,6 @@ blake3 = "1"
 muster-crypto.workspace = true
 muster-proto.workspace = true
 rand_chacha = "0.10"
-rand_core = "0.10"
 thiserror = "2"
 
 [dev-dependencies]

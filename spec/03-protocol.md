@@ -320,4 +320,6 @@ These fill gaps the original text left open. They are normative for version 1.
 - **Token network overrides** (token key 10): `{0: port uint, 1: multicast_group bstr(4), 2: multicast_ttl uint}`, every key optional.
 - **Relay frame types** (first byte of each WebSocket message): `0x00` envelope, `0x01` presence, `0x02` challenge (server to client), `0x03` auth result (server to client). The client's RelayAuth is sent as an envelope frame.
 - **Unknown enumerated values** (platform, session, source, path, alarm kind, event kind) decode successfully and are preserved. Unknown alarm kinds are treated as help. Unknown event kinds are ignored by the alarm state. Unknown certificate roles carry no authority.
+- **SyncRequest key 3 `to` (DeviceId, optional).** The device that should answer. A request sent via a relay reaches every device of the practice; only the named device answers. Requests without `to` are answered by every receiver.
+- **JoinRequest key 4 `tcp_port` (uint, optional).** The joining device's TCP port, so a JoinApproval that does not fit a datagram can be delivered by TCP.
 - **Golden vectors** for every message type are in `crates/muster-proto/tests/vectors/`.

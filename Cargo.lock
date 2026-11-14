@@ -456,7 +456,6 @@ dependencies = [
  "muster-proto",
  "proptest",
  "rand_chacha",
- "rand_core",
  "thiserror",
 ]
 
