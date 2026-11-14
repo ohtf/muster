@@ -9,4 +9,4 @@ pub mod paths;
 pub mod runtime;
 pub mod views;
 
-pub use runtime::{AgentError, AgentOptions, run};
+pub use runtime::{AgentError, AgentHandle, AgentOptions, run, start};

@@ -77,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
         config,
         allow_raise: args.allow_raise,
         label: args.label,
+        headless: true,
     })
     .await
     .context("agent stopped")

@@ -3,7 +3,7 @@
 
 //! JSON views for the control API. Stable field names; no secrets.
 
-use muster_core::io::{AlarmPhase, AlarmView, LocalAck};
+use muster_core::io::{AlarmPhase, AlarmView, LocalAck, SenderPhase, UiEvent};
 use muster_core::peers::PeerClass;
 use muster_core::{Core, Mono};
 use muster_proto::StatusLevel;
@@ -18,10 +18,12 @@ fn level(l: StatusLevel) -> &'static str {
     }
 }
 
-pub fn status(core: &Core, _now: Mono, _wall: u64) -> Value {
+pub fn status(core: &Core, _now: Mono, wall: u64) -> Value {
     let st = core.status();
+    let me = core.device_id();
     json!({
-        "device": core.device_id().to_hex(),
+        "device": me.to_hex(),
+        "admin": core.trust().is_some_and(|t| t.is_admin(&me, wall)),
         "device_short": core.device_id().short(),
         "enrolled": core.is_enrolled(),
         "practice": core.practice().map(|p| p.name.clone()),
@@ -104,4 +106,67 @@ pub fn diagnostics(core: &Core, audit_failures: u64) -> Value {
         .map(|(k, v)| (format!("{k:?}"), json!(v)))
         .collect();
     json!({"dropped": drops, "audit_write_failures": audit_failures})
+}
+
+/// A UI event as JSON for the desktop webview: `{"type": ..., ...}`.
+pub fn ui_event(e: &UiEvent) -> Value {
+    match e {
+        UiEvent::AlarmShown { alarm: a, resumed } => {
+            json!({"type": "alarm_shown", "alarm": alarm(a), "resumed": resumed})
+        }
+        UiEvent::AlarmUpdated(a) => json!({"type": "alarm_updated", "alarm": alarm(a)}),
+        UiEvent::AlarmClosed(a) => json!({"type": "alarm_closed", "alarm": alarm(a)}),
+        UiEvent::AlarmHistory(a) => json!({"type": "alarm_history", "alarm": alarm(a)}),
+        UiEvent::SenderPanel { alarm: a, phase } => json!({
+            "type": "sender_panel",
+            "alarm": alarm(a),
+            "phase": match phase {
+                SenderPhase::Requested => "requested",
+                SenderPhase::Delivered => "delivered",
+                SenderPhase::NotYetDelivered => "not_yet_delivered",
+                SenderPhase::CouldNotReach => "could_not_reach",
+            },
+        }),
+        UiEvent::DrillToast { alarm_id, audible } => {
+            json!({"type": "drill_toast", "alarm_id": alarm_id.to_hex(), "audible": audible})
+        }
+        UiEvent::StatusChanged(st) => json!({
+            "type": "status",
+            "level": level(st.level),
+            "summary": st.summary(),
+            "reasons": st.reasons.iter().map(|r| r.text()).collect::<Vec<_>>(),
+            "direct": st.direct,
+            "via_relay": st.via_relay,
+        }),
+        UiEvent::HoldProgress { fraction_permille } => {
+            json!({"type": "hold_progress", "fraction": f64::from(*fraction_permille) / 1000.0})
+        }
+        UiEvent::HoldEnded => json!({"type": "hold_ended"}),
+        UiEvent::NearMiss { duration_ms, .. } => {
+            json!({"type": "near_miss", "duration_ms": duration_ms})
+        }
+        UiEvent::JoinRequested {
+            device,
+            label,
+            code,
+        } => json!({
+            "type": "join_requested",
+            "device": device.to_hex(),
+            "label": label,
+            "code": code,
+        }),
+        UiEvent::JoinCode(c) => json!({"type": "join_code", "code": c}),
+        UiEvent::JoinApproved { practice_name } => {
+            json!({"type": "join_approved", "practice": practice_name})
+        }
+        UiEvent::Enrolled { practice_name } => {
+            json!({"type": "enrolled", "practice": practice_name})
+        }
+        UiEvent::DrillReport(r) => json!({
+            "type": "drill_report",
+            "alarm_id": r.alarm_id.to_hex(),
+            "rows": r.rows.len(),
+        }),
+        UiEvent::FewAdmins(n) => json!({"type": "few_admins", "admins": n}),
+    }
 }

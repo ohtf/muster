@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use muster_core::bootstrap::{enrol_with_token_state, new_device_keys};
-use muster_core::io::{AlarmView, Input, Output, UiEvent, UserAction};
+use muster_core::io::{AlarmView, AudioCmd, Input, Output, UiEvent, UserAction};
 use muster_core::persist::PersistedState;
 use muster_core::rng::CoreRng;
 use muster_core::{Core, Identity, Mono};
@@ -47,6 +47,49 @@ pub struct AgentOptions {
     /// `--label`. Otherwise the label in this device's cert, else the host
     /// name.
     pub label: Option<String>,
+    /// No audio device or interactive session: report working audio and an
+    /// active session once at start. The desktop app reports real values.
+    pub headless: bool,
+}
+
+/// A running agent, for the process that embeds it (the desktop app, or
+/// the headless binary).
+#[derive(Debug, Clone)]
+pub struct AgentHandle {
+    requests: mpsc::Sender<Request>,
+    inputs: mpsc::Sender<Input>,
+    events: broadcast::Sender<UiEvent>,
+    audio: broadcast::Sender<AudioCmd>,
+}
+
+impl AgentHandle {
+    /// A control API call in-process (same methods as the socket).
+    pub async fn call(&self, method: &str, params: Value) -> Result<Value, RpcError> {
+        let (reply, rx) = tokio::sync::oneshot::channel();
+        self.requests
+            .send(Request {
+                method: method.to_owned(),
+                params,
+                reply,
+            })
+            .await
+            .map_err(|_| RpcError::refused("agent stopped"))?;
+        rx.await
+            .unwrap_or_else(|_| Err(RpcError::refused("agent stopped")))
+    }
+
+    /// Platform inputs: audio status, session state, user display name.
+    pub async fn input(&self, i: Input) {
+        let _ = self.inputs.send(i).await;
+    }
+
+    pub fn events(&self) -> broadcast::Receiver<UiEvent> {
+        self.events.subscribe()
+    }
+
+    pub fn audio(&self) -> broadcast::Receiver<AudioCmd> {
+        self.audio.subscribe()
+    }
 }
 
 pub fn host_name() -> String {
@@ -161,6 +204,7 @@ struct Runtime {
     relays: muster_net::relay::RelayClients,
     start: Instant,
     events: broadcast::Sender<UiEvent>,
+    audio: broadcast::Sender<AudioCmd>,
     allow_raise: bool,
     audit_failures: u64,
 }
@@ -197,7 +241,10 @@ impl Runtime {
                 tracing::debug!("ui: {e:?}");
                 let _ = self.events.send(e.clone());
             }
-            Output::Audio(a) => tracing::info!("audio: {a:?}"),
+            Output::Audio(a) => {
+                tracing::debug!("audio: {a:?}");
+                let _ = self.audio.send(*a);
+            }
             Output::SetSystemVolumeOverride(on) => tracing::info!("volume override: {on}"),
             Output::Log(e) => {
                 if self.store.audit(wall_now(), e).is_err() {
@@ -226,8 +273,20 @@ impl Runtime {
                 .ok_or_else(|| RpcError::invalid_params("device (64 hex characters) required"))
         };
         let wall = wall_now();
+        let source = |p: &Value| -> Result<Source, RpcError> {
+            match p.get("source").and_then(Value::as_str).unwrap_or("button") {
+                "button" => Ok(Source::Button),
+                "hotkey" => Ok(Source::Hotkey),
+                s => Err(RpcError::invalid_params(format!("unknown source {s}"))),
+            }
+        };
         match method {
             "status" => Ok(crate::views::status(&self.core, self.now(), wall)),
+            "hold.start" => self.user(UserAction::HoldStart {
+                source: source(p)?,
+                practice: p.get("practice").and_then(Value::as_bool).unwrap_or(false),
+            }),
+            "hold.end" => self.user(UserAction::HoldEnd { source: source(p)? }),
             "peers" => Ok(crate::views::peers(&self.core, self.now(), wall)),
             "alarms" => Ok(Value::Array(
                 self.core
@@ -311,12 +370,29 @@ async fn wait_alarm(
     }
 }
 
-/// Runs the agent until the process is stopped.
+/// Runs the agent until the process is stopped (Ctrl-C) or the agent
+/// task ends.
 pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
+    let (handle, task) = start(opts).await?;
+    let _keep = handle;
+    tokio::select! {
+        _ = task => Ok(()),
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("stopping");
+            Ok(())
+        }
+    }
+}
+
+/// Starts the agent on the current tokio runtime. Returns a handle and the
+/// agent task; dropping every handle does not stop the agent.
+pub async fn start(
+    opts: AgentOptions,
+) -> Result<(AgentHandle, tokio::task::JoinHandle<()>), AgentError> {
     let (store, identity, state) = prepare(&opts)?;
     let label = effective_label(&opts, &state);
     let local = opts.config.local_config(&label);
-    let (in_tx, mut in_rx) = mpsc::channel::<Input>(4096);
+    let (in_tx, in_rx) = mpsc::channel::<Input>(4096);
     let net = Net::start(
         NetConfig {
             port: opts.config.port(),
@@ -339,7 +415,7 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
         );
     }
     let core = Core::new(identity, state, local, os_seed()?);
-    let (auth_tx, mut auth_rx) = mpsc::channel::<muster_net::relay::AuthRequest>(16);
+    let (auth_tx, auth_rx) = mpsc::channel::<muster_net::relay::AuthRequest>(16);
     let relays = muster_net::relay::RelayClients::start(
         &opts.config.network.relay_urls,
         opts.config.network.relay_ca_pem.as_deref(),
@@ -348,35 +424,55 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
     );
     tracing::info!("device {} starting", core.device_id());
     let (events, _) = broadcast::channel(1024);
+    let (audio, _) = broadcast::channel(64);
     let mut rt = Runtime {
         core,
         store,
         net,
         relays,
         start: Instant::now(),
-        events,
+        events: events.clone(),
+        audio: audio.clone(),
         allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
         audit_failures: 0,
     };
-    // A headless agent has no audio device or interactive session.
-    rt.handle(Input::AudioStatus {
-        status: AudioStatus {
-            output_present: true,
-            muted: false,
-            volume_pct: 100,
-        },
-        override_available: false,
-    });
-    rt.handle(Input::SessionState(SessionState::Active));
+    if opts.headless {
+        rt.handle(Input::AudioStatus {
+            status: AudioStatus {
+                output_present: true,
+                muted: false,
+                volume_pct: 100,
+            },
+            override_available: false,
+        });
+        rt.handle(Input::SessionState(SessionState::Active));
+    }
     rt.handle(Input::UserDisplay(label));
 
-    let (ctl_tx, mut ctl_rx) = mpsc::channel::<Request>(64);
+    let (ctl_tx, ctl_rx) = mpsc::channel::<Request>(64);
     let path = opts.control_socket.clone();
+    let socket_tx = ctl_tx.clone();
     tokio::spawn(async move {
-        if let Err(e) = control::serve(&path, ctl_tx).await {
+        if let Err(e) = control::serve(&path, socket_tx).await {
             tracing::error!("control API: {e}");
         }
     });
+    let handle = AgentHandle {
+        requests: ctl_tx,
+        inputs: in_tx,
+        events,
+        audio,
+    };
+    let task = tokio::spawn(agent_loop(rt, in_rx, ctl_rx, auth_rx));
+    Ok((handle, task))
+}
+
+async fn agent_loop(
+    mut rt: Runtime,
+    mut in_rx: mpsc::Receiver<Input>,
+    mut ctl_rx: mpsc::Receiver<Request>,
+    mut auth_rx: mpsc::Receiver<muster_net::relay::AuthRequest>,
+) {
     let mut ifaces = tokio::time::interval(Duration::from_secs(5));
     loop {
         let deadline = rt
@@ -407,10 +503,6 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
                 if let Some(i) = rt.net.poll_interfaces() {
                     rt.handle(i);
                 }
-            }
-            _ = tokio::signal::ctrl_c() => {
-                tracing::info!("stopping");
-                return Ok(());
             }
         }
     }
