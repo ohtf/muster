@@ -32,13 +32,13 @@ Tests that protect a hazard control cite the hazard ID (for example `H03`) or re
 
 ## Medical-device applicability
 
-This is a governance record, not a regulatory determination. **Draft, to be completed by the decision-maker** (see `spec/queries.md` Q5).
+This is a governance record, not a regulatory determination (see `spec/queries.md` Q5).
 
 - Intended purpose: a staff personal-safety alarm that lets workplace staff summon colleagues on the same site. No diagnosis, prevention, monitoring, treatment or alleviation of disease or injury; no patient data; no clinical claims.
-- Decision-maker and role: _to be recorded_.
-- Decision date: _to be recorded_.
-- Next review date: _to be recorded_.
+- Decision-maker: Marcus Baw (Open Health Technology Foundation).
+- Decision date: 2026-11-14.
+- Next review date: 2027-11-14, or before v1.0.0 if that is sooner, or at any reassessment trigger below.
 - Evidence considered: MHRA [borderline products](https://www.gov.uk/guidance/borderline-products-how-to-tell-if-your-product-is-a-medical-device) and [regulating medical devices in the UK](https://www.gov.uk/guidance/regulating-medical-devices-in-the-uk) guidance; NHS England [DCB0129 and DCB0160 applicability](https://digital.nhs.uk/services/clinical-safety/applicability-of-dcb-0129-and-dcb-0160/step-by-step-guidance) guidance (to be accessed and dated by the decision-maker); this repository's specification.
-- Conclusion: _to be recorded_. The specification's working view is that DCB0129 may not formally apply, but it is followed because it is the recognised framework and eases local DCB0160 assessment by practices.
-- Actions and owner: _to be recorded_.
+- Conclusion: **not a medical device.** Muster is standard office equipment: a workplace staff-safety alarm with no medical purpose. DCB0129 does not formally apply. The project still keeps a hazard log and safety case in its style, because a failed alarm can harm staff and it makes any local assessment by practices easier.
+- Actions and owner: none beyond keeping the hazard log current and checking the reassessment triggers at each release (maintainers).
 - Reassessment triggers: any change to intended purpose or claims; alerting anyone outside the practice; integration with clinical systems or medical devices; handling patient data; the home profile; mobile apps; hardware buttons.
