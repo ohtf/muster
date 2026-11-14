@@ -72,7 +72,7 @@ jobs:
   netns:
     name: Network namespace scenarios
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,7 +81,12 @@ jobs:
         shell: bash
         run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      # A step timeout ends the step as failed (with logs) rather than
+      # cancelling the job, while this build's CI-only hang is investigated.
       - run: cargo build --release -p muster-agent -p muster-cli -p muster-relay
+        timeout-minutes: 25
+        env:
+          CARGO_TERM_PROGRESS_WHEN: never
       - run: sudo --preserve-env=MUSTER_BIN tests/netns/run.sh
         env:
           MUSTER_BIN: ${{ github.workspace }}/target/release
@@ -89,7 +94,9 @@ jobs:
   desktop:
     name: Desktop app (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A cold build of the Tauri stack takes about 30 minutes; the cache
+    # brings later runs well under that.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
