@@ -51,7 +51,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 - [~] **R30 - Tauri 2 + Svelte 5 app** embedding the agent: floating button, hold ring and cue, sender panel, receiver alert window, tray, status, main window (status, history, settings), first run, practice run. Prototype working end to end on Linux (`docs/gui/`). Still to do: join by approval code, global shortcut, button position memory, eslint and prettier checks.
 - [~] **R31 - Generated sounds** (CC0). Patterns A to C and the drill chime are generated WAV files in `sounds/` (`s/sounds`), replaceable per device; the hold cue is synthesised. Needs a listening check on real speakers.
-- [ ] **R32 - Platform modules**: Windows audio endpoint (status and override), session detection, DPAPI; macOS Local Network detection; Linux Wayland fallbacks.
+- [~] **R32 - Platform modules**: Windows audio endpoint (status and override), session detection, DPAPI; macOS Local Network detection; Linux Wayland fallbacks. Done: the Windows control API named pipe (Q7). Still to do: the rest.
 - [ ] **R33 - M4 exit**: manual run-through of every screen on all three OSes. Accessibility check (keyboard only, screen reader labels, contrast).
 
 ### M5 Admin and drills in the app

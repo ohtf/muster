@@ -53,8 +53,24 @@ pub fn default_policy_file() -> PathBuf {
 }
 
 /// The control socket: `$XDG_RUNTIME_DIR/muster/control.sock`, else inside
-/// the data directory.
+/// the data directory. On Windows, the named pipe
+/// `\\.\pipe\muster-<domain>-<user>` (one per signed-in user).
 pub fn default_control_socket(data_dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        let part = |v: &str| {
+            std::env::var(v)
+                .unwrap_or_default()
+                .chars()
+                .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+                .collect::<String>()
+        };
+        let _ = data_dir;
+        return PathBuf::from(format!(
+            r"\\.\pipe\muster-{}-{}",
+            part("USERDOMAIN"),
+            part("USERNAME")
+        ));
+    }
     match std::env::var_os("XDG_RUNTIME_DIR") {
         Some(r) => PathBuf::from(r).join("muster").join("control.sock"),
         None => data_dir.join("control.sock"),

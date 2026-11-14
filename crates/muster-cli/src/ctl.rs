@@ -143,15 +143,9 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    #[cfg(unix)]
     let v = rt
         .block_on(muster_agent::control::call(&sock, method, params))
         .with_context(|| format!("calling the agent at {}", sock.display()))?;
-    #[cfg(not(unix))]
-    let v: Value = {
-        let _ = (rt, params);
-        anyhow::bail!("the control API is not yet available on this platform");
-    };
     if let CtlCommand::DrillReport { csv: true, .. } = c {
         print!("{}", v["csv"].as_str().unwrap_or(""));
         return Ok(());
