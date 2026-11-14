@@ -9,6 +9,7 @@ settings, admin and about; or first run if this computer is not set up.
   import { onMount } from "svelte";
   import { api, clock, when } from "../lib/api";
   import StatusIcon from "../lib/StatusIcon.svelte";
+  import AdminTab from "./AdminTab.svelte";
   import FirstRun from "./FirstRun.svelte";
   import type { AgentConfig, Alarm, AppInfo, Peer, Status } from "../lib/types";
 
@@ -26,12 +27,6 @@ settings, admin and about; or first run if this computer is not set up.
   let room = $state("");
   let roomSaved = $state(false);
   let joins = $state<{ device: string; label: string; code: string }[]>([]);
-  let tokenDays = $state(7);
-  let tokenLabel = $state("");
-  let token = $state<{ text: string; expires_at: number } | null>(null);
-  let copied = $state(false);
-  let removing = $state<Peer | null>(null);
-  let drillSent = $state(false);
 
   const tabs = $derived<[Tab, string][]>([
     ["status", "Status"],
@@ -76,45 +71,6 @@ settings, admin and about; or first run if this computer is not set up.
     } catch (e) {
       error = String(e);
     }
-  }
-
-  async function makeToken() {
-    error = "";
-    try {
-      token = await api.createToken(tokenDays, tokenLabel || "Enrolment code");
-      copied = false;
-    } catch (e) {
-      error = String(e);
-    }
-  }
-
-  async function copyToken() {
-    if (!token) return;
-    await navigator.clipboard.writeText(token.text);
-    copied = true;
-  }
-
-  async function remove(p: Peer) {
-    error = "";
-    try {
-      await api.revoke(p.device, "Removed by a Practice Admin");
-      removing = null;
-      refresh();
-    } catch (e) {
-      error = String(e);
-    }
-  }
-
-  async function drill() {
-    await api.runDrill();
-    drillSent = true;
-    setTimeout(() => (drillSent = false), 4000);
-  }
-
-  async function answerJoin(device: string, ok: boolean) {
-    if (ok) await api.approveJoin(device);
-    else await api.rejectJoin(device);
-    joins = joins.filter((j) => j.device !== device);
   }
 
   onMount(() => {
@@ -271,72 +227,7 @@ settings, admin and about; or first run if this computer is not set up.
           </p>
         </section>
       {:else if tab === "admin" && status?.admin}
-        {#if joins.length}
-          <section>
-            <h2>Waiting to join</h2>
-            {#each joins as j (j.device)}
-              <div class="join">
-                <div><strong>{j.label}</strong><br /><span class="muted">Check this code matches their screen:</span> <code class="code">{j.code}</code></div>
-                <button class="btn primary" onclick={() => answerJoin(j.device, true)}>Approve</button>
-                <button class="btn" onclick={() => answerJoin(j.device, false)}>Reject</button>
-              </div>
-            {/each}
-          </section>
-        {/if}
-        <section>
-          <h2>Add a computer</h2>
-          <p>Create an enrolment code and paste it into Muster on the new computer.</p>
-          <div class="inline">
-            <div class="field">
-              <label for="tlabel">Label</label>
-              <input id="tlabel" bind:value={tokenLabel} placeholder="Reception PCs" />
-            </div>
-            <div class="field">
-              <label for="tdays">Valid for (days)</label>
-              <input id="tdays" type="number" min="1" max="365" bind:value={tokenDays} />
-            </div>
-            <button class="btn primary" onclick={makeToken}>Create code</button>
-          </div>
-          {#if token}
-            <div class="token">
-              <textarea readonly rows="3" aria-label="Enrolment code">{token.text}</textarea>
-              <div class="inline">
-                <button class="btn" onclick={copyToken}>{copied ? "Copied" : "Copy"}</button>
-                <span class="muted">Valid until {new Date(token.expires_at).toLocaleDateString("en-GB")}. Treat it like a password.</span>
-              </div>
-            </div>
-          {/if}
-        </section>
-        <section>
-          <h2>Devices</h2>
-          <table>
-            <thead><tr><th>Computer</th><th>Room</th><th>Person</th><th></th></tr></thead>
-            <tbody>
-              {#each peers as p (p.device)}
-                <tr>
-                  <td>{p.label || p.device_short}</td>
-                  <td>{p.room || "-"}</td>
-                  <td>{p.user || "-"}</td>
-                  <td class="right">
-                    {#if removing?.device === p.device}
-                      <span>Remove this computer from the practice?</span>
-                      <button class="btn danger" onclick={() => remove(p)}>Remove</button>
-                      <button class="btn" onclick={() => (removing = null)}>Keep</button>
-                    {:else}
-                      <button class="btn" onclick={() => (removing = p)}>Remove...</button>
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </section>
-        <section>
-          <h2>Test alarm</h2>
-          <p>Every device shows "Test alarm received - no action needed". Nobody is alerted.</p>
-          <button class="btn" onclick={drill}>Run a test alarm now</button>
-          {#if drillSent}<span class="saved" role="status">Sent</span>{/if}
-        </section>
+        <AdminTab bind:joins onerror={(m) => (error = m)} />
       {:else if tab === "about"}
         <section>
           <h1>About Muster</h1>
@@ -482,21 +373,8 @@ settings, admin and about; or first run if this computer is not set up.
     font-weight: 600;
   }
 
-  td.right {
-    text-align: right;
-    white-space: nowrap;
-  }
 
-  td.right .btn {
-    min-height: 32px;
-    font-size: 13px;
-  }
 
-  .btn.danger {
-    background: var(--status-red);
-    border-color: var(--status-red);
-    color: var(--paper);
-  }
 
   .narrow {
     max-width: 360px;
@@ -509,45 +387,15 @@ settings, admin and about; or first run if this computer is not set up.
     flex-wrap: wrap;
   }
 
-  .inline .field {
-    margin-bottom: 0;
-  }
 
   .end {
     justify-content: flex-end;
   }
 
-  .token {
-    margin-top: 12px;
-    display: grid;
-    gap: 8px;
-  }
 
-  .token textarea {
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    resize: none;
-  }
 
-  .join {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding: 8px 0;
-  }
 
-  .join div {
-    flex: 1;
-  }
 
-  .code {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-  }
 
   dl {
     display: grid;

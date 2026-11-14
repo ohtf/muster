@@ -50,6 +50,38 @@ export interface Peer {
   audio_ok: boolean | null;
 }
 
+export interface Device {
+  device: string;
+  device_short: string;
+  this_device: boolean;
+  label: string;
+  room: string | null;
+  user: string | null;
+  role: "member" | "admin" | "enroller" | "unknown";
+  enrolled_at: number;
+  token_id: string | null;
+  path: Peer["path"] | null;
+  last_heard_ms: number | null;
+  status: Level | null;
+}
+
+export interface Token {
+  token_id: string;
+  label: string;
+  issued_at: number;
+  expires_at: number;
+  expired: boolean;
+  revoked: boolean;
+  enrolled: { device: string; label: string; enrolled_at: number }[];
+}
+
+export interface DrillSummary {
+  alarm_id: string;
+  started_at: number;
+  received: number;
+  expected: number;
+}
+
 export interface AgentConfig {
   label: string;
   room: string;

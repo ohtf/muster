@@ -56,7 +56,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M5 Admin and drills in the app
 
-- [ ] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export.
+- [~] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export. Done: devices with a needs-attention filter and remove, join approvals, enrolment codes (create, copy, revoke, devices per code), test alarms with reports and CSV copy. Still to do: rename, rooms and promote (need a protocol message), drill schedules, practice settings, admins and recovery, audit export.
 - [ ] **R35 - M5 exit**: a practice can be set up, enrolled, drilled and administered entirely from the GUI.
 
 ### M6 Relay

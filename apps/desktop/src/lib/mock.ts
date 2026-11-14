@@ -183,6 +183,21 @@ export const mock = {
         return alarms.map((a) => ({ ...a }));
       case "peers":
         return peers;
+      case "devices":
+        return [
+          { device: status.device, device_short: status.device_short, this_device: true, label: "RECEPTION-1", room: "Reception", user: "Jane Smith", role: "admin", enrolled_at: now - 9e8, token_id: null, path: null, last_heard_ms: null, status: "green" },
+          ...peers.map((p, i) => ({ device: p.device, device_short: p.device_short, this_device: false, label: p.label, room: p.room, user: p.user, role: "member", enrolled_at: now - 8e8, token_id: i < 2 ? "7".repeat(32) : null, path: p.path, last_heard_ms: p.last_heard_ms, status: "green" })),
+          { device: "9".repeat(64), device_short: "99999999", this_device: false, label: "OLD-LAPTOP", room: null, user: null, role: "member", enrolled_at: now - 7e9, token_id: null, path: null, last_heard_ms: null, status: null },
+        ];
+      case "tokens":
+        return [
+          { token_id: "7".repeat(32), label: "Reception PCs", issued_at: now - 9e8, expires_at: now + 9e8, expired: false, revoked: false, enrolled: [{ device: "0".repeat(64), label: "PC-1", enrolled_at: now - 8e8 }, { device: "1".repeat(64), label: "PC-2", enrolled_at: now - 8e8 }] },
+          { token_id: "8".repeat(32), label: "Locum laptop", issued_at: now - 9e9, expires_at: now - 1e9, expired: true, revoked: false, enrolled: [] },
+        ];
+      case "drill.reports":
+        return [{ alarm_id: "5".repeat(32), started_at: now - 86_400_000, received: 4, expected: 5 }];
+      case "drill.report":
+        return { alarm_id: "5".repeat(32), started_at: now - 86_400_000, received: 4, expected: 5, csv: "device,label,room,received\n" };
       case "config":
         return {
           label: "RECEPTION-1",

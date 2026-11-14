@@ -5,7 +5,7 @@
 // events; in a plain browser (vite dev, screenshots) it uses the mock agent
 // in mock.ts so every view can be seen without a desktop session.
 
-import type { AgentConfig, Alarm, AppInfo, MusterEvent, Peer, Status } from "./types";
+import type { AgentConfig, Alarm, AppInfo, Device, DrillSummary, MusterEvent, Peer, Status, Token } from "./types";
 import { mock } from "./mock";
 
 export const inTauri = "__TAURI_INTERNALS__" in window;
@@ -33,6 +33,11 @@ export const api = {
   alarms: () => call<Alarm[]>("alarms"),
   peers: () => call<Peer[]>("peers"),
   config: () => call<AgentConfig>("config"),
+  devices: () => call<Device[]>("devices"),
+  tokens: () => call<Token[]>("tokens"),
+  revokeToken: (token_id: string) => call("token.revoke", { token_id }),
+  drillReports: () => call<DrillSummary[]>("drill.reports"),
+  drillReport: (alarm_id: string) => call<DrillSummary & { csv: string }>("drill.report", { alarm_id }),
   holdStart: (practice = false, source = "button") => call("hold.start", { source, practice }),
   holdEnd: (source = "button") => call("hold.end", { source }),
   respond: (alarm_id: string) => call("respond", { alarm_id }),
