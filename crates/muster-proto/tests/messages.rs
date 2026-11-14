@@ -258,7 +258,7 @@ fn check_golden(name: &str, bytes: &[u8]) {
     }
     let expected = std::fs::read_to_string(&path)
         .unwrap_or_else(|_| panic!("missing vector {name}; run with MUSTER_BLESS=1"));
-    assert_eq!(hex, expected, "golden vector {name} changed");
+    assert_eq!(hex.trim(), expected.trim(), "golden vector {name} changed");
 }
 
 #[test]

@@ -113,10 +113,10 @@ jobs:
       - name: Set up nightly Rust
         shell: bash
         run: rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
-        with:
-          tool: cargo-fuzz
-          fallback: none
+      # install-action has no prebuilt cargo-fuzz; build the locked release.
+      - name: Install cargo-fuzz
+        shell: bash
+        run: cargo +nightly install --locked cargo-fuzz@0.13.2
       - name: Run every fuzz target
         shell: bash
         run: |
