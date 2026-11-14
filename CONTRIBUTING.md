@@ -18,14 +18,17 @@ This adds a `Signed-off-by:` line certifying that you have the right to submit t
 
 ## Code of conduct
 
-The project adopts the Contributor Covenant, version 2.1. The text will be added as `CODE_OF_CONDUCT.md` (fetch it from https://www.contributor-covenant.org/; do not paraphrase it).
+The project adopts the Contributor Covenant, version 2.1: see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report concerns to conduct@openhealthtechnology.org.
 
 ## Before opening a PR
+
+`s/lint` and `s/test` run most of these. `s/install-hooks` runs `s/lint` before every commit.
 
 - [ ] `cargo fmt --all --check`
 - [ ] `cargo clippy --all-targets --all-features -- -D warnings`
 - [ ] `cargo test --workspace` (includes simulator property tests)
 - [ ] `cargo deny check`
+- [ ] `reuse lint`
 - [ ] Frontend: `npm run lint`, `npm run format:check`, `npm run check`, `npm test` in `apps/desktop`
 - [ ] New functionality has tests that reference requirement IDs
 - [ ] If behaviour that affects safety changed, `safety/hazard-log.md` has been updated
@@ -33,4 +36,4 @@ The project adopts the Contributor Covenant, version 2.1. The text will be added
 
 ## Reporting security issues
 
-Do not open public issues for vulnerabilities. See `SECURITY.md` (to be written in M0: a private reporting address owned by OHTF and a 90-day disclosure policy).
+Do not open public issues for vulnerabilities. See [SECURITY.md](SECURITY.md).

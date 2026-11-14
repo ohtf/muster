@@ -8,10 +8,10 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M0 Repository and CI
 
-- [ ] **R1 - Workspace skeleton** per `02-architecture.md`.
-- [ ] **R2 - Licence, security and conduct files**: fetch the AGPL licence text; write `SECURITY.md`; add `CODE_OF_CONDUCT.md` (fetched text).
-- [ ] **R3 - CI**: fmt, clippy, test, cargo-deny, frontend lint placeholders, build matrix (Linux, Windows, macOS).
-- [ ] **R4 - Commit the ADRs** in `spec/adr/`.
+- [x] **R1 - Workspace skeleton** per `02-architecture.md`.
+- [x] **R2 - Licence, security and conduct files**: fetch the AGPL licence text; write `SECURITY.md`; add `CODE_OF_CONDUCT.md` (fetched text).
+- [~] **R3 - CI**: fmt, clippy, test, cargo-deny, frontend lint placeholders, build matrix (Linux, Windows, macOS).
+- [x] **R4 - Commit the ADRs** in `spec/adr/`.
 - [ ] **R5 - M0 exit**: empty crates build on all three OSes. CI green.
 
 ### M1 Protocol and crypto

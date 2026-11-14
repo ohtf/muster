@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# Run the full Rust test suite: unit tests, golden vectors, simulator
+# scenarios and property tests (256 cases by default).
+#
+# Pass cargo test arguments through, for example:
+#   s/test -p muster-core
+#   PROPTEST_CASES=10000 s/test -p muster-sim   (nightly-scale property run)
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+exec cargo test --workspace --all-features "$@"

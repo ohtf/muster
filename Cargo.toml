@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
+repository = "https://github.com/ohtf/muster"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unwrap_used = "warn"
+
+[workspace.dependencies]
+muster-proto = { path = "crates/muster-proto" }
+muster-crypto = { path = "crates/muster-crypto" }
+muster-core = { path = "crates/muster-core" }
+muster-store = { path = "crates/muster-store" }
+muster-net = { path = "crates/muster-net" }
+muster-agent = { path = "crates/muster-agent" }

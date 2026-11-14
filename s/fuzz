@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# Run one cargo-fuzz target from fuzz/. Needs a nightly toolchain and
+# cargo-fuzz (one-off: rustup toolchain install nightly; cargo install cargo-fuzz).
+#
+#   s/fuzz envelope_decode -- -max_total_time=600
+#   cargo +nightly fuzz list --fuzz-dir fuzz     (list targets)
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
+  echo "s/fuzz: needs nightly and cargo-fuzz:" >&2
+  echo "  rustup toolchain install nightly && cargo install cargo-fuzz" >&2
+  exit 1
+fi
+
+exec cargo +nightly fuzz run --fuzz-dir fuzz "$@"

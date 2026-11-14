@@ -1,0 +1,45 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.muster-recovery
+*.token
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and temporary files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.log
+tmp/
+.cache/
+
+# Rust
+/target
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts
+/fuzz/coverage
+
+# Node / frontend
+node_modules/
+dist/
+
+# Retained local-only work (house-style private-workspace.md)
+/.private
+
+# Disposable agent and browser-automation artefacts
+/.claude
+/.playwright-mcp
+/.playwright
+/playwright-report
+/blob-report
+/test-results

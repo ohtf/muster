@@ -1,0 +1,10 @@
+Additional permission under GNU AGPL version 3 section 7
+
+As an additional permission under section 7 of the GNU Affero General Public License, version 3, you may distribute covered works, in object code form, through an application store or similar distribution platform (for example the Apple App Store or Google Play), even if the terms and conditions of that platform impose restrictions on recipients that would otherwise conflict with this License. This permission applies only if:
+
+1. the Corresponding Source of the covered work is made available to all recipients, free of charge, under the terms of this License (with or without this additional permission), through a channel that does not impose those restrictions; and
+2. the distribution makes clear to recipients where that Corresponding Source can be obtained.
+
+You may remove this additional permission from your copy of the covered work. If you modify the covered work, you may extend this additional permission to your version, but you are not required to.
+
+DRAFT: this text is pending legal review before the first external contribution is accepted. See LICENSE-EXCEPTIONS.md.
