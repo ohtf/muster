@@ -294,6 +294,66 @@ impl Core {
         });
     }
 
+    /// Issues an admin cert to a member device and announces it
+    /// (`spec/04-security.md`: admin certs are issued by root or an admin).
+    /// The device keeps its member cert; it is an admin while the new cert
+    /// is valid.
+    pub(crate) fn promote(&mut self, now: Mono, wall: WallMs, device: DeviceId) {
+        if !self.require_admin(wall) || device == self.me {
+            return;
+        }
+        let Some(p) = self.practice.clone() else {
+            return;
+        };
+        let Some((kx, label, already)) = self.trust.as_ref().and_then(|t| {
+            let certs = t.valid_certs(&device, wall);
+            let best = certs.iter().max_by_key(|b| b.issued_at)?;
+            Some((
+                best.subject_kx,
+                best.label.clone(),
+                t.is_admin(&device, wall),
+            ))
+        }) else {
+            return;
+        };
+        if already {
+            return;
+        }
+        let cert = issue_cert(
+            &self.keys,
+            CertBody {
+                version: CERT_VERSION,
+                practice_id: p.practice_id,
+                serial: CertSerial(self.rng.bytes()),
+                subject: device,
+                subject_kx: kx,
+                role: Role::Admin,
+                label,
+                issued_at: wall,
+                expires_at: 0,
+                issuer: [0; 32],
+                token_id: None,
+            },
+        );
+        let raw = cert.to_cbor();
+        if let Some(t) = self.trust.as_mut() {
+            let _ = t.add_cert(cert);
+        }
+        self.persist(PersistOp::AddCert(raw.clone()));
+        let ann = self.body(
+            wall,
+            Payload::CertAnnounce(muster_proto::CertAnnounce { certs: vec![raw] }),
+        );
+        self.processed.insert(ann.msg_id, wall);
+        self.reflooded.insert(ann.msg_id, now);
+        let envs = self.seal_all(now, wall, &ann);
+        self.flood_new(now, wall, &envs);
+        self.log(AuditEvent::CertAdded {
+            device,
+            role: Role::Admin,
+        });
+    }
+
     /// Revokes a device and rotates the group key (`spec/04-security.md`,
     /// Revocation and key rotation).
     pub(crate) fn revoke(

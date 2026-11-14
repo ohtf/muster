@@ -802,6 +802,7 @@ impl Core {
             UserAction::RejectJoin { device } => {
                 self.join_requests.remove(&device);
             }
+            UserAction::Promote { device } => self.promote(now, wall, device),
             UserAction::Revoke {
                 device,
                 cascade,

@@ -574,3 +574,46 @@ fn s17_muted_receiver_without_override() {
     assert!(peer.and_then(|p| p.audio()).is_some_and(|a| a.muted));
     let _ = LocalAck::Seen;
 }
+
+/// FR-ADM-002: an admin promotes a member, which can then act as an admin
+/// (here, revoke another device) everywhere.
+#[test]
+fn promote_member_to_admin() {
+    let mut w = World::new(WorldSpec::flat(5, 21));
+    w.run_until(WARMUP);
+    let promoted = w.device_id(2);
+    w.act_now(0, UserAction::Promote { device: promoted });
+    w.run_for(5_000);
+    for i in 0..5 {
+        let c = w.core(i).expect("core");
+        let wall = w.wall_of(i);
+        assert!(
+            c.trust().is_some_and(|t| t.is_admin(&promoted, wall)),
+            "node {i} sees node 2 as an admin"
+        );
+    }
+    // The new admin's revocation is honoured.
+    let gone = w.device_id(4);
+    w.act_now(
+        2,
+        UserAction::Revoke {
+            device: gone,
+            cascade: false,
+            reason: "Left".into(),
+        },
+    );
+    w.run_for(5_000);
+    for i in 0..4 {
+        let c = w.core(i).expect("core");
+        assert!(
+            c.trust().is_some_and(|t| !t.is_member(&gone, w.wall_of(i))),
+            "node {i} removed node 4"
+        );
+    }
+    // A member cannot promote.
+    let other = w.device_id(3);
+    w.act_now(1, UserAction::Promote { device: other });
+    w.run_for(5_000);
+    let c = w.core(0).expect("core");
+    assert!(!c.trust().is_some_and(|t| t.is_admin(&other, w.wall_of(0))));
+}

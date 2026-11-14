@@ -433,6 +433,7 @@ impl Runtime {
             }),
             "admin.approve_join" => self.user(UserAction::ApproveJoin { device: device(p)? }),
             "admin.reject_join" => self.user(UserAction::RejectJoin { device: device(p)? }),
+            "admin.promote" => self.user(UserAction::Promote { device: device(p)? }),
             _ => Err(RpcError::not_found(method)),
         }
     }

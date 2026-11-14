@@ -43,6 +43,8 @@ pub enum CtlCommand {
         #[arg(long, default_value = "")]
         reason: String,
     },
+    /// Make a device a Practice Admin (admin).
+    Promote { device: String },
     /// Dropped-message counters.
     Diagnostics,
     /// Every device in the practice, heard or not.
@@ -129,6 +131,7 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
             "admin.revoke",
             json!({"device": device, "cascade": compromised, "reason": reason}),
         ),
+        CtlCommand::Promote { device } => ("admin.promote", json!({"device": device})),
         CtlCommand::Diagnostics => ("diagnostics", Value::Null),
         CtlCommand::Devices => ("devices", Value::Null),
         CtlCommand::Tokens => ("tokens", Value::Null),

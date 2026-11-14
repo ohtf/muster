@@ -62,6 +62,8 @@ pub enum Command {
 pub enum DeviceCommand {
     /// Every device in the practice, heard or not.
     List,
+    /// Make a device a Practice Admin (admin).
+    Promote { device: String },
     /// Remove a device (admin). `--compromised` also removes everything it enrolled.
     Revoke {
         device: String,
@@ -98,6 +100,12 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         Command::Token(c) => token::run(&cli, c),
         Command::Ctl(c) => ctl::run(&cli, c),
         Command::Device(DeviceCommand::List) => ctl::run(&cli, &ctl::CtlCommand::Devices),
+        Command::Device(DeviceCommand::Promote { device }) => ctl::run(
+            &cli,
+            &ctl::CtlCommand::Promote {
+                device: device.clone(),
+            },
+        ),
         Command::Device(DeviceCommand::Revoke {
             device,
             compromised,

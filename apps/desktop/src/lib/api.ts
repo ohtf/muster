@@ -46,6 +46,7 @@ export const api = {
   cancel: (alarm_id: string) => call("cancel", { alarm_id }),
   runDrill: () => call("drill.run"),
   revoke: (device: string, reason: string) => call("admin.revoke", { device, reason }),
+  promote: (device: string) => call("admin.promote", { device }),
   approveJoin: (device: string) => call("admin.approve_join", { device }),
   rejectJoin: (device: string) => call("admin.reject_join", { device }),
   setupPractice: (name: string, label: string, passphrase: string, kitPath: string) =>

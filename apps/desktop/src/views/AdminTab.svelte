@@ -24,6 +24,7 @@ enrolment codes, and test alarms with their reports.
   let reports = $state<DrillSummary[]>([]);
   let filter = $state<"all" | "attention">("all");
   let removing = $state<string | null>(null);
+  let promoting = $state<string | null>(null);
   let revokingToken = $state<string | null>(null);
   let tokenDays = $state(7);
   let tokenLabel = $state("");
@@ -58,6 +59,16 @@ enrolment codes, and test alarms with their reports.
     try {
       await api.revoke(d.device, "Removed by a Practice Admin");
       removing = null;
+      refresh();
+    } catch (e) {
+      onerror(String(e));
+    }
+  }
+
+  async function promote(d: Device) {
+    try {
+      await api.promote(d.device);
+      promoting = null;
       refresh();
     } catch (e) {
       onerror(String(e));
@@ -146,6 +157,13 @@ enrolment codes, and test alarms with their reports.
   </section>
 {/if}
 
+{#if devices.length && devices.filter((d) => d.role === "admin").length < 2}
+  <p class="notice" role="status">
+    This practice has only one Practice Admin. If that computer is lost, admin access needs the recovery kit. Make a
+    second computer an admin below.
+  </p>
+{/if}
+
 <section>
   <div class="head">
     <h2>Devices ({devices.length})</h2>
@@ -177,7 +195,14 @@ enrolment codes, and test alarms with their reports.
               <span>Remove from the practice?</span>
               <button class="btn danger" onclick={() => remove(d)}>Remove</button>
               <button class="btn" onclick={() => (removing = null)}>Keep</button>
+            {:else if promoting === d.device}
+              <span>Let this computer manage the practice?</span>
+              <button class="btn primary" onclick={() => promote(d)}>Make admin</button>
+              <button class="btn" onclick={() => (promoting = null)}>Back</button>
             {:else}
+              {#if d.role !== "admin"}
+                <button class="btn" onclick={() => (promoting = d.device)}>Make admin...</button>
+              {/if}
               <button class="btn" onclick={() => (removing = d.device)}>Remove...</button>
             {/if}
           </td>
@@ -419,6 +444,14 @@ enrolment codes, and test alarms with their reports.
     font-size: 18px;
     font-weight: 700;
     letter-spacing: 0.1em;
+  }
+
+  .notice {
+    margin: 0;
+    padding: 10px 14px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
   }
 
   .saved {

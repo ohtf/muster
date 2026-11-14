@@ -96,6 +96,10 @@ pub enum UserAction {
     RejectJoin {
         device: DeviceId,
     },
+    /// Admin: make a member device an admin (issues it an admin cert).
+    Promote {
+        device: DeviceId,
+    },
     /// Admin: revoke a device. `cascade` = "compromised".
     Revoke {
         device: DeviceId,
