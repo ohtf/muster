@@ -17,10 +17,16 @@ workspace = true
 [dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 getrandom = "0.4"
+http = "1"
+hyper-util = { version = "0.1.21", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 if-addrs = "0.15"
 mdns-sd = "0.21"
 muster-core.workspace = true
 muster-proto.workspace = true
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-native-certs = "0.8.5"
+rustls-pki-types = { version = "1.16.0", features = ["std"] }
 socket2 = { version = "0.6", features = ["all"] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util"] }

@@ -304,6 +304,7 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
     let (auth_tx, mut auth_rx) = mpsc::channel::<muster_net::relay::AuthRequest>(16);
     let relays = muster_net::relay::RelayClients::start(
         &opts.config.network.relay_urls,
+        opts.config.network.relay_ca_pem.as_deref(),
         in_tx.clone(),
         auth_tx,
     );

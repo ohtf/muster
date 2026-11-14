@@ -10,7 +10,8 @@ use std::path::PathBuf;
 use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 use muster_relay::config::{RelayConfig, TenantConfig, TenantsFile};
-use muster_relay::server::{App, router};
+use muster_relay::persist::Store;
+use muster_relay::server::{App, now_ms, router, spawn_housekeeping};
 use muster_relay::state::Relay;
 
 #[derive(Debug, Parser)]
@@ -65,22 +66,29 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap_or_else(|_| "info".into()),
         )
         .with_writer(std::io::stderr)
+        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
         .init();
     let args = Args::parse();
     let cfg = load(&args.config)?;
     match args.command {
         Cmd::Serve => {
-            if cfg.persist {
-                tracing::warn!("persist = true: the buffer is in memory in this version");
-            }
             let mut relay = Relay::new(cfg.limits.clone());
             let file = TenantsFile::load(&cfg.tenants_file())?;
+            let now = now_ms();
             for t in cfg.tenants.iter().chain(file.tenants.iter()) {
                 let (pid, root) = t.parsed().map_err(anyhow::Error::msg)?;
-                relay.add_tenant(pid, root, &t.name);
+                relay.add_tenant(pid, root, &t.name, now);
+            }
+            if cfg.persist {
+                let path = cfg.data_dir.join("relay.sqlite");
+                let store =
+                    Store::open(&path).with_context(|| format!("opening {}", path.display()))?;
+                relay.attach_store(store, now)?;
+                tracing::info!("persisting to {}", path.display());
             }
             tracing::info!("serving {} tenants on {}", relay.tenant_count(), cfg.listen);
             let app = App::new(relay, cfg.source_url());
+            spawn_housekeeping(app.clone());
             let listener = tokio::net::TcpListener::bind(cfg.listen).await?;
             axum::serve(listener, router(app))
                 .with_graceful_shutdown(async {

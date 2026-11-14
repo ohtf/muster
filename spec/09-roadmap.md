@@ -61,9 +61,9 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M6 Relay
 
-- [~] **R36 - `muster-relay`**: WebSocket and long-poll, tenants, auth, forwarding, buffer and resume, presence, revocation enforcement, `/source`, metrics. Done except buffer persistence across relay restarts.
-- [~] **R37 - Relay client** in `muster-net`, including proxy support and long-poll fallback. WebSocket client done; proxy support and long-poll fallback pending.
-- [~] **R38 - Relay netns tests** S5, S6, S12, S14 with a real relay. Docker image and compose example. Netns tests pass; packaging pending.
+- [x] **R36 - `muster-relay`**: WebSocket and long-poll, tenants, auth, forwarding, buffer and resume, presence, revocation enforcement, `/source`, metrics.
+- [x] **R37 - Relay client** in `muster-net`, including proxy support and long-poll fallback. NTLM and Kerberos proxy auth are not supported (S for v1, see `06-relay.md`).
+- [~] **R38 - Relay netns tests** S5, S6, S12, S14 with a real relay. Docker image and compose example. Netns tests pass, including S5 over long-poll; packaging pending.
 - [ ] **R39 - M6 exit**: L3, L5 and L8 equivalents pass in netns.
 
 ### M7 Packaging

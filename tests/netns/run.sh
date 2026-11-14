@@ -98,7 +98,8 @@ start() {
     [[ -d $WORK/$node ]] || printf '[enrolment]\ntoken_file = "%s"\n' "$WORK/token.$node"
   } > "$WORK/$node.toml"
   [[ -d $WORK/$node ]] || cp "$WORK/token" "$WORK/token.$node"
-  ip netns exec "$node" env MUSTER_LOG=info "$AGENT" --headless \
+  # shellcheck disable=SC2086 # AGENT_ENV is a list of NAME=value words.
+  ip netns exec "$node" env MUSTER_LOG=info ${AGENT_ENV:-} "$AGENT" --headless \
     --config "$WORK/$node.toml" --policy /dev/null --data-dir "$WORK/$node" \
     --control-socket "$WORK/$node.sock" --label "$node" --allow-raise \
     >"$WORK/$node.log" 2>&1 &
@@ -107,13 +108,14 @@ start() {
 
 ctl() { local node=$1; shift; "$CLI" --control-socket "$WORK/$node.sock" "$@"; }
 
-# relay_start NODE: run a relay in that namespace serving the practice.
+# relay_start NODE: run a relay in that namespace serving the practice
+# (RELAY_PERSIST=true keeps its buffer in SQLite across restarts).
 relay_start() {
   local node=$1
   mkdir -p "$WORK/relay"
-  printf 'listen = "0.0.0.0:8443"\ndata_dir = "%s"\n[[tenant]]\npractice_id = "%s"\nroot_pub = "%s"\nname = "netns"\n' \
-    "$WORK/relay" "$PRACTICE_ID" "$ROOT_PUB" > "$WORK/relay.toml"
-  ip netns exec "$node" "$RELAY" --config "$WORK/relay.toml" serve >"$WORK/relay.log" 2>&1 &
+  printf 'listen = "0.0.0.0:8443"\ndata_dir = "%s"\npersist = %s\n[[tenant]]\npractice_id = "%s"\nroot_pub = "%s"\nname = "netns"\n' \
+    "$WORK/relay" "${RELAY_PERSIST:-false}" "$PRACTICE_ID" "$ROOT_PUB" > "$WORK/relay.toml"
+  ip netns exec "$node" "$RELAY" --config "$WORK/relay.toml" serve >>"$WORK/relay.log" 2>&1 &
   RELAY_PID=$!
   PIDS+=("$RELAY_PID")
   sleep 0.5
@@ -256,7 +258,13 @@ s5() {
   expect_level n3 amber 25
   raise_and_expect n1 5 n2 n3
   raise_and_expect n3 5 n1 n2
-  pass "S5 two VLANs via relay"
+  pass "S5 two VLANs via relay${S5_LABEL:-}"
+}
+
+# S5 again with every device on HTTP long-poll, as behind a proxy that
+# breaks WebSockets.
+s5lp() {
+  AGENT_ENV=MUSTER_RELAY_TRANSPORT=long-poll S5_LABEL=" (long-poll)" s5
 }
 
 # S6: Wi-Fi with client isolation and a wired segment; laptops use the relay.
@@ -289,7 +297,7 @@ s12() {
   attach l1 brw 10.12.0.11/24 isolated
   attach r brw 10.12.0.100/24
   practice n1
-  relay_start r
+  RELAY_PERSIST=true relay_start r
   for n in n1 n2; do start "$n" 'relay_urls = ["ws://10.10.0.100:8443/v1/ws"]'; done
   start l1 'relay_urls = ["ws://10.12.0.100:8443/v1/ws"]'
   wait_ready n1 n2 l1
@@ -300,7 +308,8 @@ s12() {
   sleep 1
   [[ $(coming_count n1 "$ALARM_ID") == 1 ]] || fail "LAN did not get the response"
   [[ $(coming_count l1 "$ALARM_ID") == 0 ]] || fail "relay-only device got it with the relay down?"
-  relay_start r
+  RELAY_PERSIST=true relay_start r
+  grep -q "persisting to" "$WORK/relay.log" || fail "relay did not open its store"
   for _ in $(seq 120); do
     [[ $(coming_count l1 "$ALARM_ID") == 1 ]] && break
     sleep 0.5
@@ -309,32 +318,38 @@ s12() {
   pass "S12 relay down mid-alarm"
 }
 
-# S14: an admin revokes a laptop during an open alarm. The alarm carries on
-# for everyone else and the laptop's later events are rejected.
+# S14: an admin revokes a relay-only laptop during an open alarm. The
+# relay closes and refuses the laptop, the alarm carries on for everyone
+# else, and the laptop's later events are rejected.
 s14() {
-  bridge br0
-  for i in 1 2 3 4; do attach "n$i" br0 "10.10.0.$i/24"; done
+  bridge br0; bridge brw
+  attach r br0 10.10.0.100/24
+  for i in 1 2 3; do attach "n$i" br0 "10.10.0.$i/24"; done
+  attach l1 brw 10.12.0.11/24 isolated
+  attach r brw 10.12.0.100/24
   practice n1
-  for n in n1 n2 n3 n4; do start "$n"; done
-  wait_ready n1 n2 n3 n4
-  for n in n1 n2 n3 n4; do expect_level "$n" green 25; done
-  raise_and_expect n2 3 n1 n3 n4
+  relay_start r
+  for n in n1 n2 n3; do start "$n" 'relay_urls = ["ws://10.10.0.100:8443/v1/ws"]'; done
+  start l1 'relay_urls = ["ws://10.12.0.100:8443/v1/ws"]'
+  wait_ready n1 n2 n3 l1
+  for n in n1 n2 n3; do expect_level "$n" green 25; done
+  expect_level l1 amber 25
+  raise_and_expect n2 5 n1 n3 l1
   local laptop
-  laptop=$(ctl n4 --format json ctl status | sed -n 's/.*"device": "\([0-9a-f]*\)".*/\1/p')
+  laptop=$(ctl l1 --format json ctl status | sed -n 's/.*"device": "\([0-9a-f]*\)".*/\1/p')
   ctl n1 ctl revoke "$laptop" --reason "Laptop lost" >/dev/null
-  sleep 2
-  ctl n4 ctl respond "$ALARM_ID" >/dev/null || true
+  expect_level l1 red 10
+  ctl l1 ctl respond "$ALARM_ID" >/dev/null || true
   ctl n3 ctl respond "$ALARM_ID" >/dev/null
   sleep 2
   for n in n1 n2 n3; do
     [[ $(coming_count "$n" "$ALARM_ID") == 1 ]] || fail "$n: coming should be only n3"
   done
-  expect_level n4 red 10
-  pass "S14 revoke during open alarm"
+  pass "S14 revoke a relay-only laptop during an open alarm"
 }
 
 scenarios=("$@")
-[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s6 s12 s14)
+[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s5lp s6 s12 s14)
 if [[ ${#scenarios[@]} -gt 1 ]]; then
   # Each scenario in a fresh set of namespaces.
   for s in "${scenarios[@]}"; do

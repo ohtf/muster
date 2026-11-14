@@ -91,7 +91,7 @@ fn sealed(k: &DeviceKeys, n: u8) -> Vec<u8> {
 
 fn relay(p: &Practice) -> Relay {
     let mut r = Relay::new(Limits::default());
-    r.add_tenant(PID, p.root.public(), "Test");
+    r.add_tenant(PID, p.root.public(), "Test", NOW);
     r
 }
 
@@ -185,15 +185,17 @@ fn resume_replays_after_cursor() {
     for n in 1..=3 {
         r.receive(&sa, &sealed(&a, n), NOW);
     }
-    // b connects fresh: gets all three; with resume_cursor 2, only the third.
+    // b connects fresh: gets all three; resuming after the second, only the
+    // third.
     let (_, _rxb, replay) = connect(&mut r, &b, cb.clone(), 2);
+    let second = first_cursor(NOW) + 1;
     assert_eq!(replay.len(), 3);
     let (tx, _rx) = mpsc::unbounded_channel();
     let (_, replay) = r
         .authenticate(
             [3; 16],
             &[3; 32],
-            &auth_env(&b, cb, [3; 32], Some(2)),
+            &auth_env(&b, cb, [3; 32], Some(second)),
             Some(tx),
             NOW,
         )
@@ -276,11 +278,143 @@ fn rate_limit_drops_excess() {
         msgs_per_sec_per_conn: 1,
         ..Limits::default()
     });
-    r.add_tenant(PID, p.root.public(), "Test");
+    r.add_tenant(PID, p.root.public(), "Test", NOW);
     let (a, ca) = member(&p, 10);
     let (sa, _rx, _) = connect(&mut r, &a, ca, 1);
     for n in 0..10 {
         r.receive(&sa, &sealed(&a, n), NOW);
     }
     assert_eq!(r.metrics.dropped_rate_limited, 7);
+}
+
+fn revocation(admin: &DeviceKeys, target: &DeviceKeys, serial: u8, id: u8) -> Vec<u8> {
+    let rev = Body {
+        msg_id: MsgId([id; 16]),
+        created_at: NOW,
+        sender: admin.device_id(),
+        payload: Payload::Revocation(Revocation {
+            target_serial: CertSerial([serial; 16]),
+            target_device: target.device_id(),
+            cascade: false,
+            reason: String::new(),
+            new_epoch: 1,
+        }),
+    };
+    open_envelope(PID, &sign_body(admin, &rev)).to_cbor()
+}
+
+fn try_auth(
+    r: &mut Relay,
+    k: &DeviceKeys,
+    chain: Vec<Vec<u8>>,
+    sid: u8,
+    now: u64,
+) -> Result<AuthResult, AuthError> {
+    let (tx, _rx) = mpsc::unbounded_channel();
+    r.authenticate(
+        [sid; 16],
+        &[sid; 32],
+        &auth_env(k, chain, [sid; 32], None),
+        Some(tx),
+        now,
+    )
+    .map(|(a, _)| a)
+}
+
+#[test]
+fn persisted_buffer_and_revocations_survive_a_restart() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("relay.sqlite");
+    let p = practice();
+    let (a, ca) = member(&p, 10);
+    let (b, cb) = member(&p, 11);
+    let (c, cc) = member(&p, 12);
+    let last = {
+        let mut r = relay(&p);
+        r.attach_store(Store::open(&path).expect("store"), NOW)
+            .expect("attach");
+        let (sa, _rxa, _) = connect(&mut r, &a, ca, 1);
+        let (sadm, _rx, _) = connect(&mut r, &p.admin, vec![p.admin_cert.clone()], 2);
+        r.receive(&sa, &sealed(&a, 1), NOW);
+        r.receive(&sa, &sealed(&a, 2), NOW);
+        r.receive(&sadm, &revocation(&p.admin, &b, 11, 0xee), NOW);
+        try_auth(&mut r, &c, cc.clone(), 3, NOW).expect("c").cursor
+    };
+    let mut r = Relay::new(Limits::default());
+    r.add_tenant(PID, p.root.public(), "Test", NOW + 1);
+    r.attach_store(Store::open(&path).expect("store"), NOW + 1)
+        .expect("attach");
+    let (_, _rx, replay) = connect(&mut r, &c, cc, 4);
+    assert_eq!(replay.len(), 3, "two envelopes and the revocation");
+    assert_eq!(
+        try_auth(&mut r, &b, cb, 5, NOW + 1),
+        Err(AuthError(CLOSE_REVOKED))
+    );
+    assert!(
+        try_auth(&mut r, &a, member(&p, 10).1, 6, NOW + 1)
+            .expect("a")
+            .cursor
+            >= last
+    );
+}
+
+#[test]
+fn cursors_increase_across_restarts_without_persistence() {
+    let p = practice();
+    let (a, ca) = member(&p, 10);
+    let mut r = relay(&p);
+    let (sa, _rx, _) = connect(&mut r, &a, ca.clone(), 1);
+    for n in 0..5 {
+        r.receive(&sa, &sealed(&a, n), NOW);
+    }
+    let before = try_auth(&mut r, &a, ca.clone(), 2, NOW).expect("a").cursor;
+    let mut r = Relay::new(Limits::default());
+    r.add_tenant(PID, p.root.public(), "Test", NOW + 1);
+    let (sa, _rx, _) = connect(&mut r, &a, ca.clone(), 1);
+    r.receive(&sa, &sealed(&a, 9), NOW + 1);
+    let after = try_auth(&mut r, &a, ca, 2, NOW + 1).expect("a").cursor;
+    assert!(after > before, "{after} > {before}");
+}
+
+#[test]
+fn revocation_by_an_unknown_admin_applies_once_its_cert_arrives() {
+    let p = practice();
+    let admin2 = DeviceKeys::from_secrets([30; 32], [31; 32]);
+    let admin2_cert = issue_cert(&p.root, body(&admin2, Role::Admin, 30)).to_cbor();
+    let mut r = relay(&p);
+    let (a, ca) = member(&p, 10);
+    let (b, cb) = member(&p, 11);
+    let (sa, _rxa, _) = connect(&mut r, &a, ca, 1);
+    let (_sb, mut rxb, _) = connect(&mut r, &b, cb, 2);
+    // a passes on admin2's revocation of b; the relay cannot verify it yet.
+    r.receive(&sa, &revocation(&admin2, &b, 11, 0xed), NOW);
+    assert!(!drain(&mut rxb).contains(&Outgoing::Close(CLOSE_REVOKED)));
+    // admin2 connects: its chain makes the revocation verifiable.
+    try_auth(&mut r, &admin2, vec![admin2_cert], 3, NOW).expect("admin2");
+    assert!(drain(&mut rxb).contains(&Outgoing::Close(CLOSE_REVOKED)));
+    assert_eq!(r.metrics.revocations, 1);
+}
+
+#[test]
+fn idle_long_poll_sessions_expire() {
+    let p = practice();
+    let mut r = relay(&p);
+    let (a, ca) = member(&p, 10);
+    let (b, cb) = member(&p, 11);
+    let (_sa, mut rxa, _) = connect(&mut r, &a, ca, 1);
+    let lp = [9; 16];
+    r.authenticate(lp, &[9; 32], &auth_env(&b, cb, [9; 32], None), None, NOW)
+        .expect("lp auth");
+    drain(&mut rxa);
+    let polled = r.poll(&lp, 0, NOW + LP_IDLE_MS / 2).expect("poll");
+    assert_eq!(polled.presence, vec![a.device_id()]);
+    r.expire(NOW + LP_IDLE_MS);
+    assert_eq!(r.session_count(), 2, "polled recently");
+    r.expire(NOW + 2 * LP_IDLE_MS);
+    assert_eq!(r.session_count(), 1);
+    assert!(matches!(
+        drain(&mut rxa).as_slice(),
+        [Outgoing::Frame(Frame::Presence(p))] if p.connected.is_empty()
+    ));
+    assert!(r.poll(&lp, 0, NOW + 2 * LP_IDLE_MS).is_none());
 }

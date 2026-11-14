@@ -7,7 +7,9 @@
 //! /v1/lp/auth/complete` takes the RelayAuth envelope and returns the auth
 //! result, whose `session_id` (hex) is the bearer token; `POST /v1/lp/send`
 //! takes a CBOR array of envelopes; `GET /v1/lp/recv?cursor=N&timeout=25`
-//! returns a CBOR array and the newest cursor in `X-Muster-Cursor`.
+//! returns a CBOR array, the newest cursor in `X-Muster-Cursor` and the
+//! other connected devices (comma-separated hex ids) in
+//! `X-Muster-Presence`. It returns early when presence changes.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -31,6 +33,7 @@ pub const PING_INTERVAL: Duration = Duration::from_secs(20);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const NONCE_TTL_MS: u64 = 60_000;
 const LP_MAX_WAIT: u64 = 25;
+const HOUSEKEEPING: Duration = Duration::from_secs(10);
 
 pub fn now_ms() -> u64 {
     SystemTime::now()
@@ -69,6 +72,17 @@ impl App {
     fn relay(&self) -> std::sync::MutexGuard<'_, Relay> {
         self.relay.lock().unwrap_or_else(|e| e.into_inner())
     }
+}
+
+/// Expires idle long-poll sessions every 10 s.
+pub fn spawn_housekeeping(app: App) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(HOUSEKEEPING);
+        loop {
+            tick.tick().await;
+            app.relay().expire(now_ms());
+        }
+    });
 }
 
 pub fn router(app: App) -> Router {
@@ -298,25 +312,33 @@ async fn lp_recv(State(app): State<App>, h: HeaderMap, Query(q): Query<RecvQuery
     };
     let wait = Duration::from_secs(q.timeout.unwrap_or(LP_MAX_WAIT).min(LP_MAX_WAIT));
     let deadline = tokio::time::Instant::now() + wait;
+    let mut first_presence = None;
     loop {
-        let polled = app.relay().poll(&session, q.cursor, now_ms());
-        let Some((envs, cursor, notify)) = polled else {
+        let Some(p) = app.relay().poll(&session, q.cursor, now_ms()) else {
             return StatusCode::UNAUTHORIZED.into_response();
         };
-        if !envs.is_empty() || tokio::time::Instant::now() >= deadline {
+        let start = first_presence.get_or_insert_with(|| p.presence.clone());
+        if !p.envelopes.is_empty()
+            || p.presence != *start
+            || tokio::time::Instant::now() >= deadline
+        {
+            let presence: Vec<String> = p.presence.iter().map(|d| d.to_hex()).collect();
             return (
-                [("x-muster-cursor", cursor.to_string())],
-                encode_batch(&envs),
+                [
+                    ("x-muster-cursor", p.cursor.to_string()),
+                    ("x-muster-presence", presence.join(",")),
+                ],
+                encode_batch(&p.envelopes),
             )
                 .into_response();
         }
         // Register for the wake-up before re-checking, so an envelope that
         // arrives in between is not missed.
-        let notified = notify.notified();
+        let notified = p.notify.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();
         let again = app.relay().poll(&session, q.cursor, now_ms());
-        if again.is_some_and(|(e, _, _)| !e.is_empty()) {
+        if again.is_some_and(|a| !a.envelopes.is_empty() || a.presence != *start) {
             continue;
         }
         let _ = tokio::time::timeout_at(deadline, notified).await;

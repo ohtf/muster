@@ -83,3 +83,16 @@ Long-poll uses the same challenge and response via the two `auth` endpoints. It 
 - systemd unit with `DynamicUser=yes`, `StateDirectory=muster-relay` and hardening options (`ProtectSystem=strict`, `NoNewPrivileges=yes`, and so on).
 - Logs: connection events with device short ids and tenant name. Never payloads.
 - Operator guidance documents what metadata the relay can see (see `04-security.md`, Privacy).
+
+## Clarifications (added during implementation)
+
+These fill gaps the original text left open. They are normative for version 1.
+
+- **Cursors survive restarts.** A tenant's first cursor in a relay process is `now_ms × 1000`, or one past the highest persisted cursor if that is larger. Cursors therefore keep increasing across restarts even without `persist`, and a client resuming from an older cursor misses nothing.
+- **`persist = true`** keeps three things in `<data_dir>/relay.sqlite`: the ring buffer, the certs learned from auth chains, and verified revocations. A restarted relay still refuses revoked devices and still replays the buffer. Write errors are logged and the relay carries on from memory.
+- **Revocations from a signer the relay does not know yet** are held (up to 64 per tenant) and checked again whenever an auth chain introduces new certs. The relay learns certs only from auth chains, so an admin who has never connected to it would otherwise be unable to revoke through it.
+- **Long-poll responses.** `GET /v1/lp/recv` returns a CBOR array of envelopes, with the newest cursor in `X-Muster-Cursor` and the other connected devices (comma-separated hex device ids) in `X-Muster-Presence`. It returns early when envelopes arrive or presence changes. A long-poll session that neither polls nor sends for 60 s is ended, and presence is updated.
+- **Long-poll clients** start from cursor 0 when they have no cursor, so they read the whole buffer, just as a fresh WebSocket session is replayed the last `buffer_hours`. On a 401 they authenticate again without reporting a disconnect.
+- **When WebSocket counts as failed** (and the client switches to long-poll for an hour): the server answers the upgrade with any HTTP status other than 101; the handshake fails at the protocol level; the handshake does not finish within 10 s; no challenge arrives within 10 s of the upgrade; or a proxy refuses `CONNECT`. A plain TCP or TLS failure is not an upgrade failure, so the client backs off and tries WebSocket again.
+- **Proxies.** Proxy settings come from `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` and `NO_PROXY` (in either case), or from the system settings on Windows and macOS. WebSocket goes through HTTP `CONNECT` with Basic credentials from the proxy URL. A proxy reached over HTTPS, or one that needs NTLM or Kerberos, is used through long-poll only. If that fails too, add a proxy bypass rule for the relay host.
+- **Diagnostics.** `MUSTER_RELAY_TRANSPORT=long-poll` in the agent's environment skips WebSocket entirely.
