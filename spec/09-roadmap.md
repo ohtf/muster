@@ -1,0 +1,120 @@
+# 09 Roadmap
+
+Legend: `[x]` done, `[~]` in progress, `[ ]` not started. Item codes (`R1`, `R2`, ...) are stable: never renumbered or reused (see [house-style specs.md](https://github.com/pacharanero/house-style/blob/main/specs.md#stable-roadmap-item-codes)). Exit criteria are tasks too.
+
+## v1 = phase 1 (desktop + LAN mesh) + phase 2 (optional relay)
+
+Build in this order. Each milestone ends with green CI and a short demo note in the PR (or, while the repo is committing direct to `main`, in the commit body).
+
+### M0 Repository and CI
+
+- [ ] **R1 - Workspace skeleton** per `02-architecture.md`.
+- [ ] **R2 - Licence, security and conduct files**: fetch the AGPL licence text; write `SECURITY.md`; add `CODE_OF_CONDUCT.md` (fetched text).
+- [ ] **R3 - CI**: fmt, clippy, test, cargo-deny, frontend lint placeholders, build matrix (Linux, Windows, macOS).
+- [ ] **R4 - Commit the ADRs** in `spec/adr/`.
+- [ ] **R5 - M0 exit**: empty crates build on all three OSes. CI green.
+
+### M1 Protocol and crypto
+
+- [ ] **R6 - `muster-proto`**: all message types, deterministic CBOR, limits, golden vectors.
+- [ ] **R7 - `muster-crypto`**: keys, certs, chain validation, seal and open, KeyShare, recovery kit, tokens.
+- [ ] **R8 - Fuzz targets** for all decoders.
+- [ ] **R9 - M1 exit**: unit tests for every rule in `03-protocol.md` and `04-security.md`. Fuzzers run clean for 10 minutes each.
+
+### M2 Core and simulator
+
+- [ ] **R10 - Core: peers and path tracking, heartbeats.**
+- [ ] **R11 - Core: alarm raise and receive pipeline**, re-flood with suppression, receipts.
+- [ ] **R12 - Core: alarm state merge and expiry.**
+- [ ] **R13 - Core: hold machine** (FR-ACT-002, FR-ACT-005, FR-ACT-008, FR-ACT-009).
+- [ ] **R14 - Core: status computation** (FR-STS-003).
+- [ ] **R15 - Core: anti-entropy** (digests, SyncRequest, SyncResponse).
+- [ ] **R16 - Core: enrolment flows** (token and interactive).
+- [ ] **R17 - Core: revocation and rotation.**
+- [ ] **R18 - Core: drills.**
+- [ ] **R19 - Core: practice config.**
+- [ ] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
+- [ ] **R21 - Simulator scenarios S1 to S17.**
+- [ ] **R22 - Simulator properties P1 to P12.**
+- [ ] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 10,000 cases in one nightly run. **Do not start M4 until this passes.**
+
+### M3 Runtime, store, headless agent, CLI
+
+- [ ] **R24 - `muster-store`**: SQLite schema and migrations.
+- [ ] **R25 - `muster-net`**: UDP, TCP, mDNS, interface watch.
+- [ ] **R26 - `muster-agent`**: runtime, control API, headless binary.
+- [ ] **R27 - `muster-cli`**: `practice init`, `token create/revoke/list`, `device list/revoke/rename/room`, `drill run/report`, `status`, `peers`, `ctl` commands.
+- [ ] **R28 - netns integration tests** (S1, S2, S4, S7 without relay).
+- [ ] **R29 - M3 exit**: three headless agents in netns raise and receive alarms. The CLI can set up a practice end to end.
+
+### M4 Desktop app
+
+- [ ] **R30 - Tauri 2 + Svelte 5 app** embedding the agent: floating button, hold ring and cue, sender panel, receiver alert window, tray, status, main window (status, history, settings), first run, practice run.
+- [ ] **R31 - Generated sounds** (CC0).
+- [ ] **R32 - Platform modules**: Windows audio endpoint (status and override), session detection, DPAPI; macOS Local Network detection; Linux Wayland fallbacks.
+- [ ] **R33 - M4 exit**: manual run-through of every screen on all three OSes. Accessibility check (keyboard only, screen reader labels, contrast).
+
+### M5 Admin and drills in the app
+
+- [ ] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export.
+- [ ] **R35 - M5 exit**: a practice can be set up, enrolled, drilled and administered entirely from the GUI.
+
+### M6 Relay
+
+- [ ] **R36 - `muster-relay`**: WebSocket and long-poll, tenants, auth, forwarding, buffer and resume, presence, revocation enforcement, `/source`, metrics.
+- [ ] **R37 - Relay client** in `muster-net`, including proxy support and long-poll fallback.
+- [ ] **R38 - Relay netns tests** S5, S6, S12, S14 with a real relay. Docker image and compose example.
+- [ ] **R39 - M6 exit**: L3, L5 and L8 equivalents pass in netns.
+
+### M7 Packaging
+
+- [ ] **R40 - Windows MSI** with properties, firewall, Run key, WebView2, signing (with a placeholder certificate in CI), Scheduled Task watchdog registration on first run.
+- [ ] **R41 - macOS pkg** (signing and notarisation on tags), LaunchAgent.
+- [ ] **R42 - Linux** deb, AppImage and systemd units.
+- [ ] **R43 - M7 exit**: silent MSI install smoke test in CI. L9 passes in the lab.
+
+### M8 Hardening and release candidate
+
+- [ ] **R44 - Hardware lab protocol** L1 to L14 executed and recorded.
+- [ ] **R45 - Hazard log** updated with evidence and residual risks.
+- [ ] **R46 - Documentation set** from `08-deployment.md`.
+- [ ] **R47 - CSO review and sign-off.**
+- [ ] **R48 - M8 exit**: v1.0.0-rc.1 tagged and pilot started.
+
+### Pre-release checks (from the original spec notes)
+
+- [ ] **R49 - Legal review** of the app store additional permission before the first external contribution (ADR 0001).
+- [ ] **R50 - Check port 47474** against the IANA service name and port registry.
+- [ ] **R51 - Trade mark check** on the working name "Muster".
+
+## Post-v1
+
+### 1.1 Integration node and home profile
+
+- Headless agent "integration outputs": ntfy, Gotify, Matrix, generic webhook, MQTT (Home Assistant discovery). These give mobile *receiving* via existing apps before native apps exist, and let self-hosters drive lights and sirens.
+- Inputs: a Home Assistant or MQTT trigger can raise an alarm (`source = integration`; disabled by default; requires an explicit admin setting).
+- Home profile defaults tested. Docker image for "relay + integration node" in one compose file.
+
+### 1.2 OHTF USB button (hardware)
+
+- Open hardware under `hardware/` (CERN-OHL-S-2.0). A low-cost microcontroller (for example RP2040 or CH552) with a large momentary switch.
+- Presents a **vendor-defined HID interface** (read via `hidapi`; no driver on Windows or macOS; udev rule on Linux) with reports for press, release and periodic presence. An optional fallback keyboard interface sends F24, a key almost nothing uses, only if configured.
+- The agent applies the same hold machine (`source = hid`). Button presence is reported in the heartbeat and coverage ("button connected").
+- Compliance for sale: UKCA/CE (EMC), RoHS, WEEE producer registration. OHTF-branded units are sold to fund development. The trade mark policy controls the branding.
+
+### 2.0 Mobile
+
+- Android first: FCM high-priority messages via the push forwarder, plus an optional foreground-service mode that listens directly on practice Wi-Fi. UnifiedPush support so a practice can avoid Google and OHTF entirely.
+- iOS: APNs via the OHTF push forwarder. Apply for the Critical Alerts entitlement early. Raising alarms from widgets, the Action Button and Apple Watch.
+- **Push forwarder:** run by OHTF. Content-blind: it receives `{device push token, opaque wake id}` from the practice relay and sends a wake-only push. The app then fetches the envelopes from the practice relay. No alarm content passes through OHTF.
+- PWA with Web Push via the relay as an interim, no-app-store option.
+- Mobile enrolment by QR code from any enrolled desktop.
+
+### Later
+
+- ADMX/ADML Group Policy templates.
+- Welsh language (cy).
+- IPv6.
+- Citrix and AVD investigation: a virtual channel or endpoint helper so thin-client users are covered.
+- Multi-site: practices with branch surgeries (several practice ids, or sites within one practice, with site-scoped alerting).
+- An alternative independent implementation of the protocol from the spec and golden vectors, to validate the spec.

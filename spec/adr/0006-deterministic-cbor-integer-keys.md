@@ -1,0 +1,23 @@
+# ADR 0006: Deterministic CBOR with integer map keys
+
+- Status: Accepted (2026-11-14)
+
+## Context
+
+Messages must fit in 1200-byte UDP datagrams, be signed (so encoding must be canonical), and evolve compatibly.
+
+## Decision
+
+- Use CBOR with RFC 8949 core deterministic encoding and unsigned-integer map keys.
+- Ignore unknown keys. Reject duplicate keys and indefinite lengths.
+- Pick **one** crate (`minicbor` with derive, or `ciborium`) during M1 and record the choice in this ADR. Prefer whichever makes it easiest to enforce deterministic encoding and strict decoding.
+
+## Alternatives considered
+
+- **Protobuf:** not canonical by default (signing needs care), and adds a schema toolchain.
+- **JSON:** too large, and not canonical.
+- **MessagePack:** viable, but has less standardised deterministic rules.
+
+## Consequences
+
+- The spec and golden vectors define the wire format independently of Rust types.
