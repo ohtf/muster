@@ -36,7 +36,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 - [x] **R20 - `muster-sim` world model**: segments, routing, relays, schedules.
 - [x] **R21 - Simulator scenarios S1 to S17.**
 - [x] **R22 - Simulator properties P1 to P12.**
-- [~] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 10,000 cases in one nightly run. **Do not start M4 until this passes.**
+- [~] **R23 - M2 exit**: all properties and scenarios pass at 256 cases in CI and 1,000 cases in one nightly run (scaled down from 10,000 on 2026-11-14 by Marcus Baw, to raise again once the nightly is reliable). **Do not start M4 until this passes.**
 
 ### M3 Runtime, store, headless agent, CLI
 

@@ -4,7 +4,7 @@
 //! Properties P1 to P12 over random worlds (`spec/07-testing.md`).
 //!
 //! Case count follows `PROPTEST_CASES` (8 by default; CI's property job
-//! runs 256 in release, nightly 10,000). The
+//! runs 256 in release, nightly 1,000). The
 //! largest world size follows `MUSTER_SIM_MAX_NODES` (default 60). Failing
 //! cases are saved by proptest in `properties.proptest-regressions` and
 //! must be committed as regression tests. To explore many seeds quickly
@@ -15,7 +15,7 @@ use muster_sim::worlds::*;
 use muster_sim::*;
 use proptest::prelude::*;
 
-/// `PROPTEST_CASES` if set (CI's property job uses 256, nightly 10,000);
+/// `PROPTEST_CASES` if set (CI's property job uses 256, nightly 1,000);
 /// otherwise a quick 8 so `cargo test` stays fast on every platform.
 fn cases() -> u32 {
     std::env::var("PROPTEST_CASES")

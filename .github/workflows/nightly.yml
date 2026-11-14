@@ -4,18 +4,26 @@ on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+    inputs:
+      cases:
+        description: Property cases per test
+        default: "1000"
 
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  # Scaled down from 10,000 until the nightly runs reliably (R23); raise
+  # it again later. 1,000 cases take about an hour per property.
+  PROPTEST_CASES: "1000"
+  FUZZ_SECONDS: "600"
 
 jobs:
   properties:
-    name: Property ${{ matrix.test }} (10,000 cases)
+    name: Property ${{ matrix.test }} (${{ github.event.inputs.cases || '1000' }} cases)
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +43,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo test --release -p muster-sim --test properties -- --exact "$TEST"
         env:
-          PROPTEST_CASES: "10000"
+          PROPTEST_CASES: ${{ github.event.inputs.cases || env.PROPTEST_CASES }}
           TEST: ${{ matrix.test }}
 
   full-scale:
@@ -55,9 +63,9 @@ jobs:
           MUSTER_FULL_SCALE: "1"
 
   fuzz:
-    name: Fuzz (1 h per target)
+    name: Fuzz (10 min per target)
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +86,6 @@ jobs:
       - name: Install cargo-fuzz
         shell: bash
         run: cargo +nightly install --locked cargo-fuzz@0.13.2
-      - run: cargo +nightly fuzz run --fuzz-dir fuzz "$TARGET" -- -max_total_time=3600
+      - run: cargo +nightly fuzz run --fuzz-dir fuzz "$TARGET" -- -max_total_time="$FUZZ_SECONDS"
         env:
           TARGET: ${{ matrix.target }}

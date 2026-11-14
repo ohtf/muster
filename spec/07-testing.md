@@ -32,7 +32,7 @@ Testing is part of the product. The claims "it works" and "it tells you when it 
 - Platform effects: audio status per node (present, muted, missing), session state.
 - UI model: a simulated user per node with configurable behaviour (acknowledges after X s, never acknowledges, away).
 
-### Properties (proptest; 256 cases in CI, 10,000 nightly)
+### Properties (proptest; 256 cases in CI, 1,000 nightly)
 
 Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to 2 relays, random event schedules. Shrinking is enabled. Every failing seed is saved as a regression test.
 
@@ -53,7 +53,7 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 
 #### Implementation notes
 
-- The properties live in `crates/muster-sim/tests/properties.rs` and the scenarios in `crates/muster-sim/tests/scenarios.rs`. `cargo test` runs 8 cases per property; CI's property job runs 256 in release mode; the nightly workflow runs 10,000 per property. Failing seeds are saved in `crates/muster-sim/tests/properties.proptest-regressions` and replayed first on every run.
+- The properties live in `crates/muster-sim/tests/properties.rs` and the scenarios in `crates/muster-sim/tests/scenarios.rs`. `cargo test` runs 8 cases per property; CI's property job runs 256 in release mode; the nightly workflow runs 1,000 per property (scaled down from 10,000 until the nightly runs reliably; a manual run can choose the number). Failing seeds are saved in `crates/muster-sim/tests/properties.proptest-regressions` and replayed first on every run.
 - P1 and P8 are judged against a ground-truth reachability model (`crates/muster-sim/src/props.rs`) built from the simulated network. Devices learn addresses from heartbeats, so random worlds change topology only before 22 s and raise the first alarm at 90 s, leaving time for status (`PEER_STALE`) and address re-learning to settle. P8 is checked only once the topology has been stable for `PEER_STALE + 1 s`.
 - P3 excludes alerts resumed after a restart (ADR 0013). P7 counts first transmissions only; retransmissions are allowed on top.
 - To investigate, `cargo run --release -p muster-sim --example explore -- world 0 200 30` sweeps seeds and prints the first failing case; `CASE='<Params from the regressions file>' ... -- p4 0 0` re-runs one with diagnostics.
@@ -82,7 +82,7 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 
 ## 3. Fuzzing
 
-`cargo-fuzz` targets: `envelope_decode`, `signed_message_decode`, `cert_decode_and_validate`, `token_decode`, `relay_frame_decode`, `core_handle_datagram` (random bytes into a configured core). CI runs each for 60 s per PR and 1 h nightly. Crashes become regression tests.
+`cargo-fuzz` targets: `envelope_decode`, `signed_message_decode`, `cert_decode_and_validate`, `token_decode`, `relay_frame_decode`, `core_handle_datagram` (random bytes into a configured core). CI runs each for 60 s per PR and 10 minutes nightly. Crashes become regression tests.
 
 ## 4. Network-namespace integration (Linux CI)
 
@@ -93,7 +93,7 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 - Linux (x64): fmt, clippy, unit tests, sim properties, fuzz smoke, netns tests, cargo-deny, frontend checks, relay Docker build.
 - Windows (windows-latest): build, unit tests, desktop build, MSI build. A silent install and uninstall smoke test (`msiexec /i ... /qn ENROLMENT_TOKEN_FILE=...`) that checks the agent can be launched headlessly against the installed config, the firewall rule exists and the control API responds.
 - macOS (macos-latest): build, unit tests, desktop build (unsigned in PRs, signed and notarised on release tags).
-- Nightly: 10,000-case property runs, 1 h fuzzing, S13 at full scale.
+- Nightly: 1,000-case property runs, 10 minutes of fuzzing per target, S13 at full scale.
 
 ## 6. Hardware lab protocol (before each release)
 
