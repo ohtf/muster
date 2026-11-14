@@ -82,7 +82,7 @@ Plus `cargo deny check` and `reuse lint` where installed. CI enforces all of the
 - Conventional Commits (`feat(core): ...`, `fix(net): ...`, `docs(spec): ...`). Mention roadmap codes where relevant (`implements R12`).
 - Sign off every commit (`git commit -s`) per the DCO in `CONTRIBUTING.md`.
 - Commit each validated coherent parcel without waiting to be asked.
-- **Push policy:** while the repository has one active maintainer (Solo tier), agents may commit and push directly to `main` on `ohtf/muster`. Once a second regular contributor joins, switch to milestone branches `m<milestone>/<short-topic>` (for example `m2/alarm-state-crdt`) and PRs, one per milestone task where practical.
+- **Push policy:** while the repository has one active maintainer (Solo tier), agents may commit and push directly to `main` on `ohtf/muster` without waiting to be asked, because each change is an atomic, conventional commit that is easy to roll back (confirmed by Marcus Baw, 2026-11-14). Once a second regular contributor joins, switch to milestone branches `m<milestone>/<short-topic>` (for example `m2/alarm-state-crdt`) and PRs, one per milestone task where practical.
 - PR descriptions: a two-or-three-line summary, then detail folded in `<details><summary>` (house-style [commits.md](https://github.com/pacharanero/house-style/blob/main/commits.md#pull-request-descriptions)).
 
 ## When the spec is ambiguous
