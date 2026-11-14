@@ -309,3 +309,15 @@ A single-device practice is amber with "No other devices found". This is intende
 - `Envelope.version` changes only for incompatible envelope changes. Receivers drop versions they do not support, and diagnostics count them so the admin view can say "devices on an incompatible version".
 - New message types and new payload keys are added without changing the version. Unknown types are dropped. Unknown keys are ignored.
 - The heartbeat `app_version` lets the admin view flag mixed versions.
+
+## Clarifications (added during implementation)
+
+These fill gaps the original text left open. They are normative for version 1.
+
+- **Decoding strictness.** Receivers reject CBOR tags, non-integer map keys and nesting deeper than 16 levels, in addition to the rules in Conventions. They accept map keys in any order (senders always write ascending order), so a non-canonical but otherwise valid encoding from another implementation is not dropped. Signatures are always verified over the bytes as received.
+- **Embedded certificates.** Wherever a structure carries certificates (`CertAnnounce`, `JoinApproval.certs`, `RelayAuth.chain`, tokens), each is a byte string containing the CBOR encoding of a `Cert`, so the signed bytes are preserved exactly.
+- **PracticeConfig settings keys.** `0 hold_ms uint`, `1 cue_mode uint (0 silent, 1 soft, 2 alarm_ramp)`, `2 sound_pattern uint (0 A, 1 B, 2 C)`, `3 override_mute bool`, `4 drill_schedule tstr`, `5 drill_mode uint (0 silent, 1 audible)`, `6 drill_coordinator DeviceId`, `7 opening_hours tstr`, `8 relay_urls [tstr]`, `9 seed_peers [tstr]`. Every key is optional; an absent key means the practice has not set it.
+- **Token network overrides** (token key 10): `{0: port uint, 1: multicast_group bstr(4), 2: multicast_ttl uint}`, every key optional.
+- **Relay frame types** (first byte of each WebSocket message): `0x00` envelope, `0x01` presence, `0x02` challenge (server to client), `0x03` auth result (server to client). The client's RelayAuth is sent as an envelope frame.
+- **Unknown enumerated values** (platform, session, source, path, alarm kind, event kind) decode successfully and are preserved. Unknown alarm kinds are treated as help. Unknown event kinds are ignored by the alarm state. Unknown certificate roles carry no authority.
+- **Golden vectors** for every message type are in `crates/muster-proto/tests/vectors/`.

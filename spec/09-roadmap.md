@@ -10,13 +10,13 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 - [x] **R1 - Workspace skeleton** per `02-architecture.md`.
 - [x] **R2 - Licence, security and conduct files**: fetch the AGPL licence text; write `SECURITY.md`; add `CODE_OF_CONDUCT.md` (fetched text).
-- [~] **R3 - CI**: fmt, clippy, test, cargo-deny, frontend lint placeholders, build matrix (Linux, Windows, macOS).
+- [x] **R3 - CI**: fmt, clippy, test, cargo-deny, frontend lint placeholders, build matrix (Linux, Windows, macOS).
 - [x] **R4 - Commit the ADRs** in `spec/adr/`.
-- [ ] **R5 - M0 exit**: empty crates build on all three OSes. CI green.
+- [x] **R5 - M0 exit**: empty crates build on all three OSes. CI green.
 
 ### M1 Protocol and crypto
 
-- [ ] **R6 - `muster-proto`**: all message types, deterministic CBOR, limits, golden vectors.
+- [x] **R6 - `muster-proto`**: all message types, deterministic CBOR, limits, golden vectors.
 - [ ] **R7 - `muster-crypto`**: keys, certs, chain validation, seal and open, KeyShare, recovery kit, tokens.
 - [ ] **R8 - Fuzz targets** for all decoders.
 - [ ] **R9 - M1 exit**: unit tests for every rule in `03-protocol.md` and `04-security.md`. Fuzzers run clean for 10 minutes each.

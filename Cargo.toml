@@ -26,6 +26,3 @@ unwrap_used = "warn"
 muster-proto = { path = "crates/muster-proto" }
 muster-crypto = { path = "crates/muster-crypto" }
 muster-core = { path = "crates/muster-core" }
-muster-store = { path = "crates/muster-store" }
-muster-net = { path = "crates/muster-net" }
-muster-agent = { path = "crates/muster-agent" }

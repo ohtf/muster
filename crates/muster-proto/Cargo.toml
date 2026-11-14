@@ -15,3 +15,11 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+data-encoding = "2"
+minicbor = { version = "2", features = ["alloc"] }
+thiserror = "2"
+zeroize = "1"
+
+[dev-dependencies]
+hex = "0.4"
+proptest = "1"
