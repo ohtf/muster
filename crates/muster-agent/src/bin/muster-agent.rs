@@ -29,21 +29,13 @@ struct Args {
     /// Control socket path [default: $XDG_RUNTIME_DIR/muster/control.sock].
     #[arg(long)]
     control_socket: Option<PathBuf>,
-    /// Device label [default: host name].
+    /// Device label [default: the label it was enrolled with, else the
+    /// host name].
     #[arg(long)]
     label: Option<String>,
     /// Allow `raise` over the control API (tests and integration nodes).
     #[arg(long)]
     allow_raise: bool,
-}
-
-fn host_name() -> String {
-    std::env::var("HOSTNAME")
-        .ok()
-        .or_else(|| std::fs::read_to_string("/etc/hostname").ok())
-        .map(|s| s.trim().to_owned())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "muster-agent".into())
 }
 
 fn load(path: Option<PathBuf>, default: PathBuf) -> anyhow::Result<ConfigFile> {
@@ -84,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
         control_socket,
         config,
         allow_raise: args.allow_raise,
-        label: args.label.unwrap_or_else(host_name),
+        label: args.label,
     })
     .await
     .context("agent stopped")

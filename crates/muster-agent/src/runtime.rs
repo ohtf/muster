@@ -44,7 +44,43 @@ pub struct AgentOptions {
     /// Allow `raise` over the control API (test builds, headless, or policy
     /// `allow_cli_raise`).
     pub allow_raise: bool,
-    pub label: String,
+    /// `--label`. Otherwise the label in this device's cert, else the host
+    /// name.
+    pub label: Option<String>,
+}
+
+pub fn host_name() -> String {
+    std::env::var("HOSTNAME")
+        .ok()
+        .or_else(|| std::fs::read_to_string("/etc/hostname").ok())
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "muster-agent".into())
+}
+
+/// The label in this device's own cert, if enrolled.
+fn cert_label(state: &PersistedState) -> Option<String> {
+    let own = state.own_serial?;
+    state
+        .certs
+        .iter()
+        .filter_map(|raw| {
+            <muster_proto::Cert as muster_proto::Cbor>::from_cbor(raw)
+                .ok()?
+                .body()
+                .ok()
+        })
+        .find(|b| b.serial == own)
+        .map(|b| b.label)
+        .filter(|l| !l.is_empty())
+}
+
+/// The device label shown to others.
+fn effective_label(opts: &AgentOptions, state: &PersistedState) -> String {
+    opts.label
+        .clone()
+        .or_else(|| cert_label(state))
+        .unwrap_or_else(host_name)
 }
 
 pub fn os_seed() -> Result<[u8; 32], AgentError> {
@@ -98,7 +134,8 @@ pub fn prepare(opts: &AgentOptions) -> Result<(Store, Identity, PersistedState),
         };
         if let Some(text) = token_text {
             let token = Token::parse(&text).map_err(|e| AgentError::Token(e.to_string()))?;
-            let enrolled = enrol_with_token_state(&mut rng, &keys, &token, &opts.label, wall_now())
+            let label = opts.label.clone().unwrap_or_else(host_name);
+            let enrolled = enrol_with_token_state(&mut rng, &keys, &token, &label, wall_now())
                 .map_err(|e| AgentError::Token(e.to_string()))?;
             store.apply_all(enrolled.to_ops().iter())?;
             state = store.load()?;
@@ -277,7 +314,8 @@ async fn wait_alarm(
 /// Runs the agent until the process is stopped.
 pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
     let (store, identity, state) = prepare(&opts)?;
-    let local = opts.config.local_config(&opts.label);
+    let label = effective_label(&opts, &state);
+    let local = opts.config.local_config(&label);
     let (in_tx, mut in_rx) = mpsc::channel::<Input>(4096);
     let net = Net::start(
         NetConfig {
@@ -330,7 +368,7 @@ pub async fn run(opts: AgentOptions) -> Result<(), AgentError> {
         override_available: false,
     });
     rt.handle(Input::SessionState(SessionState::Active));
-    rt.handle(Input::UserDisplay(opts.label.clone()));
+    rt.handle(Input::UserDisplay(label));
 
     let (ctl_tx, mut ctl_rx) = mpsc::channel::<Request>(64);
     let path = opts.control_socket.clone();
