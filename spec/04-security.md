@@ -69,14 +69,14 @@ A token's enroller key can be used to self-issue member certs until the token ex
 1. Generate practice id (16 random bytes), root keypair, epoch 0 group key, and device keys.
 2. The root signs an admin cert for this device.
 3. The user sets a recovery passphrase (minimum 12 characters; strength meter; must type it twice).
-4. Produce the **recovery kit**: `{practice_id, practice_name, root_secret_key, created_at}` encrypted with XChaCha20-Poly1305 under a key from Argon2id (m = 256 MiB, t = 3, p = 1, random 16-byte salt). It is saved as a `.muster-recovery` file plus a printable HTML page with a QR code of the same blob and instructions.
+4. Produce the **recovery kit**: `{practice_id, practice_name, root_secret_key, created_at}` encrypted with XChaCha20-Poly1305 under a key from Argon2id (m = 256 MiB, t = 3, p = 1, random 16-byte salt). It is saved as a `.panic-button-recovery` file plus a printable HTML page with a QR code of the same blob and instructions.
 5. Wipe the root secret key from memory and disk (zeroize). It is **not** kept on any device.
 6. The user must confirm they have saved the kit, and the app checks the passphrase decrypts it before continuing.
 
 ### B. Token enrolment (managed deployment)
 
 1. An admin creates a token: generate an enroller keypair; the admin issues an enroller cert (expiry per token); bundle:
-   `Token = base64url(CBOR {0: version, 1: practice_id, 2: practice_name, 3: root_pub, 4: enroller_cert, 5: enroller_secret, 6: epoch, 7: group_key, 8: relay_urls, 9: seed_peers, 10: network overrides, 11: token_id, 12: expires_at})`, with string prefix `muster-enrol-1:`.
+   `Token = base64url(CBOR {0: version, 1: practice_id, 2: practice_name, 3: root_pub, 4: enroller_cert, 5: enroller_secret, 6: epoch, 7: group_key, 8: relay_urls, 9: seed_peers, 10: network overrides, 11: token_id, 12: expires_at})`, with string prefix `panic-button-enrol-1:`.
 2. A device with the token generates its own keys and self-issues a member cert signed by the enroller key (`token_id` set). It stores the practice details and group key, then joins: it sends CertAnnounce with its cert and the enroller cert, and heartbeats.
 3. If the token's epoch is older than the current one, peers detect the stale epoch from heartbeats. Any member sends the new device a KeyShare for the current epoch once it has validated the new cert.
 4. The token file or property value is deleted or blanked from local config after successful enrolment, where the agent has permission. Admins are told the token remains valid elsewhere until expiry or revocation.
@@ -104,9 +104,9 @@ On any enrolled or fresh device: "Recover admin access" -> load the kit -> passp
 
 | Platform | Device keys | Practice and group keys |
 |---|---|---|
-| Windows | DPAPI `CRYPTPROTECT_LOCAL_MACHINE` blob in `%ProgramData%\Muster\identity`, ACL: SYSTEM and Administrators full, Users read | same |
+| Windows | DPAPI `CRYPTPROTECT_LOCAL_MACHINE` blob in `%ProgramData%\Panic Button\identity`, ACL: SYSTEM and Administrators full, Users read | same |
 | macOS (v1) | user login keychain item | same |
-| Linux (v1) | Secret Service (libsecret) if available, otherwise a 0600 file under `$XDG_DATA_HOME/muster` | same |
+| Linux (v1) | Secret Service (libsecret) if available, otherwise a 0600 file under `$XDG_DATA_HOME/panic-button` | same |
 | Headless | 0600 file owned by the service user | same |
 
 All secret key material in memory uses `zeroize` on drop.
@@ -120,7 +120,7 @@ Ed25519 (signatures), X25519 (key agreement), XChaCha20-Poly1305 (AEAD), BLAKE3 
 - Data processed: device label, room name, user display name, timestamps, IP addresses. No patient data.
 - Display name source: the OS full name of the logged-in user. Policy `user_display_source` can be `os_full_name` (default), `os_username` or `room_only`.
 - No data goes to OHTF or anyone else unless the practice configures a relay operated by them. Relay metadata exposure (device ids, connection times, IP addresses, message sizes and timing) is documented in the relay operator guidance.
-- Practices should cover Muster in their own data protection documentation. A template DPIA paragraph will be provided with v1 docs.
+- Practices should cover Panic Button in their own data protection documentation. A template DPIA paragraph will be provided with v1 docs.
 
 ## Supply chain and releases
 

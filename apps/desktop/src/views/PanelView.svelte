@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 The panel beside the button: the sender panel after a trigger
 (`spec/05-desktop-agent.md`, Sender panel), and the drill toast. Neutral

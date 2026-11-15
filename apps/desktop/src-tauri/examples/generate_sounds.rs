@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! Writes the built-in sounds to `sounds/` (run through `s/sounds`).
 
-use muster_desktop::audio::{Clip, wav_bytes};
+use panic_button_desktop::audio::{Clip, wav_bytes};
 
 fn main() -> std::io::Result<()> {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../sounds");

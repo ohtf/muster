@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 The floating button window: the button, the status shape, a badge with the
 responder count while our alarm is open, and a warning if it could not be
@@ -22,7 +22,7 @@ delivered.
   let moveTimer: ReturnType<typeof setTimeout> | undefined;
 
   const tooltip = $derived(
-    running ? `Press and hold to call for help. ${summary}` : "Muster is starting or not set up yet",
+    running ? `Press and hold to call for help. ${summary}` : "Panic Button is starting or not set up yet",
   );
 
   async function refresh() {

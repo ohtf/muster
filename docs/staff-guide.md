@@ -1,6 +1,6 @@
-# Muster: calling colleagues for help
+# Panic Button: calling colleagues for help
 
-Muster puts a red button in the bottom right corner of your screen. It calls colleagues in the building to your room. It does not call 999 or anyone outside the practice, so follow your practice's emergency procedures as well.
+Panic Button puts a red button in the bottom right corner of your screen. It calls colleagues in the building to your room. It does not call 999 or anyone outside the practice, so follow your practice's emergency procedures as well.
 
 ![The red button: ready, being held, limited, and not connected](images/button-states.png)
 
@@ -38,8 +38,8 @@ It shows the room, who called and when. Click I'm coming if you can go, or Seen 
 
 | Shape | Meaning | What to do |
 |---|---|---|
-| Green circle | Muster can reach other computers. | Nothing. |
-| Amber triangle | It can reach some, or there is a problem such as no sound. | Tell your Practice Admin. They can see why on the Status tab: click the Muster icon by the clock and choose Open Muster. |
+| Green circle | Panic Button can reach other computers. | Nothing. |
+| Amber triangle | It can reach some, or there is a problem such as no sound. | Tell your Practice Admin. They can see why on the Status tab: click the Panic Button icon by the clock and choose Open Panic Button. |
 | Red square | It cannot reach any other computer. An alarm from here will not get through. | Tell your Practice Admin, and use another way to call for help until it is fixed. |
 
 ## Test alarms

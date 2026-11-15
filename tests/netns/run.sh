@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 #
 # Real-network integration tests (spec/07-testing.md, section 4): real
-# muster-agent --headless binaries in Linux network namespaces joined by
+# panic-button-agent --headless binaries in Linux network namespaces joined by
 # bridges, with nftables and bridge port isolation shaping what gets through.
 #
 # Usage: tests/netns/run.sh [scenario...]   (default: all)
@@ -11,15 +11,15 @@
 #
 # Re-executes itself in a private network and mount namespace (as root in
 # CI, or in an unprivileged user namespace where the kernel allows it). Needs ip, nft and the
-# release binaries (cargo build --release -p muster-agent -p muster-cli).
+# release binaries (cargo build --release -p panic-button-agent -p panic-button).
 
 set -euo pipefail
 
 # Always run in a private network and mount namespace, even as root: the
 # script mounts over /run and deletes every bridge it can see, which on the
 # host would break DNS and Docker (it took CI runners offline).
-if [[ -z ${MUSTER_NETNS_INNER:-} ]]; then
-  export MUSTER_NETNS_INNER=1
+if [[ -z ${PANIC_BUTTON_NETNS_INNER:-} ]]; then
+  export PANIC_BUTTON_NETNS_INNER=1
   if [[ $(id -u) -ne 0 ]]; then
     exec unshare --user --map-root-user --net --mount --propagation private "$0" "$@"
   fi
@@ -27,13 +27,13 @@ if [[ -z ${MUSTER_NETNS_INNER:-} ]]; then
 fi
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-BIN=${MUSTER_BIN:-$ROOT/target/release}
-AGENT=$BIN/muster-agent
-CLI=$BIN/muster
-RELAY=$BIN/muster-relay
+BIN=${PANIC_BUTTON_BIN:-$ROOT/target/release}
+AGENT=$BIN/panic-button-agent
+CLI=$BIN/panic-button
+RELAY=$BIN/panic-button-relay
 PORT=47474
 for b in "$AGENT" "$CLI" "$RELAY"; do
-  [[ -x $b ]] || { echo "missing $b: cargo build --release -p muster-agent -p muster-cli -p muster-relay" >&2; exit 2; }
+  [[ -x $b ]] || { echo "missing $b: cargo build --release -p panic-button-agent -p panic-button -p panic-button-relay" >&2; exit 2; }
 done
 
 # Private /run so netns names do not clash with the host.
@@ -106,7 +106,7 @@ start() {
   } > "$WORK/$node.toml"
   [[ -d $WORK/$node ]] || cp "$WORK/token" "$WORK/token.$node"
   # shellcheck disable=SC2086 # AGENT_ENV is a list of NAME=value words.
-  ip netns exec "$node" env MUSTER_LOG=info ${AGENT_ENV:-} "$AGENT" --headless \
+  ip netns exec "$node" env PANIC_BUTTON_LOG=info ${AGENT_ENV:-} "$AGENT" --headless \
     --config "$WORK/$node.toml" --policy /dev/null --data-dir "$WORK/$node" \
     --control-socket "$WORK/$node.sock" --label "$node" --allow-raise \
     >"$WORK/$node.log" 2>&1 &
@@ -196,9 +196,9 @@ s1() {
 s2() {
   bridge br0
   for i in 1 2 3; do attach "n$i" br0 "10.10.0.$i/24"; done
-  nft add table bridge muster
-  nft add chain bridge muster filter_forward '{ type filter hook forward priority 0; }'
-  nft add rule bridge muster filter_forward ether daddr 01:00:5e:00:00:00/25 drop
+  nft add table bridge panic-button
+  nft add chain bridge panic-button filter_forward '{ type filter hook forward priority 0; }'
+  nft add rule bridge panic-button filter_forward ether daddr 01:00:5e:00:00:00/25 drop
   practice n1
   start n1; start n2; start n3
   wait_ready n1 n2 n3
@@ -254,9 +254,9 @@ s5() {
   attach n2 br0 10.10.0.2/24; attach n2 brr 10.20.0.2/24
   attach n3 br1 10.11.0.3/24; attach n3 brr 10.20.0.3/24 isolated
   # The relay network carries only TCP to the relay: drop everything else.
-  nft add table bridge muster
-  nft add chain bridge muster filter_forward '{ type filter hook forward priority 0; }'
-  nft add rule bridge muster filter_forward meta ibrname brr ip daddr != 10.20.0.100 ip saddr != 10.20.0.100 drop
+  nft add table bridge panic-button
+  nft add chain bridge panic-button filter_forward '{ type filter hook forward priority 0; }'
+  nft add rule bridge panic-button filter_forward meta ibrname brr ip daddr != 10.20.0.100 ip saddr != 10.20.0.100 drop
   practice n1
   relay_start r
   for n in n1 n2 n3; do start "$n" "$RELAY_URL"; done
@@ -271,7 +271,7 @@ s5() {
 # S5 again with every device on HTTP long-poll, as behind a proxy that
 # breaks WebSockets.
 s5lp() {
-  AGENT_ENV=MUSTER_RELAY_TRANSPORT=long-poll S5_LABEL=" (long-poll)" s5
+  AGENT_ENV=PANIC_BUTTON_RELAY_TRANSPORT=long-poll S5_LABEL=" (long-poll)" s5
 }
 
 # S6: Wi-Fi with client isolation and a wired segment; laptops use the relay.

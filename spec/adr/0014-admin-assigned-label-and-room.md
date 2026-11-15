@@ -19,7 +19,7 @@ The desktop app's own room setting, which briefly lived in a `user.toml` in the 
 
 ## Consequences
 
-- One new message type, with a golden vector (`crates/muster-proto/tests/vectors/device_settings.hex`). Older devices drop it as an unknown type, which is harmless: their admin's change simply does not apply until they update.
+- One new message type, with a golden vector (`crates/panic-button-proto/tests/vectors/device_settings.hex`). Older devices drop it as an unknown type, which is harmless: their admin's change simply does not apply until they update.
 - The pending re-send is lost if the admin's app restarts before the target comes back. The admin can set it again; the admin view shows the room each device reports.
 - An admin can relabel a device to something misleading. This is no more than an admin can already do (they can remove devices), and the change is audited on the target.
 - Scenario `admin_assigns_label_and_room` covers the flood, a sleeping device, the person's later change, a configuration lock, and a member being refused.

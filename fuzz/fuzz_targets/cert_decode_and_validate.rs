@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use muster_crypto::TrustStore;
-use muster_proto::{Cbor, Cert, PracticeId};
+use panic_button_crypto::TrustStore;
+use panic_button_proto::{Cbor, Cert, PracticeId};
 
 fuzz_target!(|data: &[u8]| {
     // Interpret the input as a sequence of length-prefixed certs.

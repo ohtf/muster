@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! Sounds (`spec/05-desktop-agent.md`, Hold cue and Alarm sounds).
 //!
@@ -22,8 +22,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
-use muster_core::io::AudioCmd;
-use muster_proto::{CueMode, SoundPattern};
+use panic_button_core::io::AudioCmd;
+use panic_button_proto::{CueMode, SoundPattern};
 use rodio::{Player, Source};
 
 const RATE: u32 = 48_000;
@@ -382,7 +382,7 @@ impl Audio {
         let (tx, rx) = mpsc::channel::<Cmd>();
         let (ok_tx, ok_rx) = mpsc::channel::<bool>();
         let spawned = std::thread::Builder::new()
-            .name("muster-audio".into())
+            .name("panic-button-audio".into())
             .spawn(move || run(rx, ok_tx, sounds_dir));
         let ok = spawned.is_ok() && ok_rx.recv().unwrap_or(false);
         (Audio { tx }, ok)

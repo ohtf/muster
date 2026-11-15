@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 // Shapes returned by the agent's control API and UI events
-// (crates/muster-agent/src/views.rs).
+// (crates/panic-button-agent/src/views.rs).
 
 export type Level = "green" | "amber" | "red";
 
@@ -124,7 +124,7 @@ export interface AppInfo {
 
 export type SenderPhase = "requested" | "delivered" | "not_yet_delivered" | "could_not_reach";
 
-export type MusterEvent =
+export type PanicButtonEvent =
   | { type: "alarm_shown"; alarm: Alarm; resumed: boolean }
   | { type: "alarm_updated"; alarm: Alarm }
   | { type: "alarm_closed"; alarm: Alarm }

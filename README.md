@@ -1,4 +1,4 @@
-# Muster (working name)
+# Panic Button
 
 An open-source, cross-platform panic alarm for GP practices and other small workplaces.
 
@@ -16,7 +16,7 @@ Status: pre-alpha. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-ro
 
 ## Why
 
-Commercial on-screen panic alarms are expensive for what they are, Windows-only, and opaque about whether they are working. In 2023 EMIS removed its built-in panic button because local network configurations stopped it working reliably. Muster sends each alarm several ways at once, and every computer shows whether it can currently reach the others.
+Commercial on-screen panic alarms are expensive for what they are, Windows-only, and opaque about whether they are working. In 2023 EMIS removed its built-in panic button because local network configurations stopped it working reliably. Panic Button sends each alarm several ways at once, and every computer shows whether it can currently reach the others.
 
 ## Design principles
 
@@ -32,8 +32,8 @@ Commercial on-screen panic alarms are expensive for what they are, Windows-only,
 Requires Rust (the pinned toolchain in `rust-toolchain.toml` is installed automatically by `rustup`).
 
 ```sh
-git clone https://github.com/ohtf/muster.git
-cd muster
+git clone https://github.com/ohtf/panic-button.git
+cd panic-button
 s/test        # full test suite, including simulator properties
 s/lint        # fmt, clippy, cargo-deny
 ```
@@ -59,6 +59,6 @@ See [s/README.md](s/README.md) for all scripts.
 - Copyright: Open Health Technology Foundation contributors. Contributions use the [Developer Certificate of Origin](https://developercertificate.org/).
 - Licensing metadata is machine-checkable with `reuse lint`.
 
-## Working name
+## Name
 
-"Muster" is a placeholder. Check trade marks before any public launch. Keep the name confined to a small number of constants (crate prefix, mDNS service name, file paths, registry keys, UI strings) so it can be changed before the first release.
+The project was called Muster until 15 November 2026, when it was renamed because other projects already used that name on crates.io and the AUR (ADR 0015). Packages are named `panic-button`.

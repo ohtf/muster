@@ -4,7 +4,7 @@
 # shell. Installs frontend packages on first use.
 #
 #   s/gui-dev
-#   MUSTER_DATA_DIR=/tmp/a MUSTER_CONFIG=/tmp/a.toml s/gui-dev
+#   PANIC_BUTTON_DATA_DIR=/tmp/a PANIC_BUTTON_CONFIG=/tmp/a.toml s/gui-dev
 #                                   (a throwaway practice; see docs/gui/)
 
 set -euo pipefail

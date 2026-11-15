@@ -1,18 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 # A relay behind Caddy, which obtains and renews the TLS certificate.
 # Edit Caddyfile (host name) and relay.toml, then: docker compose up -d
 services:
   relay:
-    image: ghcr.io/ohtf/muster-relay:1
+    image: ghcr.io/ohtf/panic-button-relay:1
     build:
       context: ../..
       dockerfile: packaging/relay/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./relay.toml:/etc/muster-relay/relay.toml:ro
-      - relay-data:/var/lib/muster-relay
+      - ./relay.toml:/etc/panic-button-relay/relay.toml:ro
+      - relay-data:/var/lib/panic-button-relay
     # Only Caddy talks to the relay; /metrics stays inside this network.
     expose: ["8443"]
   caddy:

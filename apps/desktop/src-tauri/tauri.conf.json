@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Muster",
-  "mainBinaryName": "muster-desktop",
-  "identifier": "org.ohtf.muster",
+  "productName": "Panic Button",
+  "mainBinaryName": "panic-button-desktop",
+  "identifier": "org.ohtf.panic-button",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -22,7 +22,7 @@
     "category": "Utility",
     "shortDescription": "Call colleagues for help from this computer",
     "copyright": "Open Health Technology Foundation contributors",
-    "license": "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception",
+    "license": "AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,17 +34,17 @@
       "wix": {
         "upgradeCode": "3b23abe3-14bd-403a-8514-62b4a749fc51",
         "fragmentPaths": [
-          "../../../packaging/windows/muster.wxs"
+          "../../../packaging/windows/panic-button.wxs"
         ],
         "componentRefs": [
-          "MusterAutostart"
+          "PanicButtonAutostart"
         ]
       }
     },
     "linux": {
       "deb": {
         "files": {
-          "/etc/xdg/autostart/muster-desktop.desktop": "../../../packaging/linux/muster-autostart.desktop"
+          "/etc/xdg/autostart/panic-button-desktop.desktop": "../../../packaging/linux/panic-button-autostart.desktop"
         },
         "depends": [
           "libasound2t64 | libasound2"

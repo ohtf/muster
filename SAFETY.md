@@ -1,10 +1,10 @@
 # Clinical safety
 
-Muster is safety-relevant software: if it fails to deliver an alarm, or misleads someone about whether an alarm was delivered, a person in danger may not get help. This file is the entry point to its clinical safety documentation.
+Panic Button is safety-relevant software: if it fails to deliver an alarm, or misleads someone about whether an alarm was delivered, a person in danger may not get help. This file is the entry point to its clinical safety documentation.
 
 ## What it does
 
-Muster lets staff in GP practices and similar small workplaces call colleagues nearby for help by pressing and holding an on-screen button or keyboard shortcut. Every other enrolled device in the practice shows an alert and sounds an alarm. The sender sees, discreetly, whether the alarm was delivered and who is coming.
+Panic Button lets staff in GP practices and similar small workplaces call colleagues nearby for help by pressing and holding an on-screen button or keyboard shortcut. Every other enrolled device in the practice shows an alert and sounds an alarm. The sender sees, discreetly, whether the alarm was delivered and who is coming.
 
 ## What it does not do
 
@@ -20,7 +20,7 @@ Practice staff (clinical and non-clinical) on Windows, macOS and Linux desktop c
 ## Safety owner and status
 
 - Responsible role: Clinical Safety Officer (CSO) for the manufacturer (OHTF). **Not yet appointed for this project.**
-- Status: pre-alpha. The hazard log is an initial draft with proposed ratings, not yet reviewed by a CSO. Do not deploy Muster as a practice's panic alarm until the v1 safety gates in [spec/09-roadmap.md](spec/09-roadmap.md) (R44 to R48) are complete.
+- Status: pre-alpha. The hazard log is an initial draft with proposed ratings, not yet reviewed by a CSO. Do not deploy Panic Button as a practice's panic alarm until the v1 safety gates in [spec/09-roadmap.md](spec/09-roadmap.md) (R44 to R48) are complete.
 
 ## Documents
 
@@ -39,6 +39,6 @@ This is a governance record, not a regulatory determination (see `spec/queries.m
 - Decision date: 2026-11-14.
 - Next review date: 2027-11-14, or before v1.0.0 if that is sooner, or at any reassessment trigger below.
 - Evidence considered: MHRA [borderline products](https://www.gov.uk/guidance/borderline-products-how-to-tell-if-your-product-is-a-medical-device) and [regulating medical devices in the UK](https://www.gov.uk/guidance/regulating-medical-devices-in-the-uk) guidance; NHS England [DCB0129 and DCB0160 applicability](https://digital.nhs.uk/services/clinical-safety/applicability-of-dcb-0129-and-dcb-0160/step-by-step-guidance) guidance (to be accessed and dated by the decision-maker); this repository's specification.
-- Conclusion: **not a medical device.** Muster is standard office equipment: a workplace staff-safety alarm with no medical purpose. DCB0129 does not formally apply. The project still keeps a hazard log and safety case in its style, because a failed alarm can harm staff and it makes any local assessment by practices easier.
+- Conclusion: **not a medical device.** Panic Button is standard office equipment: a workplace staff-safety alarm with no medical purpose. DCB0129 does not formally apply. The project still keeps a hazard log and safety case in its style, because a failed alarm can harm staff and it makes any local assessment by practices easier.
 - Actions and owner: none beyond keeping the hazard log current and checking the reassessment triggers at each release (maintainers).
 - Reassessment triggers: any change to intended purpose or claims; alerting anyone outside the practice; integration with clinical systems or medical devices; handling patient data; the home profile; mobile apps; hardware buttons.

@@ -1,23 +1,23 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
-//! The Muster desktop app: a thin shell around the embedded agent
-//! (`muster-agent`). Rust owns behaviour; the webviews render the button,
+//! The Panic Button desktop app: a thin shell around the embedded agent
+//! (`panic-button-agent`). Rust owns behaviour; the webviews render the button,
 //! sender panel, alert window and main window (`spec/05-desktop-agent.md`).
 //!
 //! Environment overrides, for testing several devices on one computer:
-//! `MUSTER_DATA_DIR`, `MUSTER_CONFIG` and `MUSTER_CONTROL_SOCKET`. With
-//! `MUSTER_DATA_DIR` set, the single-instance check is skipped.
+//! `PANIC_BUTTON_DATA_DIR`, `PANIC_BUTTON_CONFIG` and `PANIC_BUTTON_CONTROL_SOCKET`. With
+//! `PANIC_BUTTON_DATA_DIR` set, the single-instance check is skipped.
 
 pub mod audio;
 mod windows;
 
 use std::path::{Path, PathBuf};
 
-use muster_agent::config::ConfigFile;
-use muster_agent::{AgentHandle, AgentOptions, paths};
-use muster_core::io::{Input, UiEvent};
-use muster_proto::{AudioStatus, SessionState, SoundPattern};
+use panic_button_agent::config::ConfigFile;
+use panic_button_agent::{AgentHandle, AgentOptions, paths};
+use panic_button_core::io::{Input, UiEvent};
+use panic_button_proto::{AudioStatus, SessionState, SoundPattern};
 use serde::Serialize;
 use serde_json::{Value, json};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -54,7 +54,7 @@ fn load_optional(p: &Path) -> anyhow::Result<ConfigFile> {
 /// kept by the agent (ADR 0014).
 fn load_config() -> anyhow::Result<ConfigFile> {
     let machine =
-        load_optional(&env_path("MUSTER_CONFIG").unwrap_or_else(paths::default_config_file))?;
+        load_optional(&env_path("PANIC_BUTTON_CONFIG").unwrap_or_else(paths::default_config_file))?;
     let policy = load_optional(&paths::default_policy_file())?;
     Ok(machine.with_policy(&policy))
 }
@@ -90,7 +90,7 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
     let config = st.config.lock().await.clone();
-    let (h, _task) = muster_agent::start(AgentOptions {
+    let (h, _task) = panic_button_agent::start(AgentOptions {
         data_dir: st.data_dir.clone(),
         control_socket: st.control_socket.clone(),
         config,
@@ -115,7 +115,7 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
     tauri::async_runtime::spawn(pump_audio(h.clone(), st.audio.clone()));
     *slot = Some(h);
     drop(slot);
-    let _ = app.emit("muster-started", ());
+    let _ = app.emit("panic-button-started", ());
     refresh_tray(app).await;
     Ok(())
 }
@@ -137,7 +137,7 @@ async fn pump_events(app: AppHandle, h: AgentHandle) {
                 if matches!(e, UiEvent::StatusChanged(_)) {
                     refresh_tray(&app).await;
                 }
-                let _ = app.emit("muster", muster_agent::views::ui_event(&e));
+                let _ = app.emit("panic-button", panic_button_agent::views::ui_event(&e));
             }
             Err(RecvError::Lagged(_)) => {}
             Err(RecvError::Closed) => break,
@@ -162,7 +162,7 @@ async fn agent(st: &State<'_, Shared>) -> Result<AgentHandle, String> {
         .lock()
         .await
         .clone()
-        .ok_or_else(|| "Muster is not set up on this computer yet".to_owned())
+        .ok_or_else(|| "Panic Button is not set up on this computer yet".to_owned())
 }
 
 #[derive(Debug, Serialize)]
@@ -184,7 +184,7 @@ async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
     let running = st.agent.lock().await.is_some();
     let cfg = st.config.lock().await;
     Ok(AppInfo {
-        enrolled: muster_agent::setup::is_enrolled(&st.data_dir).map_err(err)?,
+        enrolled: panic_button_agent::setup::is_enrolled(&st.data_dir).map_err(err)?,
         running,
         version: env!("CARGO_PKG_VERSION"),
         data_dir: st.data_dir.display().to_string(),
@@ -224,7 +224,7 @@ async fn setup_practice(
     let dir = st.data_dir.clone();
     let kit = paths::expand(Path::new(kit_path.trim()));
     let p = tauri::async_runtime::spawn_blocking(move || {
-        muster_agent::setup::init_practice(&dir, &name, label.trim(), &passphrase, &kit)
+        panic_button_agent::setup::init_practice(&dir, &name, label.trim(), &passphrase, &kit)
     })
     .await
     .map_err(err)?
@@ -245,7 +245,7 @@ async fn join_with_token(
     token: String,
 ) -> Result<(), String> {
     let t = token.trim().to_owned();
-    muster_proto::Token::parse(&t)
+    panic_button_proto::Token::parse(&t)
         .map_err(|e| format!("That is not a valid enrolment code: {e}"))?;
     {
         let mut c = st.config.lock().await;
@@ -263,9 +263,9 @@ async fn create_token(st: State<'_, Shared>, days: u64, label: String) -> Result
     let dir = st.data_dir.clone();
     let relays = st.config.lock().await.network.relay_urls.clone();
     let t = tauri::async_runtime::spawn_blocking(move || {
-        muster_agent::setup::create_enrolment_token(
+        panic_button_agent::setup::create_enrolment_token(
             &dir,
-            &muster_agent::setup::TokenOptions {
+            &panic_button_agent::setup::TokenOptions {
                 days,
                 label,
                 relay_urls: relays,
@@ -341,8 +341,8 @@ async fn refresh_tray(app: &AppHandle) {
         let _ = items.status.set_text(&summary);
         let _ = items.drill.set_enabled(admin);
     }
-    if let Some(t) = app.tray_by_id("muster") {
-        let _ = t.set_tooltip(Some(format!("Muster - {summary}")));
+    if let Some(t) = app.tray_by_id("panic-button") {
+        let _ = t.set_tooltip(Some(format!("Panic Button - {summary}")));
     }
 }
 
@@ -353,27 +353,27 @@ struct TrayItems {
 
 fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
     let status = MenuItem::with_id(app, "status", "Starting...", false, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Open Muster", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open Panic Button", true, None::<&str>)?;
     let mv = MenuItem::with_id(app, "move", "Move button", true, None::<&str>)?;
     let drill = MenuItem::with_id(app, "drill", "Run a test alarm", false, None::<&str>)?;
     let about = MenuItem::with_id(app, "about", "About and source", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(app, &[&status, &sep, &open, &mv, &drill, &about])?;
     if allow_quit {
-        let q = MenuItem::with_id(app, "quit", "Quit Muster", true, None::<&str>)?;
+        let q = MenuItem::with_id(app, "quit", "Quit Panic Button", true, None::<&str>)?;
         menu.append(&q)?;
     }
-    let mut b = TrayIconBuilder::with_id("muster")
+    let mut b = TrayIconBuilder::with_id("panic-button")
         .menu(&menu)
-        .tooltip("Muster")
+        .tooltip("Panic Button")
         .on_menu_event(|app, e| match e.id().as_ref() {
             "open" => windows::show_main(app),
             "about" => {
                 windows::show_main(app);
-                let _ = app.emit("muster-nav", "about");
+                let _ = app.emit("panic-button-nav", "about");
             }
             "move" => {
-                let _ = app.emit("muster-move", ());
+                let _ = app.emit("panic-button-move", ());
             }
             "drill" => {
                 let app = app.clone();
@@ -385,7 +385,7 @@ fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
                 });
             }
             "quit" => {
-                let _ = app.emit("muster-nav", "quit");
+                let _ = app.emit("panic-button-nav", "quit");
                 windows::show_main(app);
             }
             _ => {}
@@ -405,14 +405,15 @@ fn init_logging(data_dir: &Path) -> Option<tracing_appender::non_blocking::Worke
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
     let filter = || {
-        tracing_subscriber::EnvFilter::try_from_env("MUSTER_LOG").unwrap_or_else(|_| "info".into())
+        tracing_subscriber::EnvFilter::try_from_env("PANIC_BUTTON_LOG")
+            .unwrap_or_else(|_| "info".into())
     };
     let stderr = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
         .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()));
     let file = tracing_appender::rolling::Builder::new()
         .rotation(tracing_appender::rolling::Rotation::DAILY)
-        .filename_prefix("muster")
+        .filename_prefix("panic-button")
         .filename_suffix("log")
         .max_log_files(7)
         .build(data_dir.join("logs"));
@@ -442,12 +443,12 @@ fn init_logging(data_dir: &Path) -> Option<tracing_appender::non_blocking::Worke
 }
 
 pub fn run() {
-    let custom_dir = env_path("MUSTER_DATA_DIR");
+    let custom_dir = env_path("PANIC_BUTTON_DATA_DIR");
     let data_dir = custom_dir
         .clone()
         .unwrap_or_else(|| paths::default_data_dir(false));
     let _log_guard = init_logging(&data_dir);
-    let control_socket = env_path("MUSTER_CONTROL_SOCKET")
+    let control_socket = env_path("PANIC_BUTTON_CONTROL_SOCKET")
         .unwrap_or_else(|| paths::default_control_socket(&data_dir));
     let config = match load_config() {
         Ok(c) => c,
@@ -491,14 +492,14 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             build_tray(&handle, allow_quit)?;
-            let enrolled = muster_agent::setup::is_enrolled(&data_dir).unwrap_or(false);
+            let enrolled = panic_button_agent::setup::is_enrolled(&data_dir).unwrap_or(false);
             windows::create_all(&handle, !enrolled)?;
             if enrolled || token_configured {
                 let h = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) = start_agent(&h).await {
                         tracing::error!("agent: {e}");
-                        let _ = h.emit("muster-error", e);
+                        let _ = h.emit("panic-button-error", e);
                         windows::show_main(&h);
                     }
                 });
@@ -506,7 +507,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|w, e| {
-            // Closing a window hides it: Muster keeps running so alarms
+            // Closing a window hides it: Panic Button keeps running so alarms
             // still arrive.
             if let tauri::WindowEvent::CloseRequested { api, .. } = e {
                 api.prevent_close();
@@ -515,7 +516,7 @@ pub fn run() {
         })
         .run(tauri::generate_context!());
     if let Err(e) = result {
-        tracing::error!("Muster could not start: {e}");
+        tracing::error!("Panic Button could not start: {e}");
         std::process::exit(1);
     }
 }

@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping. Muster is safety-relevant software, so contributions are held to a high standard of testing and review.
+Thank you for helping. Panic Button is safety-relevant software, so contributions are held to a high standard of testing and review.
 
 ## Licence of contributions
 

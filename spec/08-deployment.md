@@ -4,8 +4,8 @@
 
 Highest wins, per key:
 
-1. **Machine policy:** Windows registry `HKLM\SOFTWARE\Policies\OHTF\Muster`; macOS managed preferences (`/Library/Managed Preferences/org.ohtf.muster.plist`, from MDM configuration profiles); Linux `/etc/muster/policy.toml`.
-2. **Machine config file:** Windows `%ProgramData%\Muster\config.toml`; macOS `/Library/Application Support/Muster/config.toml`; Linux `/etc/muster/config.toml`.
+1. **Machine policy:** Windows registry `HKLM\SOFTWARE\Policies\OHTF\Panic Button`; macOS managed preferences (`/Library/Managed Preferences/org.ohtf.panic-button.plist`, from MDM configuration profiles); Linux `/etc/panic-button/policy.toml`.
+2. **Machine config file:** Windows `%ProgramData%\Panic Button\config.toml`; macOS `/Library/Application Support/Panic Button/config.toml`; Linux `/etc/panic-button/config.toml`.
 3. **Signed practice config** (PracticeConfig messages from admins).
 4. **User preferences** (only keys marked user-editable and not locked by 1 to 3).
 5. **Profile defaults** (`practice` or `home`).
@@ -42,18 +42,18 @@ Highest wins, per key:
 | `practice.opening_hours` | string | `Mon-Fri 08:00-18:30` | | 3 | For FR-STS-006 and coverage filters |
 | `policy.allow_remote_session` | bool | false | false | 1 | |
 | `policy.updates` | enum | `managed` | `auto` | 1 | |
-| `policy.allow_cli_raise` | bool | false | false | 1 | Allows `muster ctl raise` on non-test builds |
+| `policy.allow_cli_raise` | bool | false | false | 1 | Allows `panic-button ctl raise` on non-test builds |
 
-Registry value types: strings as `REG_SZ`, booleans and integers as `REG_DWORD`, lists as `REG_MULTI_SZ`. Key names use the dotted path with dots replaced by backslash subkeys, for example `HKLM\SOFTWARE\Policies\OHTF\Muster\alarm\cue_mode`.
+Registry value types: strings as `REG_SZ`, booleans and integers as `REG_DWORD`, lists as `REG_MULTI_SZ`. Key names use the dotted path with dots replaced by backslash subkeys, for example `HKLM\SOFTWARE\Policies\OHTF\Panic Button\alarm\cue_mode`.
 
 ## Example machine config
 
 ```toml
-# C:\ProgramData\Muster\config.toml
+# C:\ProgramData\Panic Button\config.toml
 profile = "practice"
 
 [enrolment]
-token_file = 'C:\ProgramData\Muster\enrol.token'
+token_file = 'C:\ProgramData\Panic Button\enrol.token'
 
 [device]
 room = "Reception"
@@ -68,7 +68,7 @@ relay_urls = ["wss://relay.example-pcn.org.uk/v1/ws"]
 ### MSI
 
 - Built with the Tauri bundler (WiX 3/4 backend) plus custom fragments in `packaging/windows/`.
-- Per-machine install to `%ProgramFiles%\Muster`. Requires elevation (expected under SCCM, Intune or GPO).
+- Per-machine install to `%ProgramFiles%\Panic Button`. Requires elevation (expected under SCCM, Intune or GPO).
 - Public properties:
 
 | Property | Meaning |
@@ -80,16 +80,16 @@ relay_urls = ["wss://relay.example-pcn.org.uk/v1/ws"]
 | `ROOM` | Room for this machine |
 | `FIREWALL_PUBLIC` | `1` to also open the port on the Public firewall profile (default `0`; Domain and Private only) |
 
-- The MSI writes the properties into `%ProgramData%\Muster\config.toml`. ACL: Administrators and SYSTEM full, Users read. The token is written to `enrol.token` with Users read access (needed for per-user first run). The agent deletes it after enrolment.
-- Firewall: inbound rule for `muster-desktop.exe`, UDP and TCP on `network.port`, Domain and Private profiles (Public optional).
-- Autostart: `HKLM\Software\Microsoft\Windows\CurrentVersion\Run\Muster`.
+- The MSI writes the properties into `%ProgramData%\Panic Button\config.toml`. ACL: Administrators and SYSTEM full, Users read. The token is written to `enrol.token` with Users read access (needed for per-user first run). The agent deletes it after enrolment.
+- Firewall: inbound rule for `panic-button-desktop.exe`, UDP and TCP on `network.port`, Domain and Private profiles (Public optional).
+- Autostart: `HKLM\Software\Microsoft\Windows\CurrentVersion\Run\Panic Button`.
 - WebView2: evergreen bootstrapper if missing.
-- Upgrades: major upgrade with the same UpgradeCode. Preserves `%ProgramData%\Muster`.
-- Uninstall removes the program, firewall rule and Run key. It keeps `%ProgramData%\Muster` unless `PURGE=1`.
+- Upgrades: major upgrade with the same UpgradeCode. Preserves `%ProgramData%\Panic Button`.
+- Uninstall removes the program, firewall rule and Run key. It keeps `%ProgramData%\Panic Button` unless `PURGE=1`.
 
 Silent install example:
 ```
-msiexec /i Muster-1.0.0-x64.msi /qn ENROLMENT_TOKEN_FILE="\\server\share\muster\practice.token" ROOM="Consulting Room 4"
+msiexec /i Panic Button-1.0.0-x64.msi /qn ENROLMENT_TOKEN_FILE="\\server\share\panic-button\practice.token" ROOM="Consulting Room 4"
 ```
 
 ### For IT
@@ -100,13 +100,13 @@ msiexec /i Muster-1.0.0-x64.msi /qn ENROLMENT_TOKEN_FILE="\\server\share\muster\
 
 ## macOS
 
-- Signed and notarised `.pkg` installing `/Applications/Muster.app`, a LaunchAgent at `/Library/LaunchAgents/org.ohtf.muster.plist` (KeepAlive) and the optional config file.
-- MDM: configuration profile with a `org.ohtf.muster` payload (same keys as the settings reference) and a PPPC profile where useful. Local Network permission cannot be pre-granted by MDM, so first run must prompt (see `05-desktop-agent.md`).
+- Signed and notarised `.pkg` installing `/Applications/Panic Button.app`, a LaunchAgent at `/Library/LaunchAgents/org.ohtf.panic-button.plist` (KeepAlive) and the optional config file.
+- MDM: configuration profile with a `org.ohtf.panic-button` payload (same keys as the settings reference) and a PPPC profile where useful. Local Network permission cannot be pre-granted by MDM, so first run must prompt (see `05-desktop-agent.md`).
 
 ## Linux
 
 - `.deb` (and AppImage for others). The desktop app is installed with an XDG autostart entry.
-- Headless agent: `muster-agent` binary with a systemd unit (`muster-agent.service`, `User=muster`, `Restart=always`), config at `/etc/muster/config.toml`, state at `/var/lib/muster`.
+- Headless agent: `panic-button-agent` binary with a systemd unit (`panic-button-agent.service`, `User=panic-button`, `Restart=always`), config at `/etc/panic-button/config.toml`, state at `/var/lib/panic-button`.
 
 ## Relay hosting
 
@@ -115,11 +115,11 @@ See `06-relay.md`. A `packaging/relay/docker-compose.yml` example:
 ```yaml
 services:
   relay:
-    image: ghcr.io/<org>/muster-relay:1
+    image: ghcr.io/<org>/panic-button-relay:1
     restart: unless-stopped
     volumes:
-      - ./relay.toml:/etc/muster-relay/relay.toml:ro
-      - relay-data:/var/lib/muster-relay
+      - ./relay.toml:/etc/panic-button-relay/relay.toml:ro
+      - relay-data:/var/lib/panic-button-relay
   caddy:
     image: caddy:2
     restart: unless-stopped

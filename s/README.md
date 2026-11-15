@@ -7,13 +7,13 @@ The `s/` directory contains some simple convenience scripts to speed up and stan
 Run the full test suite, including simulator scenarios and properties.
 
 - `s/test` - everything
-- `s/test -p muster-core` - one crate
-- `PROPTEST_CASES=256 s/test --release -p muster-sim --test properties` - CI-scale property run
-- `PROPTEST_CASES=1000 s/test --release -p muster-sim --test properties` - long property run (about an hour)
+- `s/test -p panic-button-core` - one crate
+- `PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties` - CI-scale property run
+- `PROPTEST_CASES=1000 s/test --release -p panic-button-sim --test properties` - long property run (about an hour)
 
 ## `s/check-deep`
 
-The slow checks that GitHub Actions no longer runs on every push: simulator properties and scenarios, network-namespace scenarios, the desktop app, and a short fuzz of every target. Run it before pushing changes to `muster-core`, `muster-net` or the agent.
+The slow checks that GitHub Actions no longer runs on every push: simulator properties and scenarios, network-namespace scenarios, the desktop app, and a short fuzz of every target. Run it before pushing changes to `panic-button-core`, `panic-button-net` or the agent.
 
 - `s/check-deep` - about 25 minutes
 - `s/check-deep --long` - 1,000 property cases, S13 at 250 devices, 10 minutes per fuzz target (a few hours)
@@ -36,7 +36,7 @@ Build the release binaries (agent, CLI, relay) and run the network-namespace sce
 Run the desktop app in development (Vite hot reload plus the Tauri shell).
 
 - `s/gui-dev`
-- `MUSTER_DATA_DIR=/tmp/a MUSTER_CONFIG=/tmp/a.toml s/gui-dev` - a throwaway practice (see `docs/gui/`)
+- `PANIC_BUTTON_DATA_DIR=/tmp/a PANIC_BUTTON_CONFIG=/tmp/a.toml s/gui-dev` - a throwaway practice (see `docs/gui/`)
 
 ## `s/desktop-check`
 

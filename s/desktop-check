@@ -7,5 +7,5 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 (cd apps/desktop && { [[ -d node_modules ]] || npm ci; } && npm run check && npm run build)
-cargo clippy -p muster-desktop --all-targets -- -D warnings
-exec cargo test -p muster-desktop "$@"
+cargo clippy -p panic-button-desktop --all-targets -- -D warnings
+exec cargo test -p panic-button-desktop "$@"

@@ -94,7 +94,7 @@ Priority uses MoSCoW: **M** must (v1 blocker), **S** should (v1 if possible), **
 
 | ID | Pri | Requirement |
 |---|---|---|
-| FR-ADM-001 | M | Admin functions are available in the desktop app on admin devices only, and in the `muster` CLI. |
+| FR-ADM-001 | M | Admin functions are available in the desktop app on admin devices only, and in the `panic-button` CLI. |
 | FR-ADM-002 | M | Admins can promote a device to admin, rename devices, set rooms, revoke devices (with or without cascade) and create or revoke tokens. |
 | FR-ADM-003 | M | Admins can edit practice settings (`cue_mode`, `hold_ms`, alarm sound pattern, drill schedule and mode, drill coordinator, relay URLs, opening hours). Changes are signed and distributed. |
 | FR-ADM-004 | M | The app warns when the practice has fewer than 2 admins. |
@@ -147,7 +147,7 @@ Priority uses MoSCoW: **M** must (v1 blocker), **S** should (v1 if possible), **
 | FR-PLT-002 | M | The agent starts automatically at login and is restarted if it crashes (watchdog, see `05-desktop-agent.md`). |
 | FR-PLT-003 | M | In a remote desktop session (RDS/Citrix) the agent detects this, shows an explanatory message and does not participate, unless policy `allow_remote_session = true`. |
 | FR-PLT-004 | M | On Windows, only the agent in the active console session participates (fast user switching). |
-| FR-PLT-005 | M | A headless agent (`muster-agent --headless`) runs on Linux for relay boxes, integration nodes (later) and tests. |
+| FR-PLT-005 | M | A headless agent (`panic-button-agent --headless`) runs on Linux for relay boxes, integration nodes (later) and tests. |
 
 ## Non-functional requirements
 

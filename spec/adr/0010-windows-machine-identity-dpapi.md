@@ -8,7 +8,7 @@ GP practice PCs are shared and hot-desked by many users. A per-user identity wou
 
 ## Decision
 
-- On Windows, the device identity and practice keys are per machine, stored in `%ProgramData%\Muster\identity`, encrypted with DPAPI machine scope (`CRYPTPROTECT_LOCAL_MACHINE`), readable by local users so the per-session agent can load them.
+- On Windows, the device identity and practice keys are per machine, stored in `%ProgramData%\Panic Button\identity`, encrypted with DPAPI machine scope (`CRYPTPROTECT_LOCAL_MACHINE`), readable by local users so the per-session agent can load them.
 - Only the agent in the active console session participates (FR-PLT-004).
 - The heartbeat and alarms carry the current user's display name separately.
 - macOS and Linux use per-user identity in v1 (single-user machines are the norm there). Revisit if shared Macs appear in practices.

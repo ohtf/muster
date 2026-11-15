@@ -2,16 +2,16 @@
 
 ## Software
 
-Muster is licensed under the GNU Affero General Public License, version 3 or (at your option) any later version. The full text goes in `LICENSE`. Fetch it from https://www.gnu.org/licenses/agpl-3.0.txt; do not retype it.
+Panic Button is licensed under the GNU Affero General Public License, version 3 or (at your option) any later version. The full text goes in `LICENSE`. Fetch it from https://www.gnu.org/licenses/agpl-3.0.txt; do not retype it.
 
 Each source file carries the header (in the comment syntax of its language):
 
 ```
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 ```
 
-SPDX 3 introduces `AdditionRef-` for custom licence additions, but the REUSE 3.3 specification does not yet accept it, so the project uses `LicenseRef-Muster-app-store-exception` after `WITH`. Switch to `AdditionRef-` once REUSE supports it. The text is in `LICENSES/LicenseRef-Muster-app-store-exception.txt`. Files that cannot carry a header are covered by `REUSE.toml`.
+SPDX 3 introduces `AdditionRef-` for custom licence additions, but the REUSE 3.3 specification does not yet accept it, so the project uses `LicenseRef-PanicButton-app-store-exception` after `WITH`. Switch to `AdditionRef-` once REUSE supports it. The text is in `LICENSES/LicenseRef-PanicButton-app-store-exception.txt`. Files that cannot carry a header are covered by `REUSE.toml`.
 
 ## Additional permission: app store distribution (DRAFT)
 

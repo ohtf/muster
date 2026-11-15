@@ -8,7 +8,7 @@ The same protocol logic must run on Windows, macOS, Linux, a headless server and
 
 ## Decision
 
-- Implement in Rust. Core protocol and alarm logic live in `muster-core`, which performs no I/O, reads no clocks and uses only injected randomness.
+- Implement in Rust. Core protocol and alarm logic live in `panic-button-core`, which performs no I/O, reads no clocks and uses only injected randomness.
 - Runtimes (desktop, headless, simulator, and later mobile through UniFFI) feed inputs and perform outputs.
 
 ## Alternatives considered

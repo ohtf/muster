@@ -22,10 +22,10 @@ fi
 step() { printf '\n== %s\n' "$*"; }
 
 step "simulator properties ($cases cases) and scenarios"
-PROPTEST_CASES=$cases cargo test --release -p muster-sim --test properties --test scenarios
+PROPTEST_CASES=$cases cargo test --release -p panic-button-sim --test properties --test scenarios
 if [[ -n $long ]]; then
   step "S13 at 250 devices"
-  MUSTER_FULL_SCALE=1 cargo test --release -p muster-sim --test scenarios s13
+  PANIC_BUTTON_FULL_SCALE=1 cargo test --release -p panic-button-sim --test scenarios s13
 fi
 
 step "network namespace scenarios"

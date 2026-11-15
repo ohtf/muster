@@ -5,7 +5,7 @@ Testing is part of the product. The claims "it works" and "it tells you when it 
 ## Layers
 
 1. Unit tests in every crate.
-2. Deterministic simulation (`muster-sim`) with property-based tests. **The main line of defence.**
+2. Deterministic simulation (`panic-button-sim`) with property-based tests. **The main line of defence.**
 3. Fuzzing of every decoder.
 4. Real-network integration tests in Linux network namespaces (CI).
 5. Cross-platform build and smoke tests (CI matrix).
@@ -14,11 +14,11 @@ Testing is part of the product. The claims "it works" and "it tells you when it 
 
 ## 1. Unit tests (examples, not exhaustive)
 
-- `muster-proto`: round-trip every message type; deterministic encoding; unknown keys ignored; duplicate keys rejected; size limits enforced; golden test vectors (committed hex files) so other implementations can check compatibility.
-- `muster-crypto`: seal and open; tag derivation; KeyShare; cert chain validation (each rule in `04-security.md`, positive and negative); non-cascade vs cascade revocation; recovery kit encrypt and decrypt; zeroize on drop (via test hooks).
-- `muster-core`: hold machine (every transition, including near miss boundaries at 299, 300, 1499 and 1500 ms); alarm state merging (permutations of event order give identical state); expiry; Cancelled only from the origin; status computation table tests (each red and amber reason).
+- `panic-button-proto`: round-trip every message type; deterministic encoding; unknown keys ignored; duplicate keys rejected; size limits enforced; golden test vectors (committed hex files) so other implementations can check compatibility.
+- `panic-button-crypto`: seal and open; tag derivation; KeyShare; cert chain validation (each rule in `04-security.md`, positive and negative); non-cascade vs cascade revocation; recovery kit encrypt and decrypt; zeroize on drop (via test hooks).
+- `panic-button-core`: hold machine (every transition, including near miss boundaries at 299, 300, 1499 and 1500 ms); alarm state merging (permutations of event order give identical state); expiry; Cancelled only from the origin; status computation table tests (each red and amber reason).
 
-## 2. Simulator (`muster-sim`)
+## 2. Simulator (`panic-button-sim`)
 
 ### Model
 
@@ -53,10 +53,10 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 
 #### Implementation notes
 
-- The properties live in `crates/muster-sim/tests/properties.rs` and the scenarios in `crates/muster-sim/tests/scenarios.rs`. `cargo test` runs 8 cases per property, on every push in CI. `s/check-deep` runs 256 in release mode and `s/check-deep --long` runs 1,000, locally; the Deep checks and Long runs workflows do the same by hand. Failing seeds are saved in `crates/muster-sim/tests/properties.proptest-regressions` and replayed first on every run.
-- P1 and P8 are judged against a ground-truth reachability model (`crates/muster-sim/src/props.rs`) built from the simulated network. Devices learn addresses from heartbeats, so random worlds change topology only before 22 s and raise the first alarm at 90 s, leaving time for status (`PEER_STALE`) and address re-learning to settle. P8 is checked only once the topology has been stable for `PEER_STALE + 1 s`.
+- The properties live in `crates/panic-button-sim/tests/properties.rs` and the scenarios in `crates/panic-button-sim/tests/scenarios.rs`. `cargo test` runs 8 cases per property, on every push in CI. `s/check-deep` runs 256 in release mode and `s/check-deep --long` runs 1,000, locally; the Deep checks and Long runs workflows do the same by hand. Failing seeds are saved in `crates/panic-button-sim/tests/properties.proptest-regressions` and replayed first on every run.
+- P1 and P8 are judged against a ground-truth reachability model (`crates/panic-button-sim/src/props.rs`) built from the simulated network. Devices learn addresses from heartbeats, so random worlds change topology only before 22 s and raise the first alarm at 90 s, leaving time for status (`PEER_STALE`) and address re-learning to settle. P8 is checked only once the topology has been stable for `PEER_STALE + 1 s`.
 - P3 excludes alerts resumed after a restart (ADR 0013). P7 counts first transmissions only; retransmissions are allowed on top.
-- To investigate, `cargo run --release -p muster-sim --example explore -- world 0 200 30` sweeps seeds and prints the first failing case; `CASE='<Params from the regressions file>' ... -- p4 0 0` re-runs one with diagnostics.
+- To investigate, `cargo run --release -p panic-button-sim --example explore -- world 0 200 30` sweeps seeds and prints the first failing case; `CASE='<Params from the regressions file>' ... -- p4 0 0` re-runs one with diagnostics.
 
 ### Named scenarios (deterministic, always run)
 
@@ -86,7 +86,7 @@ Random worlds: 2 to 60 nodes, 1 to 4 segments, random flags, loss 0 to 30%, 0 to
 
 ## 4. Network-namespace integration (Linux CI)
 
-`tests/netns/` contains scripts (run with `sudo` in GitHub Actions) that build topologies with `ip netns`, bridges and veth pairs. They use `nft` to drop multicast or broadcast per bridge, emulate client isolation (drop traffic between ports on a bridge), and use `tc netem` for loss and latency. They run real `muster-agent --headless` binaries plus a real `muster-relay`. Tests drive agents through the control API (`muster ctl raise`, `muster ctl wait-alarm --timeout 3s`, `muster ctl status --json`). Implement at least S1, S2, S4, S5, S6, S7, S12 and S14 here.
+`tests/netns/` contains scripts (run with `sudo` in GitHub Actions) that build topologies with `ip netns`, bridges and veth pairs. They use `nft` to drop multicast or broadcast per bridge, emulate client isolation (drop traffic between ports on a bridge), and use `tc netem` for loss and latency. They run real `panic-button-agent --headless` binaries plus a real `panic-button-relay`. Tests drive agents through the control API (`panic-button ctl raise`, `panic-button ctl wait-alarm --timeout 3s`, `panic-button ctl status --json`). Implement at least S1, S2, S4, S5, S6, S7, S12 and S14 here.
 
 ## 5. CI matrix
 

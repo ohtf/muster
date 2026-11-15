@@ -37,7 +37,7 @@
 
 ### Hold interaction
 
-State machine in `muster-core` (`HoldMachine`). The UI only reports pointer events:
+State machine in `panic-button-core` (`HoldMachine`). The UI only reports pointer events:
 
 ```
 Idle --HoldStart(src)--> Holding{start, src}
@@ -124,7 +124,7 @@ A small non-modal toast near the button: "Test alarm received - no action needed
 
 Icon shows the status colour and shape. Menu:
 - Status line (disabled item): "Connected to 14 devices"
-- Open Muster (main window: status details, history, settings)
+- Open Panic Button (main window: status details, history, settings)
 - Move button
 - Room: Consulting Room 4 (opens room editor if allowed)
 - Run test (admin only): runs a drill now
@@ -148,7 +148,7 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 
 ## First run
 
-1. Welcome: "Muster lets you call colleagues for help from this computer."
+1. Welcome: "Panic Button lets you call colleagues for help from this computer."
 2. If a token or config exists: enrol automatically and skip to step 4.
 3. Choose: "Join an existing practice" (shows join code and waits for admin approval, or "Paste an enrolment code") or "Set up a new practice" (name, passphrase, save kit, confirm).
 4. Room: "Which room is this computer in?" A text field with suggestions from rooms already known in the practice. Skipped if a room is set by policy.
@@ -159,10 +159,10 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 
 - **Autostart:** Windows `HKLM\...\Run` entry written by the MSI (per machine, all users); macOS LaunchAgent; Linux XDG autostart, or a systemd user unit for the headless agent.
 - **Watchdog:**
-  - Windows: on first run per user, register a per-user Scheduled Task "Muster watchdog" (at logon, and repeating every 5 minutes) that runs `muster-desktop.exe --ensure-running`. That exits immediately if an instance is running (single-instance plugin).
+  - Windows: on first run per user, register a per-user Scheduled Task "Panic Button watchdog" (at logon, and repeating every 5 minutes) that runs `panic-button-desktop.exe --ensure-running`. That exits immediately if an instance is running (single-instance plugin).
   - macOS: LaunchAgent `KeepAlive = true`.
   - Linux: systemd user unit `Restart=always`, or XDG autostart plus a user timer.
-- **Remote sessions (Windows):** if `GetSystemMetrics(SM_REMOTESESSION)` is non-zero, or the session is not the console session, and `allow_remote_session = false`: show the button greyed with the tooltip "Muster cannot run inside a remote session. Ask IT to install it on this computer itself." Do not heartbeat as a participating device. Report `session = remote_session_disabled` if running.
+- **Remote sessions (Windows):** if `GetSystemMetrics(SM_REMOTESESSION)` is non-zero, or the session is not the console session, and `allow_remote_session = false`: show the button greyed with the tooltip "Panic Button cannot run inside a remote session. Ask IT to install it on this computer itself." Do not heartbeat as a participating device. Report `session = remote_session_disabled` if running.
 - **Fast user switching (Windows):** only the agent in the active console session (`WTSGetActiveConsoleSessionId` equal to own session id, checked every 5 s and on `WM_WTSSESSION_CHANGE`) opens network sockets. Others stay dormant.
 - **Locked screen:** keep running and keep sound. Heartbeat `session = locked`.
 - **Sleep and wake:** on resume (OS power events or a wall-clock jump of more than 30 s between ticks), trigger anti-entropy (see protocol).
@@ -171,5 +171,5 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 ## Platform notes
 
 - **Windows:** WebView2 runtime is required (evergreen, normally present on Windows 10/11; the MSI checks and bootstraps it). The firewall rule is added by the MSI. Test at 100%, 125%, 150% and 200% scaling and with multiple monitors.
-- **macOS:** `NSLocalNetworkUsageDescription` in Info.plist ("Muster uses the local network to send and receive alarms from other computers in your practice."). The first-run flow must trigger the Local Network permission prompt and detect denial (red status: "Local network access is turned off for Muster in System Settings > Privacy & Security > Local Network"). Button window level is `NSStatusWindowLevel`, visible on all Spaces.
+- **macOS:** `NSLocalNetworkUsageDescription` in Info.plist ("Panic Button uses the local network to send and receive alarms from other computers in your practice."). The first-run flow must trigger the Local Network permission prompt and detect denial (red status: "Local network access is turned off for Panic Button in System Settings > Privacy & Security > Local Network"). Button window level is `NSStatusWindowLevel`, visible on all Spaces.
 - **Linux:** X11 is fully supported. On Wayland, always-on-top and global shortcuts depend on the compositor. Use the XDG GlobalShortcuts portal where available. If the button cannot be kept on top, fall back to tray plus shortcut and show amber: "On-screen button may be hidden behind windows on this desktop".

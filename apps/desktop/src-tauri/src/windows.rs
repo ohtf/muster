@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! The four windows: the floating button, the panel beside it (sender
 //! panel and drill toast), the receiver alert, and the main window. All are
@@ -37,7 +37,7 @@ fn button_position(app: &AppHandle) -> Option<PhysicalPosition<i32>> {
 
 pub fn create_all(app: &AppHandle, first_run: bool) -> tauri::Result<()> {
     let button = WebviewWindowBuilder::new(app, "button", page("button"))
-        .title("Muster button")
+        .title("Panic Button button")
         .inner_size(BUTTON, BUTTON)
         .min_inner_size(BUTTON, BUTTON)
         .max_inner_size(BUTTON, BUTTON)
@@ -56,7 +56,7 @@ pub fn create_all(app: &AppHandle, first_run: bool) -> tauri::Result<()> {
         let _ = button.set_position(p);
     }
     WebviewWindowBuilder::new(app, "panel", page("panel"))
-        .title("Muster panel")
+        .title("Panic Button panel")
         .inner_size(PANEL.0, PANEL.1)
         .min_inner_size(PANEL.0, PANEL.1)
         .max_inner_size(PANEL.0, PANEL.1)
@@ -79,7 +79,7 @@ pub fn create_all(app: &AppHandle, first_run: bool) -> tauri::Result<()> {
         .visible(false)
         .build()?;
     WebviewWindowBuilder::new(app, "main", page("main"))
-        .title("Muster")
+        .title("Panic Button")
         .inner_size(MAIN.0, MAIN.1)
         .min_inner_size(640.0, 480.0)
         .center()

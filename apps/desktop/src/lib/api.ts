@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 // The boundary to Rust. In Tauri this calls commands and listens to
 // events; in a plain browser (vite dev, screenshots) it uses the mock agent
@@ -11,7 +11,7 @@ import type {
   AppInfo,
   Device,
   DrillSummary,
-  MusterEvent,
+  PanicButtonEvent,
   Peer,
   PracticeSettings,
   Status,
@@ -79,11 +79,11 @@ export const api = {
   showWindow: (label: string) => invoke<void>("show_window", { label }),
   hideWindow: (label: string) => invoke<void>("hide_window", { label }),
   quit: () => invoke<void>("quit"),
-  onEvent: (cb: (e: MusterEvent) => void) => listenTo<MusterEvent>("muster", cb),
-  onStarted: (cb: () => void) => listenTo<null>("muster-started", () => cb()),
-  onNav: (cb: (tab: string) => void) => listenTo<string>("muster-nav", cb),
-  onMove: (cb: () => void) => listenTo<null>("muster-move", () => cb()),
-  onError: (cb: (msg: string) => void) => listenTo<string>("muster-error", cb),
+  onEvent: (cb: (e: PanicButtonEvent) => void) => listenTo<PanicButtonEvent>("panic-button", cb),
+  onStarted: (cb: () => void) => listenTo<null>("panic-button-started", () => cb()),
+  onNav: (cb: (tab: string) => void) => listenTo<string>("panic-button-nav", cb),
+  onMove: (cb: () => void) => listenTo<null>("panic-button-move", () => cb()),
+  onError: (cb: (msg: string) => void) => listenTo<string>("panic-button-error", cb),
 };
 
 /** Starts dragging this window (Shift+drag or "Move button"). */

@@ -12,10 +12,10 @@ This document is normative for interoperability. Anything not specified here is 
 
 | Context | Used for |
 |---|---|
-| `muster/v1/sealed` | body of sealed messages |
-| `muster/v1/open` | body of open messages |
-| `muster/v1/cert` | certificates |
-| `muster/v1/relay-auth` | relay handshake |
+| `panic-button/v1/sealed` | body of sealed messages |
+| `panic-button/v1/open` | body of open messages |
+| `panic-button/v1/cert` | certificates |
+| `panic-button/v1/relay-auth` | relay handshake |
 
 ## Size limits
 
@@ -43,7 +43,7 @@ Envelope = {
 
 ### Sealed envelopes
 
-- `practice_tag(epoch) = BLAKE3::keyed_hash(group_key[epoch], b"muster/v1/tag")[0..8]`.
+- `practice_tag(epoch) = BLAKE3::keyed_hash(group_key[epoch], b"panic-button/v1/tag")[0..8]`.
 - `ciphertext = XChaCha20-Poly1305(key = group_key[epoch], nonce, aad = CBOR({0: version, 1: kind, 2: tag, 3: epoch}), plaintext = SignedMessage bytes)`.
 - Receivers keep a map from tag to epoch for the current and previous epoch. An unknown tag means "not our practice": drop the envelope silently and cheaply. Do not attempt decryption.
 
@@ -182,7 +182,7 @@ Signed by an admin device. Addressed to a joining device:
 
 Signed by an admin device (on rotation) or any member (when bringing a newly enrolled device up to date):
 `{ 0: recipient DeviceId, 1: epoch uint, 2: eph_pub bstr(32), 3: nonce bstr(24), 4: ct bstr }`
-where `k = HKDF-SHA256(ikm = X25519(eph_priv, recipient_kx_pub), salt = practice_id, info = "muster/v1/keyshare" || recipient || epoch_be64)` and `ct = XChaCha20-Poly1305(k, nonce, aad = recipient || epoch_be64, plaintext = group_key)`.
+where `k = HKDF-SHA256(ikm = X25519(eph_priv, recipient_kx_pub), salt = practice_id, info = "panic-button/v1/keyshare" || recipient || epoch_be64)` and `ct = XChaCha20-Poly1305(k, nonce, aad = recipient || epoch_be64, plaintext = group_key)`.
 A member may share epoch E only if it holds E and the recipient's cert is valid and unrevoked.
 
 ### 0x43 Revocation
@@ -221,7 +221,7 @@ Validation rules are in `04-security.md`.
 - UDP socket bound to `0.0.0.0:PORT` (default 47474) with `SO_REUSEADDR` (and `SO_REUSEPORT` on Unix). It joins `MCAST_GROUP` (default `239.255.71.71`) on every up, non-loopback IPv4 interface. Multicast TTL is 1 by default (`multicast_ttl` configurable to 8 for routed multicast). Loopback is enabled, and own messages are discarded by sender id.
 - Broadcast: to `255.255.255.255:PORT` and to each interface's directed broadcast address.
 - TCP listener on `0.0.0.0:PORT`, falling back to an ephemeral port if busy. The actual port is advertised in the heartbeat. Frames are `u32` big-endian length plus an Envelope. Connections are opened on demand with a 1 s connect timeout, kept for 60 s idle, and limited to 64 concurrent outbound.
-- mDNS: service `_muster._udp.local.`, TXT `t=<hex practice tag>`, `p=<tcp port>`, `v=1`. Used to find peers when multicast to the group address is filtered but mDNS is permitted.
+- mDNS: service `_panic-button._udp.local.`, TXT `t=<hex practice tag>`, `p=<tcp port>`, `v=1`. Used to find peers when multicast to the group address is filtered but mDNS is permitted.
 - Seed peers: configured `host:port` list. They are always sent heartbeats by unicast UDP and are used for TCP.
 
 ### Per-peer path tracking
@@ -273,8 +273,8 @@ An AlarmRaised with `drill = true`, sent by the coordinator. Receivers send a Re
 
 ## Anti-entropy
 
-- `alarm_digest = BLAKE3("muster/v1/ad" || sorted concat of (alarm_id || latest_event_msg_id) for alarms open or closed within the last ALARM_MAX_LIFE)[0..16]`.
-- `state_digest = BLAKE3("muster/v1/sd" || sorted cert serials || sorted revocation msg_ids || config version || current epoch)[0..16]`.
+- `alarm_digest = BLAKE3("panic-button/v1/ad" || sorted concat of (alarm_id || latest_event_msg_id) for alarms open or closed within the last ALARM_MAX_LIFE)[0..16]`.
+- `state_digest = BLAKE3("panic-button/v1/sd" || sorted cert serials || sorted revocation msg_ids || config version || current epoch)[0..16]`.
 - When a peer's heartbeat digest differs from ours, send that peer a SyncRequest by TCP (or via relay if it is `relay_only`), rate-limited to one per peer per `SYNC_RATE_LIMIT`. Pick the `want` bits by which digest differed.
 - After wake from sleep, a network change or a relay reconnect: an immediate heartbeat, then a SyncRequest (open alarms, recent events, revocations, keyshares_for_me) to every connected relay and to up to 3 random direct peers.
 
@@ -329,6 +329,6 @@ These fill gaps the original text left open. They are normative for version 1.
 - **SyncRequest key 4 `alarm_digest` (bstr(16), optional).** The requester's alarm digest. A responder whose own digest differs also sends its own SyncRequest back (subject to rate limits), so one heartbeat heard in either direction is enough to start repair both ways.
 - **JoinRequest key 4 `tcp_port` (uint, optional).** The joining device's TCP port, so a JoinApproval that does not fit a datagram can be delivered by TCP.
 - **Token key 13 `issuer_chain` ([bstr], optional).** Raw certs from the enroller cert's issuer up to but not including the root, so a newly enrolled device can validate its own chain before it hears from an admin (otherwise it would show red, and its alarms would be held by peers that lack the admin cert, until an admin is reachable).
-- **Alarm digest** (replaces the formula in Anti-entropy): `BLAKE3("muster/v1/ad" || sorted concat of (alarm_id || msg_id) for the AlarmRaised and every AlarmEvent of each alarm raised, or closed, within the last ALARM_MAX_LIFE)[0..16]` (ADR 0013, item 9).
+- **Alarm digest** (replaces the formula in Anti-entropy): `BLAKE3("panic-button/v1/ad" || sorted concat of (alarm_id || msg_id) for the AlarmRaised and every AlarmEvent of each alarm raised, or closed, within the last ALARM_MAX_LIFE)[0..16]` (ADR 0013, item 9).
 - **Implementation decisions** affecting delivery, status and traffic are recorded in ADR 0013.
-- **Golden vectors** for every message type are in `crates/muster-proto/tests/vectors/`.
+- **Golden vectors** for every message type are in `crates/panic-button-proto/tests/vectors/`.

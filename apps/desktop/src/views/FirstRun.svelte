@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 First run (`spec/05-desktop-agent.md`, First run): join with an enrolment
 code or set up a new practice, choose the room, then a practice hold that
@@ -34,7 +34,7 @@ alerts nobody.
   onMount(() => {
     // Enrolled already (for example by a token in the config): skip to the room.
     if (info.enrolled || info.running) afterEnrol();
-    kitPath = `${info.home_dir}/Muster recovery kit.muster-kit`;
+    kitPath = `${info.home_dir}/Panic Button recovery kit.panic-button-kit`;
     const off = api.onEvent((e) => {
       if (e.type === "hold_progress" && e.fraction >= 1 && step === "practice") practiced = true;
     });
@@ -106,8 +106,8 @@ alerts nobody.
 
 <section class="first-run">
   {#if step === "welcome"}
-    <h1>Welcome to Muster</h1>
-    <p class="lead">Muster lets you call colleagues for help from this computer.</p>
+    <h1>Welcome to Panic Button</h1>
+    <p class="lead">Panic Button lets you call colleagues for help from this computer.</p>
     <div class="choices">
       <button class="choice" onclick={() => (step = "join")}>
         <strong>Join an existing practice</strong>

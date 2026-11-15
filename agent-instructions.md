@@ -1,6 +1,6 @@
 # Agent instructions
 
-Muster is an open-source, LAN-first staff panic alarm for GP practices, stewarded by OHTF. It is not a monitored alarm, not a 999 route and never handles patient data. People's safety depends on this software working. When in doubt, favour (a) delivering the alarm and (b) honestly reporting when it might not be delivered.
+Panic Button is an open-source, LAN-first staff panic alarm for GP practices, stewarded by OHTF. It is not a monitored alarm, not a 999 route and never handles patient data. People's safety depends on this software working. When in doubt, favour (a) delivering the alarm and (b) honestly reporting when it might not be delivered.
 
 This file is the entry point for AI coding agents (`AGENTS.md` and `CLAUDE.md` point here). Read it before changing anything.
 
@@ -25,7 +25,7 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 - The sender's "Delivered to N" count only ever comes from real Receipts (P10, H03).
 - Raising an alarm must never make an alarm-like sound on the sender's device (ADR 0008).
 - Pointer movement never cancels a hold (ADR 0009).
-- `muster-core` performs no I/O, reads no clocks and uses only injected randomness (ADR 0002).
+- `panic-button-core` performs no I/O, reads no clocks and uses only injected randomness (ADR 0002).
 - Decoding code must never panic on untrusted input. It is fuzzed.
 - No patient data is ever handled, stored or transmitted.
 - Do not copy the visual design, colours, iconography, sounds or wording of any commercial panic alarm product. Generate sounds programmatically and release them under CC0.
@@ -35,14 +35,14 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 ## Toolchain and conventions
 
 - Rust edition 2024, toolchain pinned in `rust-toolchain.toml`. Cargo workspace at the repo root.
-- `#![forbid(unsafe_code)]` in `muster-proto`, `muster-crypto`, `muster-core`, `muster-sim` and `muster-relay`. Platform FFI (audio endpoint, DPAPI, session detection) lives in clearly named `platform` modules in `muster-agent` and `apps/desktop`, with `// SAFETY:` comments.
+- `#![forbid(unsafe_code)]` in `panic-button-proto`, `panic-button-crypto`, `panic-button-core`, `panic-button-sim` and `panic-button-relay`. Platform FFI (audio endpoint, DPAPI, session detection) lives in clearly named `platform` modules in `panic-button-agent` and `apps/desktop`, with `// SAFETY:` comments.
 - Libraries use `thiserror`. Binaries use `anyhow`. Logging uses `tracing`. CLIs use `clap` derive and follow house-style [rust-cli.md](https://github.com/pacharanero/house-style/blob/main/rust-cli.md).
 - Frontend (M4 onwards): TypeScript (strict), Svelte 5, Vite in `apps/desktop`. `eslint`, `prettier --check` and `svelte-check` must pass.
 - Dependencies must be AGPL-compatible. `cargo-deny` (licences, advisories, bans, sources) and `cargo audit` enforce this. Prefer well-maintained crates and check them against house-style [dependencies.md](https://github.com/pacharanero/house-style/blob/main/dependencies.md).
 - Every source file starts with the SPDX header:
   ```
   // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-  // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+  // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
   ```
   Files that cannot carry a header are covered by `REUSE.toml`. `reuse lint` must pass.
 - British English in UI strings and docs. Hyphens, not em dashes. Markdown is not hard-wrapped.
@@ -64,7 +64,7 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 ## Testing rules
 
 - Every new piece of functionality comes with tests in the same commit.
-- Protocol and state-machine behaviour is tested in the deterministic simulator (`muster-sim`), including the properties in `spec/07-testing.md`.
+- Protocol and state-machine behaviour is tested in the deterministic simulator (`panic-button-sim`), including the properties in `spec/07-testing.md`.
 - A failing property test is a release blocker. Do not weaken a property to make it pass. Fix the code, or write an ADR explaining why the property was wrong.
 - Agent-written tests are not sufficient evidence for cryptography or safety-critical behaviour on their own. Prefer independent vectors (RFC test vectors, golden files reviewed by a human) where they exist, and flag what still needs human review.
 
@@ -83,7 +83,7 @@ Plus `cargo deny check` and `reuse lint` where installed. CI enforces all of the
 - Conventional Commits (`feat(core): ...`, `fix(net): ...`, `docs(spec): ...`). Mention roadmap codes where relevant (`implements R12`).
 - Sign off every commit (`git commit -s`) per the DCO in `CONTRIBUTING.md`.
 - Commit each validated coherent parcel without waiting to be asked.
-- **Push policy:** while the repository has one active maintainer (Solo tier), agents may commit and push directly to `main` on `ohtf/muster` without waiting to be asked, because each change is an atomic, conventional commit that is easy to roll back (confirmed by Marcus Baw, 2026-11-14). Once a second regular contributor joins, switch to milestone branches `m<milestone>/<short-topic>` (for example `m2/alarm-state-crdt`) and PRs, one per milestone task where practical.
+- **Push policy:** while the repository has one active maintainer (Solo tier), agents may commit and push directly to `main` on `ohtf/panic-button` without waiting to be asked, because each change is an atomic, conventional commit that is easy to roll back (confirmed by Marcus Baw, 2026-11-14). Once a second regular contributor joins, switch to milestone branches `m<milestone>/<short-topic>` (for example `m2/alarm-state-crdt`) and PRs, one per milestone task where practical.
 - PR descriptions: a two-or-three-line summary, then detail folded in `<details><summary>` (house-style [commits.md](https://github.com/pacharanero/house-style/blob/main/commits.md#pull-request-descriptions)).
 
 ## When the spec is ambiguous

@@ -1,6 +1,6 @@
 # Writing checklist
 
-Check every user guide against this list before it is committed. Most guides are read by practice staff, often in a hurry, so write for someone who has never seen Muster and has no interest in how it works inside.
+Check every user guide against this list before it is committed. Most guides are read by practice staff, often in a hurry, so write for someone who has never seen Panic Button and has no interest in how it works inside.
 
 The patterns come from Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) and the [humanizer skill](https://github.com/blader/humanizer) built on it. Machine-drafted text tends to have them, and so does a lot of corporate writing.
 

@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 [package]
-name = "muster-fuzz"
+name = "panic-button-fuzz"
 version = "0.0.0"
 edition = "2024"
 publish = false
-license = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
+license = "AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception"
 
 [package.metadata]
 cargo-fuzz = true
@@ -17,9 +17,9 @@ members = ["."]
 
 [dependencies]
 libfuzzer-sys = "0.4"
-muster-proto = { path = "../crates/muster-proto" }
-muster-crypto = { path = "../crates/muster-crypto" }
-muster-core = { path = "../crates/muster-core" }
+panic-button-proto = { path = "../crates/panic-button-proto" }
+panic-button-crypto = { path = "../crates/panic-button-crypto" }
+panic-button-core = { path = "../crates/panic-button-core" }
 
 [[bin]]
 name = "envelope_decode"

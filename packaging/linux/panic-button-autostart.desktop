@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+[Desktop Entry]
+Type=Application
+Name=Panic Button
+Comment=Call colleagues for help from this computer
+Exec=panic-button-desktop
+Icon=panic-button-desktop
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

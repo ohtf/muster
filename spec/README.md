@@ -1,6 +1,6 @@
 # Specification
 
-The durable design of Muster. Read in order before changing code. Requirements carry IDs (for example `FR-ACT-002`), which code and tests reference for traceability.
+The durable design of Panic Button. Read in order before changing code. Requirements carry IDs (for example `FR-ACT-002`), which code and tests reference for traceability.
 
 | File | Contents |
 |---|---|

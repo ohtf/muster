@@ -26,20 +26,20 @@ Every device runs the same core. The relay is a separate, much simpler program t
 ## Repository layout
 
 ```
-muster/
+panic-button/
   Cargo.toml                 workspace
   crates/
-    muster-proto/            message types, CBOR encode/decode, versioning (no I/O)
-    muster-crypto/           keys, certs, sealing, signatures, recovery kit (no I/O)
-    muster-core/             sans-IO state machine: peers, alarms, hold logic, status, sync
-    muster-store/            SQLite persistence (rusqlite) for identity, certs, alarms, audit
-    muster-net/              tokio I/O drivers: UDP, TCP, mDNS, relay client, interface watch
-    muster-agent/            runtime glue: wires core + net + store + platform; control API; headless bin
-    muster-sim/              deterministic network simulator and property tests
-    muster-relay/            relay server binary
-    muster-cli/              `muster` admin and diagnostics CLI
+    panic-button-proto/            message types, CBOR encode/decode, versioning (no I/O)
+    panic-button-crypto/           keys, certs, sealing, signatures, recovery kit (no I/O)
+    panic-button-core/             sans-IO state machine: peers, alarms, hold logic, status, sync
+    panic-button-store/            SQLite persistence (rusqlite) for identity, certs, alarms, audit
+    panic-button-net/              tokio I/O drivers: UDP, TCP, mDNS, relay client, interface watch
+    panic-button-agent/            runtime glue: wires core + net + store + platform; control API; headless bin
+    panic-button-sim/              deterministic network simulator and property tests
+    panic-button-relay/            relay server binary
+    panic-button/              `panic-button` admin and diagnostics CLI
   apps/
-    desktop/                 Tauri 2 app (Rust side embeds muster-agent; Svelte 5 frontend)
+    desktop/                 Tauri 2 app (Rust side embeds panic-button-agent; Svelte 5 frontend)
   packaging/
     windows/                 WiX fragments (firewall, properties), signing scripts
     macos/                   pkg scripts, entitlements, LaunchAgent plist, config profile example
@@ -57,7 +57,7 @@ muster/
 
 ## Sans-IO core
 
-`muster-core` contains all protocol and alarm logic and performs **no I/O, reads no clocks and uses no global randomness**. This is what makes the simulator deterministic and the properties testable.
+`panic-button-core` contains all protocol and alarm logic and performs **no I/O, reads no clocks and uses no global randomness**. This is what makes the simulator deterministic and the properties testable.
 
 ```rust
 pub struct Core { /* state */ }
@@ -98,19 +98,19 @@ pub enum Output {
 Rules:
 - Time comes in as parameters. Randomness (message ids, nonces, jitter) comes from a `ChaCha20Rng` seeded at construction. The runtime seeds it from `OsRng`. The simulator seeds it deterministically.
 - Nonces for encryption come from the same RNG. In production it is seeded from `OsRng` and reseeded every 2^20 draws. Uniqueness of 24-byte random nonces is fine at this rate.
-- Crypto operations are called from the core through `muster-crypto`, which is pure.
+- Crypto operations are called from the core through `panic-button-crypto`, which is pure.
 - The core enforces all limits (sizes, rates, timers) so the simulator tests them.
 
-## Runtime (`muster-agent`)
+## Runtime (`panic-button-agent`)
 
 - Tokio multi-threaded runtime with a single core task that owns `Core` and receives inputs over an mpsc channel. Outputs are dispatched to I/O tasks.
 - I/O tasks: UDP socket (one socket bound to `0.0.0.0:port`, joined to the multicast group on every IPv4 interface), TCP listener plus connection pool, mDNS (`mdns-sd`), relay clients (one per configured URL), interface watcher (poll every 5 s plus OS notifications where available), audio status poller (every 10 s), session state watcher.
-- Store: `muster-store` with SQLite in WAL mode. Persist ops are applied in order and fsynced for security-relevant state (identity, certs, revocations, epochs, processed alarm ids) before the corresponding outputs are released. Alarm sending is **not** delayed by persistence: the alarm is sent first, then persisted.
-- Local control API: JSON-RPC 2.0 over a Unix domain socket (`$XDG_RUNTIME_DIR/muster/control.sock`, mode 0600) or a Windows named pipe (`\\.\pipe\muster-<SID>`, ACL restricted to the current user and SYSTEM). The CLI and integration tests use it. Methods: `status`, `peers`, `alarms`, `raise` (test builds and headless only, unless policy allows), `respond`, `resolve`, `cancel`, `drill.run`, `drill.report`, admin methods, `diagnostics.export`.
+- Store: `panic-button-store` with SQLite in WAL mode. Persist ops are applied in order and fsynced for security-relevant state (identity, certs, revocations, epochs, processed alarm ids) before the corresponding outputs are released. Alarm sending is **not** delayed by persistence: the alarm is sent first, then persisted.
+- Local control API: JSON-RPC 2.0 over a Unix domain socket (`$XDG_RUNTIME_DIR/panic-button/control.sock`, mode 0600) or a Windows named pipe (`\\.\pipe\panic-button-<SID>`, ACL restricted to the current user and SYSTEM). The CLI and integration tests use it. Methods: `status`, `peers`, `alarms`, `raise` (test builds and headless only, unless policy allows), `respond`, `resolve`, `cancel`, `drill.run`, `drill.report`, admin methods, `diagnostics.export`.
 
 ## Desktop process model
 
-- One Tauri 2 process per user session, embedding `muster-agent` as a library. Windows:
+- One Tauri 2 process per user session, embedding `panic-button-agent` as a library. Windows:
   - `button`: small, transparent, frameless, always-on-top, skip-taskbar, not focusable where possible.
   - `panel`: sender confirmation panel, anchored to the button.
   - `alert`: receiver window, topmost.
@@ -121,7 +121,7 @@ Rules:
 
 ## Identity scope
 
-- **Windows:** one device identity per machine, stored under `%ProgramData%\Muster\identity` and protected with DPAPI machine scope (ADR 0010). The heartbeat reports the current interactive user's display name.
+- **Windows:** one device identity per machine, stored under `%ProgramData%\Panic Button\identity` and protected with DPAPI machine scope (ADR 0010). The heartbeat reports the current interactive user's display name.
 - **macOS and Linux (v1):** one identity per user account, in the user's keychain or secret service where available, or otherwise in a 0600 file in the user data directory.
 
 ## Data stored per device (SQLite)

@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 The main window (`spec/05-desktop-agent.md`, Main window): status, history,
 settings, admin and about; or first run if this computer is not set up.
@@ -135,7 +135,7 @@ settings, admin and about; or first run if this computer is not set up.
   <div class="shell">
     <header>
       <div class="title">
-        <strong>Muster</strong>
+        <strong>Panic Button</strong>
         {#if status?.practice}<span class="muted">{status.practice}</span>{/if}
       </div>
       <nav aria-label="Sections">
@@ -159,7 +159,7 @@ settings, admin and about; or first run if this computer is not set up.
             <h1>{status?.summary ?? "Starting..."}</h1>
             {#each status?.reasons ?? [] as r (r)}<p>{r}</p>{/each}
             {#if info?.wayland}
-              <p>On-screen button may be hidden behind windows on this desktop. Use the tray icon to reach Muster.</p>
+              <p>On-screen button may be hidden behind windows on this desktop. Use the tray icon to reach Panic Button.</p>
             {/if}
           </div>
         </section>
@@ -247,7 +247,7 @@ settings, admin and about; or first run if this computer is not set up.
             </p>
             <div class="field narrow">
               <label for="kit">Recovery kit file</label>
-              <input id="kit" bind:value={kitPath} spellcheck="false" placeholder="/media/usb/Muster recovery kit.muster-kit" />
+              <input id="kit" bind:value={kitPath} spellcheck="false" placeholder="/media/usb/Panic Button recovery kit.panic-button-kit" />
             </div>
             <div class="field narrow">
               <label for="kitpass">Passphrase</label>
@@ -267,15 +267,15 @@ settings, admin and about; or first run if this computer is not set up.
         <AdminTab bind:joins onerror={(m) => (error = m)} />
       {:else if tab === "about"}
         <section>
-          <h1>About Muster</h1>
+          <h1>About Panic Button</h1>
           <p>Version {info?.version}. A staff alarm for calling colleagues for help, from the Open Health Technology Foundation.</p>
           <p>
-            Muster is free software under the GNU Affero General Public License, version 3 or later, with an app store
-            exception. The source is at <code>https://github.com/ohtf/muster</code>.
+            Panic Button is free software under the GNU Affero General Public License, version 3 or later, with an app store
+            exception. The source is at <code>https://github.com/ohtf/panic-button</code>.
           </p>
           <p class="muted">Data folder: <code>{info?.data_dir}</code></p>
           {#if info?.allow_quit}
-            <button class="btn" onclick={() => (quitAsk = true)}>Quit Muster...</button>
+            <button class="btn" onclick={() => (quitAsk = true)}>Quit Panic Button...</button>
           {/if}
         </section>
       {/if}
@@ -286,7 +286,7 @@ settings, admin and about; or first run if this computer is not set up.
 {#if quitAsk}
   <div class="scrim">
     <div class="dialog" role="alertdialog" aria-labelledby="quit-h" aria-modal="true">
-      <h2 id="quit-h">Quit Muster?</h2>
+      <h2 id="quit-h">Quit Panic Button?</h2>
       <p>If you quit, you will not receive alarms on this computer.</p>
       <div class="inline end">
         <button class="btn primary" onclick={() => (quitAsk = false)}>Keep running</button>

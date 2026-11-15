@@ -2827,177 +2827,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "muster-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "getrandom 0.4.3",
- "jiff",
- "muster-core",
- "muster-crypto",
- "muster-net",
- "muster-proto",
- "muster-store",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "toml 1.2.1+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "muster-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "libc",
- "muster-agent",
- "muster-core",
- "muster-crypto",
- "muster-proto",
- "muster-store",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "muster-core"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "muster-crypto",
- "muster-proto",
- "proptest",
- "rand_chacha 0.10.0",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "muster-crypto"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "blake3",
- "chacha20poly1305",
- "ed25519-dalek",
- "hex",
- "hkdf",
- "muster-proto",
- "proptest",
- "sha2 0.11.1",
- "thiserror 2.0.21",
- "x25519-dalek",
- "zeroize",
-]
-
-[[package]]
-name = "muster-desktop"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "muster-agent",
- "muster-core",
- "muster-proto",
- "rodio",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-single-instance",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "muster-net"
-version = "0.1.0"
-dependencies = [
- "futures-util",
- "getrandom 0.4.3",
- "http",
- "hyper-util",
- "if-addrs",
- "mdns-sd",
- "muster-core",
- "muster-proto",
- "nix",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "rustls-pki-types",
- "socket2",
- "thiserror 2.0.21",
- "tokio",
- "tokio-tungstenite 0.30.0",
- "tracing",
-]
-
-[[package]]
-name = "muster-proto"
-version = "0.1.0"
-dependencies = [
- "data-encoding",
- "hex",
- "minicbor",
- "proptest",
- "thiserror 2.0.21",
- "zeroize",
-]
-
-[[package]]
-name = "muster-relay"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "getrandom 0.4.3",
- "muster-crypto",
- "muster-proto",
- "rusqlite",
- "serde",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tokio-tungstenite 0.30.0",
- "toml 1.2.1+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "muster-sim"
-version = "0.1.0"
-dependencies = [
- "muster-core",
- "muster-crypto",
- "muster-proto",
- "proptest",
- "rand_chacha 0.10.0",
-]
-
-[[package]]
-name = "muster-store"
-version = "0.1.0"
-dependencies = [
- "muster-core",
- "muster-crypto",
- "muster-proto",
- "rusqlite",
- "tempfile",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "ndk"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3438,6 +3267,177 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "panic-button"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "libc",
+ "panic-button-agent",
+ "panic-button-core",
+ "panic-button-crypto",
+ "panic-button-proto",
+ "panic-button-store",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "panic-button-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "getrandom 0.4.3",
+ "jiff",
+ "panic-button-core",
+ "panic-button-crypto",
+ "panic-button-net",
+ "panic-button-proto",
+ "panic-button-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "toml 1.2.1+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "panic-button-core"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "panic-button-crypto",
+ "panic-button-proto",
+ "proptest",
+ "rand_chacha 0.10.0",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "panic-button-crypto"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "blake3",
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "hex",
+ "hkdf",
+ "panic-button-proto",
+ "proptest",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
+name = "panic-button-desktop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "panic-button-agent",
+ "panic-button-core",
+ "panic-button-proto",
+ "rodio",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-single-instance",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "panic-button-net"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "getrandom 0.4.3",
+ "http",
+ "hyper-util",
+ "if-addrs",
+ "mdns-sd",
+ "nix",
+ "panic-button-core",
+ "panic-button-proto",
+ "reqwest",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-pki-types",
+ "socket2",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
+ "tracing",
+]
+
+[[package]]
+name = "panic-button-proto"
+version = "0.1.0"
+dependencies = [
+ "data-encoding",
+ "hex",
+ "minicbor",
+ "proptest",
+ "thiserror 2.0.21",
+ "zeroize",
+]
+
+[[package]]
+name = "panic-button-relay"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "getrandom 0.4.3",
+ "panic-button-crypto",
+ "panic-button-proto",
+ "rusqlite",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
+ "toml 1.2.1+spec-1.1.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "panic-button-sim"
+version = "0.1.0"
+dependencies = [
+ "panic-button-core",
+ "panic-button-crypto",
+ "panic-button-proto",
+ "proptest",
+ "rand_chacha 0.10.0",
+]
+
+[[package]]
+name = "panic-button-store"
+version = "0.1.0"
+dependencies = [
+ "panic-button-core",
+ "panic-button-crypto",
+ "panic-button-proto",
+ "rusqlite",
+ "tempfile",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

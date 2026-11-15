@@ -5,11 +5,11 @@
 # checked by s/desktop-check, since it needs WebKit and a built frontend.
 #
 # Pass cargo test arguments through, for example:
-#   s/test -p muster-core
-#   PROPTEST_CASES=256 s/test --release -p muster-sim --test properties
+#   s/test -p panic-button-core
+#   PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties
 #                                                (CI-scale property run)
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-exec cargo test --workspace --exclude muster-desktop --all-features "$@"
+exec cargo test --workspace --exclude panic-button-desktop --all-features "$@"

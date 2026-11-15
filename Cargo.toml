@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 [workspace]
 resolver = "3"
@@ -9,8 +9,8 @@ members = ["crates/*", "apps/desktop/src-tauri"]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-license = "AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception"
-repository = "https://github.com/ohtf/muster"
+license = "AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception"
+repository = "https://github.com/ohtf/panic-button"
 publish = false
 
 [workspace.lints.rust]
@@ -23,12 +23,12 @@ todo = "warn"
 unwrap_used = "warn"
 
 [workspace.dependencies]
-muster-proto = { path = "crates/muster-proto" }
-muster-crypto = { path = "crates/muster-crypto" }
-muster-core = { path = "crates/muster-core" }
-muster-store = { path = "crates/muster-store" }
-muster-net = { path = "crates/muster-net" }
-muster-agent = { path = "crates/muster-agent" }
+panic-button-proto = { path = "crates/panic-button-proto" }
+panic-button-crypto = { path = "crates/panic-button-crypto" }
+panic-button-core = { path = "crates/panic-button-core" }
+panic-button-store = { path = "crates/panic-button-store" }
+panic-button-net = { path = "crates/panic-button-net" }
+panic-button-agent = { path = "crates/panic-button-agent" }
 
 # Crypto-heavy tests and the simulator are much faster with optimised
 # dependencies.

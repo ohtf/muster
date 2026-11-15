@@ -1,6 +1,6 @@
 <!--
 SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 Admin (`spec/05-desktop-agent.md`, Admin section): join requests, devices,
 enrolment codes, and test alarms with their reports.
@@ -313,7 +313,7 @@ enrolment codes, and test alarms with their reports.
 
 <section>
   <h2>Add a computer</h2>
-  <p>Create an enrolment code and paste it into Muster on the new computer.</p>
+  <p>Create an enrolment code and paste it into Panic Button on the new computer.</p>
   <div class="inline">
     <div class="field">
       <label for="tlabel">Label</label>

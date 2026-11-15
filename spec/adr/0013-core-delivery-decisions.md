@@ -4,7 +4,7 @@
 
 ## Context
 
-Building `muster-core` and the simulator exposed gaps and tensions in `spec/03-protocol.md`. Each decision below picks the option more likely to deliver an alarm and less likely to mislead a user, or (for traffic) the option that keeps the network within NFR-RES-002 without weakening delivery.
+Building `panic-button-core` and the simulator exposed gaps and tensions in `spec/03-protocol.md`. Each decision below picks the option more likely to deliver an alarm and less likely to mislead a user, or (for traffic) the option that keeps the network within NFR-RES-002 without weakening delivery.
 
 ## Decisions
 

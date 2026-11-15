@@ -1,6 +1,6 @@
 # Practice Admin guide
 
-A Practice Admin sets Muster up, adds and removes computers, runs test alarms and keeps an eye on whether every computer can raise and receive alarms. You do this from the Admin tab in the Muster window. To open the window, click the Muster icon by the clock and choose Open Muster.
+A Practice Admin sets Panic Button up, adds and removes computers, runs test alarms and keeps an eye on whether every computer can raise and receive alarms. You do this from the Admin tab in the Panic Button window. To open the window, click the Panic Button icon by the clock and choose Open Panic Button.
 
 Have at least two admins, on two different computers, so one lost or broken computer does not lock you out. The Admin tab reminds you if there is only one.
 
@@ -8,7 +8,7 @@ Have at least two admins, on two different computers, so one lost or broken comp
 
 Do this once, on the computer of the person who will be the first admin.
 
-1. In the Muster window, choose Set up a new practice.
+1. In the Panic Button window, choose Set up a new practice.
 2. Enter the practice name, a name for this computer (for example "Practice Manager's PC"), and a recovery passphrase of at least 12 characters.
 3. Choose where to save the recovery kit, then click Create practice. This takes a few seconds.
 4. Choose this computer's room, and try the practice hold. It does not alert anyone.
@@ -17,13 +17,13 @@ Do this once, on the computer of the person who will be the first admin.
 
 The recovery kit is a file. With its passphrase, it can make any computer in the practice an admin. You need it if every admin computer is lost or broken, and there is no other way back in.
 
-Copy the kit to a USB stick and keep it somewhere locked, such as the practice safe. Keep the passphrase separately, for example in the practice's password manager or a sealed envelope held by a partner. Delete the copy on the computer once it is safe. Anyone with both the kit and the passphrase can take control of your practice's Muster, so treat them like the keys to the building.
+Copy the kit to a USB stick and keep it somewhere locked, such as the practice safe. Keep the passphrase separately, for example in the practice's password manager or a sealed envelope held by a partner. Delete the copy on the computer once it is safe. Anyone with both the kit and the passphrase can take control of your practice's Panic Button, so treat them like the keys to the building.
 
 ## Adding computers
 
 1. On the Admin tab, under Add a computer, give the code a label (for example "Reception PCs") and choose how many days it stays valid.
 2. Click Create code, then Copy.
-3. On the new computer, install Muster, choose Join an existing practice and paste the code.
+3. On the new computer, install Panic Button, choose Join an existing practice and paste the code.
 4. Choose the room the computer is in.
 
 One code works for as many computers as you like until it expires. Anyone who has the code can add a computer to your practice, so send it in a way only staff can see, and choose a short expiry. The Enrolment codes list shows which computers joined with each code. If a code may have got out, click Revoke next to it. Computers that already joined stay; remove any you do not recognise.
@@ -32,11 +32,11 @@ One code works for as many computers as you like until it expires. Anyone who ha
 
 The room is what colleagues see in the alert, so make sure it matches the sign on the door. On the Admin tab, click Edit next to a computer to change its name or room. The change reaches the computer the next time it is on.
 
-Staff can also change the room on their own computer, on the Settings tab. If your IT provider has set the room for a computer, nobody can change it in Muster.
+Staff can also change the room on their own computer, on the Settings tab. If your IT provider has set the room for a computer, nobody can change it in Panic Button.
 
 ## Removing a computer
 
-On the Admin tab, click Remove next to the computer, then Remove again to confirm. It stops sending and receiving alarms straight away. Do this when a computer is lost, stolen, sold or scrapped. To bring a removed computer back, your IT provider has to reset Muster on it, and then you add it again with a new code.
+On the Admin tab, click Remove next to the computer, then Remove again to confirm. It stops sending and receiving alarms straight away. Do this when a computer is lost, stolen, sold or scrapped. To bring a removed computer back, your IT provider has to reset Panic Button on it, and then you add it again with a new code.
 
 ## Making another admin
 
@@ -54,13 +54,13 @@ The Devices list on the Admin tab shows each computer's status and when it was l
 
 | Message | What it means | What to do |
 |---|---|---|
-| No other devices reachable | This computer cannot reach any other. Its alarms will not get through. | Check it is on the practice network. If it is on Wi-Fi, try a cable. If it persists, ask your IT provider whether the network blocks Muster (port 47474). |
+| No other devices reachable | This computer cannot reach any other. Its alarms will not get through. | Check it is on the practice network. If it is on Wi-Fi, try a cable. If it persists, ask your IT provider whether the network blocks Panic Button (port 47474). |
 | Only reachable via relay | It can only reach others through the relay server. Alarms still get through. | Usually fine for laptops on Wi-Fi. For a desktop, ask your IT provider. |
 | Relay unreachable | The relay server is set up but cannot be reached. | Ask whoever runs the relay. |
 | Sound is muted on this computer | Alarms will be silent here. | Turn the sound on. |
 | No speakers or headphones found | Alarms will be silent here. | Plug in speakers or headphones. |
 | Waiting for the new practice key | The computer was off when someone was removed, and has not caught up yet. | Leave it on and connected. It usually clears within a minute. If it does not, tell your IT provider. |
-| This computer has been removed from the practice | Someone removed it. | If that was a mistake, ask your IT provider to reset Muster on it, then add it again with a new code. |
+| This computer has been removed from the practice | Someone removed it. | If that was a mistake, ask your IT provider to reset Panic Button on it, then add it again with a new code. |
 
 ## Practice settings
 

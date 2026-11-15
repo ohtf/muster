@@ -1,6 +1,6 @@
-# The Muster desktop app
+# The Panic Button desktop app
 
-The desktop app (`apps/desktop`) is a Tauri 2 shell with a Svelte 5 frontend around the embedded agent. Rust owns behaviour: the hold timer, delivery and status all come from `muster-core`. The webviews draw four windows:
+The desktop app (`apps/desktop`) is a Tauri 2 shell with a Svelte 5 frontend around the embedded agent. Rust owns behaviour: the hold timer, delivery and status all come from `panic-button-core`. The webviews draw four windows:
 
 - **Button**: the floating red button (bottom right), with the status shape and a badge for how many are coming.
 - **Panel**: beside the button, the sender panel after you call for help ("Delivered to N devices", who is coming, Cancel, Resolved), and the drill toast.
@@ -22,26 +22,26 @@ It needs WebKitGTK 4.1 and libsoup 3 on Linux (Debian and Ubuntu: `libwebkit2gtk
 To see an alarm go from one device to another without a second computer, give each its own data folder and port, and point them at each other:
 
 ```sh
-mkdir -p /tmp/muster-demo && cd /tmp/muster-demo
+mkdir -p /tmp/panic-button-demo && cd /tmp/panic-button-demo
 printf '[network]\nport = 47480\nmdns = false\nseed_peers = ["127.0.0.1:47481"]\n' > a.toml
-printf '[network]\nport = 47481\nmdns = false\nseed_peers = ["127.0.0.1:47480"]\n[enrolment]\ntoken_file = "/tmp/muster-demo/token"\n' > b.toml
+printf '[network]\nport = 47481\nmdns = false\nseed_peers = ["127.0.0.1:47480"]\n[enrolment]\ntoken_file = "/tmp/panic-button-demo/token"\n' > b.toml
 
 # Device A: the desktop app. Set up a new practice in the window, then in
-# Admin > Add a computer, create a code and save it as /tmp/muster-demo/token.
-MUSTER_DATA_DIR=/tmp/muster-demo/a MUSTER_CONFIG=/tmp/muster-demo/a.toml \
-  MUSTER_CONTROL_SOCKET=/tmp/muster-demo/a.sock s/gui-dev
+# Admin > Add a computer, create a code and save it as /tmp/panic-button-demo/token.
+PANIC_BUTTON_DATA_DIR=/tmp/panic-button-demo/a PANIC_BUTTON_CONFIG=/tmp/panic-button-demo/a.toml \
+  PANIC_BUTTON_CONTROL_SOCKET=/tmp/panic-button-demo/a.sock s/gui-dev
 
 # Device B: a headless agent standing in for a second computer.
-cargo run --release -p muster-agent -- --headless --config /tmp/muster-demo/b.toml \
-  --policy /dev/null --data-dir /tmp/muster-demo/b --control-socket /tmp/muster-demo/b.sock \
+cargo run --release -p panic-button-agent -- --headless --config /tmp/panic-button-demo/b.toml \
+  --policy /dev/null --data-dir /tmp/panic-button-demo/b --control-socket /tmp/panic-button-demo/b.sock \
   --label "Consulting Room 4" --allow-raise
 
 # Raise from B and watch A's alert window; or hold A's button and watch B:
-cargo run --release -p muster-cli -- --control-socket /tmp/muster-demo/b.sock ctl raise
-cargo run --release -p muster-cli -- --control-socket /tmp/muster-demo/b.sock ctl alarms
+cargo run --release -p panic-button -- --control-socket /tmp/panic-button-demo/b.sock ctl raise
+cargo run --release -p panic-button -- --control-socket /tmp/panic-button-demo/b.sock ctl alarms
 ```
 
-With `MUSTER_DATA_DIR` set, the single-instance check is off and the tray offers Quit, so you can run several copies.
+With `PANIC_BUTTON_DATA_DIR` set, the single-instance check is off and the tray offers Quit, so you can run several copies.
 
 ## Checking it
 
@@ -55,7 +55,7 @@ Each view also runs in an ordinary browser against a mock agent, for layout work
 
 ## Changing the alarm sound
 
-The built-in sounds are in `sounds/` in the repository: `alarm-a.wav`, `alarm-b.wav`, `alarm-c.wav` and `drill-chime.wav`. To use a different sound on a computer, put a WAV file with the same name in the `sounds` folder of Muster's data folder. On Linux that is `~/.local/share/muster/sounds`; Settings shows the exact folder. An alarm file is looped until someone acts, so make it one short cycle. If the file cannot be read, Muster plays the built-in sound instead and logs why.
+The built-in sounds are in `sounds/` in the repository: `alarm-a.wav`, `alarm-b.wav`, `alarm-c.wav` and `drill-chime.wav`. To use a different sound on a computer, put a WAV file with the same name in the `sounds` folder of Panic Button's data folder. On Linux that is `~/.local/share/panic-button/sounds`; Settings shows the exact folder. An alarm file is looped until someone acts, so make it one short cycle. If the file cannot be read, Panic Button plays the built-in sound instead and logs why.
 
 ## Wayland
 
@@ -63,13 +63,13 @@ On Wayland the app cannot place windows or keep them on top; the compositor deci
 
 ```kdl
 window-rule {
-    match app-id="muster-desktop" title="^Muster button$"
+    match app-id="panic-button-desktop" title="^Panic Button button$"
     open-floating true
     open-focused false
     default-floating-position x=24 y=24 relative-to="bottom-right"
 }
 window-rule {
-    match app-id="muster-desktop" title="^Muster panel$"
+    match app-id="panic-button-desktop" title="^Panic Button panel$"
     open-floating true
     open-focused false
     default-floating-position x=24 y=110 relative-to="bottom-right"

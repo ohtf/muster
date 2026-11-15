@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! Random bytes into an enrolled core, by every transport
 //! (`spec/07-testing.md`, Fuzzing). The core must never panic, and must not
@@ -11,13 +11,13 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
-use muster_core::bootstrap::{new_device_keys, new_practice};
-use muster_core::config::LocalConfig;
-use muster_core::io::{Input, Output, UdpKind, UiEvent};
-use muster_core::persist::PersistedState;
-use muster_core::rng::CoreRng;
-use muster_core::{Core, Identity, Mono};
-use muster_crypto::DeviceKeys;
+use panic_button_core::bootstrap::{new_device_keys, new_practice};
+use panic_button_core::config::LocalConfig;
+use panic_button_core::io::{Input, Output, UdpKind, UiEvent};
+use panic_button_core::persist::PersistedState;
+use panic_button_core::rng::CoreRng;
+use panic_button_core::{Core, Identity, Mono};
+use panic_button_crypto::DeviceKeys;
 
 const NOW: u64 = 1_763_100_000_000;
 

@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo test --release -p muster-sim --test properties -- --exact "$TEST"
+      - run: cargo test --release -p panic-button-sim --test properties -- --exact "$TEST"
         env:
           PROPTEST_CASES: ${{ github.event.inputs.cases || env.PROPTEST_CASES }}
           TEST: ${{ matrix.test }}
@@ -58,9 +58,9 @@ jobs:
         shell: bash
         run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo test --release -p muster-sim --test scenarios s13
+      - run: cargo test --release -p panic-button-sim --test scenarios s13
         env:
-          MUSTER_FULL_SCALE: "1"
+          PANIC_BUTTON_FULL_SCALE: "1"
 
   fuzz:
     name: Fuzz (10 min per target)

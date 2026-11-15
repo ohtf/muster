@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
-// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-Muster-app-store-exception
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 // A stand-in agent for running the views in a plain browser: `?mock=` picks
 // a scenario (idle, alert, sender, firstrun, amber, red). Never used inside
 // the app itself.
 
-import type { Alarm, MusterEvent, Peer, Status } from "./types";
+import type { Alarm, PanicButtonEvent, Peer, Status } from "./types";
 
 type Listener = (p: unknown) => void;
 
@@ -16,7 +16,7 @@ const now = Date.now();
 function emit(name: string, payload: unknown) {
   for (const l of listeners.get(name) ?? []) l(payload);
 }
-const event = (e: MusterEvent) => emit("muster", e);
+const event = (e: PanicButtonEvent) => emit("panic-button", e);
 
 const status: Status = {
   device: "a".repeat(64),
@@ -145,13 +145,13 @@ export const mock = {
           enrolled: scenario !== "firstrun",
           running: scenario !== "firstrun",
           version: "0.1.0",
-          data_dir: "~/.local/share/muster",
+          data_dir: "~/.local/share/panic-button",
           allow_quit: true,
           audio_ok: true,
           wayland: scenario === "amber",
           token_configured: false,
           home_dir: "/home/user",
-          sounds_dir: "~/.local/share/muster/sounds",
+          sounds_dir: "~/.local/share/panic-button/sounds",
         };
       case "setup_practice":
         await new Promise((r) => setTimeout(r, 1500));
@@ -166,7 +166,7 @@ export const mock = {
         status.enrolled = true;
         return null;
       case "create_token":
-        return { token_id: "1234", expires_at: now + 86_400_000, text: "MUSTER1-EXAMPLE-TOKEN-TEXT" };
+        return { token_id: "1234", expires_at: now + 86_400_000, text: "PANIC_BUTTON1-EXAMPLE-TOKEN-TEXT" };
       case "agent_call":
         return mock.call(args.method as string, (args.params ?? {}) as Record<string, unknown>);
       default:

@@ -1,6 +1,6 @@
 # Security policy
 
-Muster is a staff panic alarm. A vulnerability that stops alarms being delivered, forges or suppresses alarms, or misleads a user about whether an alarm was delivered is a safety issue as well as a security issue.
+Panic Button is a staff panic alarm. A vulnerability that stops alarms being delivered, forges or suppresses alarms, or misleads a user about whether an alarm was delivered is a safety issue as well as a security issue.
 
 ## Reporting a vulnerability
 
