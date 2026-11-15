@@ -37,8 +37,10 @@ or with the install script on the releases page (`panic-button-installer.sh`, an
 cargo install panic-button panic-button-agent panic-button-relay
 ```
 
+The crates are not on crates.io yet, so `cargo install` works only from the source code (below) for now.
+
+Each release includes `SHA256SUMS`, listing the checksum of every file.
+
 ## From the source code
 
 In a clone of the repository, `s/install --desktop` builds the desktop app and installs it with your system's package manager (Arch, Debian, Ubuntu or Fedora), and installs the command-line programs into `~/.cargo/bin`. It needs Rust, Node.js 24 and the WebKitGTK development files; it says which to install if any are missing. Without `--desktop` it installs only the command-line programs.
-
-Each release includes `SHA256SUMS`, listing the checksum of every file.
