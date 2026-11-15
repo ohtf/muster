@@ -6,26 +6,26 @@ A member of staff presses and holds an on-screen button (or, later, a USB button
 
 Stewarded by the [Open Health Technology Foundation](https://openhealthtechnology.org) (OHTF).
 
-**Status:** pre-alpha, under active development. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-roadmap.md) for progress.
+Status: pre-alpha. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-roadmap.md) for progress.
 
 ## What it is not
 
 - Not a monitored alarm service, and not a route to 999. It alerts colleagues nearby only. Your practice's emergency procedures remain primary.
 - Not a patient-facing or clinical system. It never handles patient data.
-- Not supported inside Citrix/RDS sessions or on thin clients (detected and reported).
+- Not supported inside Citrix or Remote Desktop sessions or on thin clients. Detecting these and saying so is planned.
 
 ## Why
 
-Commercial on-screen panic alarms are expensive for what they are, Windows-only, and opaque about whether they are actually working. In 2023 EMIS removed its built-in panic button because local network configurations stopped it working reliably. Muster is designed around that failure: it uses several delivery paths at once, and it continuously and visibly proves that it can reach other devices.
+Commercial on-screen panic alarms are expensive for what they are, Windows-only, and opaque about whether they are working. In 2023 EMIS removed its built-in panic button because local network configurations stopped it working reliably. Muster sends each alarm several ways at once, and every computer shows whether it can currently reach the others.
 
 ## Design principles
 
-1. **LAN-first, server optional.** Devices on the practice network find each other and deliver alarms directly. An optional, self-hostable relay bridges VLANs, Wi-Fi client isolation and remote staff.
-2. **Trust comes from cryptography, not the network.** Every device is enrolled into a practice group. Messages are signed and encrypted. Sharing a LAN with another practice or a guest network is safe.
-3. **Prove it works.** Every device shows an honest status light. Scheduled drills produce coverage reports. A device must never claim to be connected when it cannot deliver an alarm.
-4. **Silent to the room.** Raising an alarm makes no sound the aggressor would recognise. There is only a soft cue during the 1.5 second hold so accidental presses are obvious to the user.
-5. **Nothing leaves the practice.** No telemetry and no third-party services. The practice owns its keys, relay and audit log.
-6. **One alarm: "come and help".** Responders judge what is needed when they arrive.
+1. Devices on the practice network find each other and deliver alarms directly. A relay server is optional; it bridges separate networks, Wi-Fi client isolation and remote staff, and a practice can run its own.
+2. Every device is enrolled into its practice, and messages are signed and encrypted. Another practice or a guest Wi-Fi on the same network cannot read or fake alarms.
+3. Every device shows an honest status light, and scheduled test alarms produce coverage reports. A device never claims to be connected when it cannot deliver an alarm.
+4. Once the alarm is raised, nothing sounds on the computer that raised it, so the person causing trouble is not alerted. A soft tone plays during the 1.5 second hold, so an accidental press is obvious to the person pressing.
+5. Nothing leaves the practice: no telemetry and no third-party services. The practice holds its own keys, relay and audit log.
+6. There is one kind of alarm, "come and help". Responders judge what is needed when they arrive.
 
 ## Quick start (developers)
 

@@ -77,16 +77,16 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 Priority set by Marcus Baw on 2026-11-15: a Windows installer and Linux packages good enough for a limited test on several Windows and Linux machines at home, ahead of the rest of M7. The full R40 to R43 items still apply afterwards.
 
-- [ ] **R52 - Installer builds in CI**: a workflow that builds the Windows MSI and the Linux deb and AppImage from any commit (manual run) and on tags, and keeps them as downloadable artifacts. Unsigned for now: Windows SmartScreen will warn.
-- [ ] **R53 - Windows MSI basics**: per-machine install to Program Files, Windows Firewall rules for UDP and TCP 47474 (so the first alarm is not blocked behind a firewall prompt), starts at sign-in for every user, a clean uninstall that removes the rules. Signing, policies, the WebView2 bootstrapper check and the watchdog stay in R40.
-- [ ] **R54 - Linux packages basics**: a deb and an AppImage that start the app at sign-in (XDG autostart), with the same sounds and icons.
-- [ ] **R55 - Home test guide**: a short guide for installing on a few machines, setting up a practice on one, adding the others with an enrolment code, and the checks to run (alarm both ways, a computer switched off, a test alarm).
+- [~] **R52 - Installer builds in CI**: a workflow that builds the Windows MSI and the Linux deb and AppImage from any commit (manual run) and on tags, and keeps them as downloadable artifacts. Unsigned for now: Windows SmartScreen will warn. Workflow written (`.github/workflows/installers.yml`); its first run was refused by GitHub billing.
+- [~] **R53 - Windows MSI basics**: per-machine install to Program Files, Windows Firewall rules for UDP and TCP 47474 (so the first alarm is not blocked behind a firewall prompt), starts at sign-in for every user, a clean uninstall that removes the rules. Signing, policies, the WebView2 bootstrapper check and the watchdog stay in R40. `packaging/windows/muster.wxs`; not yet built or installed on Windows.
+- [~] **R54 - Linux packages basics**: a deb and an AppImage that start the app at sign-in (XDG autostart), with the same sounds and icons. Deb built and inspected locally; AppImage built in an Ubuntu 22.04 container.
+- [~] **R55 - Home test guide**: a short guide for installing on a few machines, setting up a practice on one, adding the others with an enrolment code, and the checks to run (alarm both ways, a computer switched off, a test alarm). `docs/home-test.md`.
 
 ### Documentation
 
 The guides for people who use Muster, in plain English for practice staff. Every page is checked against the "Signs of AI writing" patterns (Wikipedia; also the humanizer skill) before it is committed, and screenshots come from the real app.
 
-- [ ] **R56 - Writing checklist**: the AI-writing patterns to avoid, as a short checklist in `docs/` that every page is checked against. Fix the patterns already in `README.md`.
+- [x] **R56 - Writing checklist**: the AI-writing patterns to avoid, as a short checklist in `docs/` that every page is checked against. Fix the patterns already in `README.md`. `docs/writing-checklist.md`; README fixed.
 - [ ] **R57 - Staff quick guide**: one printable page. How to call for help, what the status shapes mean, answering an alert, cancelling a mistake.
 - [ ] **R58 - Practice Admin guide**: setting up the practice, the recovery kit, adding and removing computers, rooms and names, test alarms and their reports, what to do when a computer shows amber or red.
 - [ ] **R59 - Docs site** with Zensical (house style `docs.md`), published to GitHub Pages, with a check that every page is in the navigation.
