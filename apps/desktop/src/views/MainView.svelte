@@ -422,10 +422,6 @@ settings, admin and about; or first run if this computer is not set up.
 
 
 
-  .narrow {
-    max-width: 360px;
-  }
-
   .inline {
     display: flex;
     gap: 12px;

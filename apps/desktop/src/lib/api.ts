@@ -72,6 +72,8 @@ export const api = {
       { name, label, passphrase, kitPath },
     ),
   joinWithToken: (token: string) => invoke<void>("join_with_token", { token }),
+  newRecoveryKit: (oldPath: string, oldPass: string, newPath: string, newPass: string) =>
+    invoke<{ practice: string; recovery_kit: string }>("new_recovery_kit", { oldPath, oldPass, newPath, newPass }),
   createToken: (days: number, label: string) =>
     invoke<{ token_id: string; expires_at: number; text: string }>("create_token", { days, label }),
   setRoom: (room: string) => invoke<void>("set_room", { room }),

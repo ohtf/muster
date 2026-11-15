@@ -46,6 +46,36 @@ enrolment codes, and test alarms with their reports.
   let sCoord = $state("");
   let settingsSaved = $state(false);
   let settingsDirty = $state(false);
+  let kitOld = $state("");
+  let kitOldPass = $state("");
+  let kitNew = $state("");
+  let kitNewPass = $state("");
+  let kitNewPass2 = $state("");
+  let kitBusy = $state(false);
+  let kitError = $state("");
+  let kitMade = $state<string | null>(null);
+
+  async function newKit() {
+    kitError = "";
+    if (kitNewPass.length < 12) {
+      kitError = "The new passphrase needs at least 12 characters.";
+      return;
+    }
+    if (kitNewPass !== kitNewPass2) {
+      kitError = "The two new passphrases are different.";
+      return;
+    }
+    kitBusy = true;
+    try {
+      const k = await api.newRecoveryKit(kitOld.trim(), kitOldPass, kitNew.trim(), kitNewPass);
+      kitMade = k.recovery_kit;
+      kitOldPass = kitNewPass = kitNewPass2 = "";
+    } catch (e) {
+      kitError = String(e);
+    } finally {
+      kitBusy = false;
+    }
+  }
 
   function loadSettings(s: PracticeSettings) {
     settings = s;
@@ -206,6 +236,10 @@ enrolment codes, and test alarms with their reports.
 
   onMount(() => {
     refresh();
+    api
+      .appInfo()
+      .then((i) => (kitNew ||= `${i.home_dir}/Panic Button recovery kit (new).panic-button-kit`))
+      .catch(() => {});
     const t = setInterval(refresh, 10_000);
     const off = api.onEvent((e) => {
       if (e.type === "drill_report") refresh();
@@ -488,6 +522,44 @@ enrolment codes, and test alarms with their reports.
   <h2>Audit log</h2>
   <p>This computer's record of alarms, test alarms, enrolments, removals and settings changes.</p>
   <button class="btn" onclick={copyAudit}>{copied === "audit" ? "Copied" : "Copy as CSV"}</button>
+</section>
+
+<section>
+  <h2>Recovery kit</h2>
+  <p>
+    Make a new kit with a new passphrase, for example if someone who knew the passphrase has left. You need the current
+    kit and its passphrase. The old kit keeps working, so destroy it and any copies once the new one is stored safely.
+  </p>
+  {#if kitMade}
+    <p class="saved" role="status">New kit saved at <code>{kitMade}</code>. It opens with the new passphrase.</p>
+    <button class="btn" onclick={() => (kitMade = null)}>Make another</button>
+  {:else}
+    <div class="field">
+      <label for="kit-old">Current recovery kit file</label>
+      <input id="kit-old" bind:value={kitOld} spellcheck="false" />
+    </div>
+    <div class="field narrow">
+      <label for="kit-old-pass">Current passphrase</label>
+      <input id="kit-old-pass" type="password" bind:value={kitOldPass} autocomplete="off" />
+    </div>
+    <div class="field narrow">
+      <label for="kit-new-pass">New passphrase</label>
+      <input id="kit-new-pass" type="password" bind:value={kitNewPass} autocomplete="new-password" />
+      <span class="hint">At least 12 characters.</span>
+    </div>
+    <div class="field narrow">
+      <label for="kit-new-pass2">New passphrase again</label>
+      <input id="kit-new-pass2" type="password" bind:value={kitNewPass2} autocomplete="new-password" />
+    </div>
+    <div class="field">
+      <label for="kit-new">Save the new kit to</label>
+      <input id="kit-new" bind:value={kitNew} spellcheck="false" />
+    </div>
+    {#if kitError}<p class="error" role="alert">{kitError}</p>{/if}
+    <button class="btn" disabled={kitBusy || !kitOld.trim() || !kitOldPass || !kitNew.trim()} onclick={newKit}>
+      {kitBusy ? "Making the new kit (a few seconds)..." : "Make a new recovery kit"}
+    </button>
+  {/if}
 </section>
 
 <style>

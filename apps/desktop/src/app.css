@@ -102,6 +102,10 @@ select {
   font-weight: 600;
 }
 
+.field.narrow {
+  max-width: 360px;
+}
+
 .field .hint {
   color: var(--slate);
   font-size: 0.9em;

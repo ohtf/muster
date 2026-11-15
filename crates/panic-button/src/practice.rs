@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
-//! `panic-button practice init`: set up a new practice on this device (flow A in
-//! `spec/04-security.md`). The device becomes the first Practice Admin.
+//! `panic-button practice`: set up a new practice on this device (flow A in
+//! `spec/04-security.md`), which becomes its first Practice Admin; recover
+//! admin access; write a new recovery kit; and the practice-wide settings.
 
 use std::path::PathBuf;
 
@@ -42,6 +43,25 @@ pub enum PracticeCommand {
         #[arg(long)]
         passphrase_file: Option<PathBuf>,
     },
+    /// Write a new recovery kit with a new passphrase, from the current kit.
+    /// Nothing in the practice changes, so the old kit keeps working:
+    /// destroy it once the new one is safe.
+    NewKit {
+        /// The current recovery kit file.
+        #[arg(long)]
+        recovery_kit: PathBuf,
+        /// Where to write the new kit (must not exist).
+        #[arg(long)]
+        new_kit: PathBuf,
+        /// File holding the current passphrase. Read from
+        /// PANIC_BUTTON_PASSPHRASE if not given.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+        /// File holding the new passphrase (at least 12 characters). Read
+        /// from PANIC_BUTTON_NEW_PASSPHRASE if not given.
+        #[arg(long)]
+        new_passphrase_file: Option<PathBuf>,
+    },
     /// Show the practice-wide settings, or change them (admin; asks the
     /// running agent, which signs and distributes the change).
     Settings {
@@ -76,11 +96,14 @@ pub enum PracticeCommand {
 }
 
 fn passphrase(file: &Option<PathBuf>) -> anyhow::Result<String> {
+    passphrase_from(file, "--passphrase-file", "PANIC_BUTTON_PASSPHRASE")
+}
+
+fn passphrase_from(file: &Option<PathBuf>, flag: &str, var: &str) -> anyhow::Result<String> {
     let p = match file {
         Some(f) => std::fs::read_to_string(panic_button_agent::paths::expand(f))
             .with_context(|| format!("reading {}", f.display()))?,
-        None => std::env::var("PANIC_BUTTON_PASSPHRASE")
-            .context("give --passphrase-file or set PANIC_BUTTON_PASSPHRASE")?,
+        None => std::env::var(var).with_context(|| format!("give {flag} or set {var}"))?,
     };
     let p = p.trim_end_matches(['\n', '\r']).to_owned();
     check_passphrase(&p)?;
@@ -154,6 +177,37 @@ pub fn run(cli: &Cli, c: &PracticeCommand) -> anyhow::Result<()> {
     }
     match c {
         PracticeCommand::Settings { .. } | PracticeCommand::Recover { .. } => Ok(()),
+        PracticeCommand::NewKit {
+            recovery_kit,
+            new_kit,
+            passphrase_file,
+            new_passphrase_file,
+        } => {
+            let old_pass = passphrase(passphrase_file)?;
+            let new_pass = passphrase_from(
+                new_passphrase_file,
+                "--new-passphrase-file",
+                "PANIC_BUTTON_NEW_PASSPHRASE",
+            )?;
+            eprintln!("Opening the kit and sealing the new one (this takes a few seconds)...");
+            let dir = cli.data_dir();
+            let k = panic_button_agent::setup::new_recovery_kit(
+                Some(&dir),
+                &panic_button_agent::paths::expand(recovery_kit),
+                &old_pass,
+                &panic_button_agent::paths::expand(new_kit),
+                &new_pass,
+            )?;
+            let v = json!({"practice": k.practice, "recovery_kit": k.path.display().to_string()});
+            emit(cli.format, &v, |v| {
+                format!(
+                    "New recovery kit for {}: {}\nThe old kit still works. Destroy it once the new one is stored safely.",
+                    v["practice"].as_str().unwrap_or(""),
+                    v["recovery_kit"].as_str().unwrap_or("")
+                )
+            });
+            Ok(())
+        }
         PracticeCommand::Init {
             name,
             recovery_kit,

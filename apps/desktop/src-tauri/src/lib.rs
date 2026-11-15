@@ -302,6 +302,28 @@ async fn setup_practice(
     }))
 }
 
+/// "Create a new recovery kit": the same practice root under a new
+/// passphrase (`setup::new_recovery_kit`).
+#[tauri::command]
+async fn new_recovery_kit(
+    st: State<'_, Shared>,
+    old_path: String,
+    old_pass: String,
+    new_path: String,
+    new_pass: String,
+) -> Result<Value, String> {
+    let dir = st.data_dir.clone();
+    let old = paths::expand(Path::new(old_path.trim()));
+    let new = paths::expand(Path::new(new_path.trim()));
+    let k = tauri::async_runtime::spawn_blocking(move || {
+        panic_button_agent::setup::new_recovery_kit(Some(&dir), &old, &old_pass, &new, &new_pass)
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)?;
+    Ok(json!({"practice": k.practice, "recovery_kit": k.path.display().to_string()}))
+}
+
 #[tauri::command]
 async fn join_with_token(
     app: AppHandle,
@@ -547,6 +569,7 @@ pub fn run() {
             app_info,
             agent_call,
             setup_practice,
+            new_recovery_kit,
             join_with_token,
             create_token,
             set_room,

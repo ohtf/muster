@@ -75,3 +75,9 @@ Each computer keeps a record of alarms, test alarms, computers added and removed
 ## If every admin computer is lost
 
 On any computer still in the practice, open the Settings tab and click Recover admin access. Enter where the recovery kit file is (for example on the USB stick) and its passphrase, then click Make this computer an admin. Then make a second admin, and remove the lost computers.
+
+## Changing the recovery passphrase
+
+If someone who knew the passphrase leaves, or you think it has been seen, make a new recovery kit. On the Admin tab, under Recovery kit, enter where the current kit is and its passphrase, choose a new passphrase, and click Make a new recovery kit.
+
+The old kit still works with the old passphrase, so destroy it and every copy once the new kit is stored safely. If the old kit itself may have been copied, a new kit does not help: ask your IT provider about setting the practice up again.

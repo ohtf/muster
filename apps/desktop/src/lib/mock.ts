@@ -162,6 +162,9 @@ export const mock = {
                 }
               : { keys: "Ctrl+Shift+F12", active: true, problem: null },
         };
+      case "new_recovery_kit":
+        await new Promise((r) => setTimeout(r, 1500));
+        return { practice: "Riverside Surgery", recovery_kit: args.newPath };
       case "setup_practice":
         await new Promise((r) => setTimeout(r, 1500));
         status.enrolled = true;

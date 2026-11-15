@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! Offline setup on a data directory, shared by the CLI and the desktop
-//! app: create a practice (flow A in `spec/04-security.md`) and create an
-//! enrolment token (flow B).
+//! app: create a practice (flow A in `spec/04-security.md`), create an
+//! enrolment token (flow B), and make a new recovery kit.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -138,6 +138,69 @@ pub fn init_practice(
     })
 }
 
+/// A recovery kit written by [`new_recovery_kit`].
+#[derive(Debug, Clone)]
+pub struct NewKit {
+    pub practice: String,
+    pub path: PathBuf,
+}
+
+/// Opens a kit file, with errors in words for staff.
+fn open_kit_file(path: &Path, pass: &str) -> anyhow::Result<RecoveryContents> {
+    let bytes = std::fs::read(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let kit = panic_button_crypto::recovery::RecoveryKit::from_cbor(&bytes)
+        .map_err(|_| anyhow::anyhow!("that file is not a Panic Button recovery kit"))?;
+    open_kit(&kit, pass)
+        .map_err(|_| anyhow::anyhow!("the passphrase does not open this recovery kit"))
+}
+
+/// Writes a new recovery kit for the same practice with a new passphrase
+/// ("Create a new recovery kit", `spec/05-desktop-agent.md`). Nothing in the
+/// practice changes, so the old kit keeps working: destroy it once the new
+/// one is stored safely. If `dir` belongs to a practice, the kit must be
+/// for that practice. Opening and sealing take a few seconds each.
+pub fn new_recovery_kit(
+    dir: Option<&Path>,
+    old_kit: &Path,
+    old_pass: &str,
+    new_kit: &Path,
+    new_pass: &str,
+) -> anyhow::Result<NewKit> {
+    check_passphrase(new_pass)?;
+    if new_kit.exists() {
+        bail!("{} already exists; choose another name", new_kit.display());
+    }
+    let old = open_kit_file(old_kit, old_pass)?;
+    if let Some(dir) = dir
+        && dir.join("panic-button.db").exists()
+        && let Some(p) = open_store(dir)?.load()?.practice
+        && p.practice_id != old.practice_id
+    {
+        bail!(
+            "this recovery kit is for {}, not {}",
+            old.practice_name,
+            p.name
+        );
+    }
+    let root_pub = old.root.public();
+    let contents = RecoveryContents {
+        practice_id: old.practice_id,
+        practice_name: old.practice_name.clone(),
+        root: old.root,
+        created_at: wall_now(),
+    };
+    let mut rng = CoreRng::from_seed(crate::runtime::os_seed()?);
+    let kit = seal_kit(&contents, new_pass, rng.bytes(), rng.bytes(), KdfParams::V1)?;
+    if open_kit(&kit, new_pass)?.root.public() != root_pub {
+        bail!("recovery kit check failed");
+    }
+    write_private(new_kit, &kit.to_cbor())?;
+    Ok(NewKit {
+        practice: contents.practice_name.clone(),
+        path: new_kit.to_path_buf(),
+    })
+}
+
 /// A new enrolment token, as text to hand over.
 #[derive(Debug, Clone)]
 pub struct NewToken {
@@ -226,6 +289,92 @@ pub fn create_enrolment_token(dir: &Path, o: &TokenOptions) -> anyhow::Result<Ne
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_recovery_kit_opens_with_the_new_passphrase_only() {
+        let d = tempfile::tempdir().expect("tempdir");
+        let dir = d.path().join("state");
+        let old = d.path().join("old.kit");
+        let p = init_practice(
+            &dir,
+            "Test Surgery",
+            "Reception",
+            "the first passphrase",
+            &old,
+        )
+        .expect("init");
+        let new = d.path().join("new.kit");
+        let k = new_recovery_kit(
+            Some(&dir),
+            &old,
+            "the first passphrase",
+            &new,
+            "the second passphrase",
+        )
+        .expect("new kit");
+        assert_eq!(k.practice, "Test Surgery");
+        let c = open_kit_file(&new, "the second passphrase").expect("open new");
+        assert_eq!(DeviceId(c.root.public()).to_hex(), p.root_pub);
+        assert!(open_kit_file(&new, "the first passphrase").is_err());
+        // The old kit still works.
+        assert!(open_kit_file(&old, "the first passphrase").is_ok());
+
+        let e = |r: anyhow::Result<NewKit>| r.expect_err("should fail").to_string();
+        let other = d.path().join("other.kit");
+        assert!(
+            e(new_recovery_kit(
+                None,
+                &old,
+                "the wrong passphrase",
+                &other,
+                "the second passphrase"
+            ))
+            .contains("does not open")
+        );
+        assert!(
+            e(new_recovery_kit(
+                None,
+                &old,
+                "the first passphrase",
+                &new,
+                "the second passphrase"
+            ))
+            .contains("already exists")
+        );
+        assert!(
+            e(new_recovery_kit(
+                None,
+                &old,
+                "the first passphrase",
+                &other,
+                "short"
+            ))
+            .contains("12")
+        );
+        assert!(!other.exists());
+
+        // A kit for another practice is refused on this device.
+        let dir2 = d.path().join("state2");
+        let old2 = d.path().join("old2.kit");
+        init_practice(
+            &dir2,
+            "Other Surgery",
+            "Desk",
+            "the other passphrase",
+            &old2,
+        )
+        .expect("init 2");
+        assert!(
+            e(new_recovery_kit(
+                Some(&dir),
+                &old2,
+                "the other passphrase",
+                &other,
+                "the second passphrase"
+            ))
+            .contains("Other Surgery")
+        );
+    }
 
     #[test]
     fn practice_then_token() {
