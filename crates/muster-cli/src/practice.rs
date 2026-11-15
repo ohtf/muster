@@ -31,6 +31,31 @@ pub enum PracticeCommand {
         #[arg(long)]
         label: Option<String>,
     },
+    /// Show the practice-wide settings, or change them (admin; asks the
+    /// running agent, which signs and distributes the change).
+    Settings {
+        /// Hold time, 1000 to 3000 ms.
+        #[arg(long)]
+        hold_ms: Option<u32>,
+        /// silent, soft or alarm_ramp.
+        #[arg(long)]
+        cue_mode: Option<String>,
+        /// A, B or C.
+        #[arg(long)]
+        sound_pattern: Option<String>,
+        /// silent or audible.
+        #[arg(long)]
+        drill_mode: Option<String>,
+        /// For example "Mon-Fri 08:00-18:30".
+        #[arg(long)]
+        opening_hours: Option<String>,
+        /// Relay URL (repeat for several); replaces the practice's list.
+        #[arg(long)]
+        relay: Vec<String>,
+        /// Remove the practice's relay URLs.
+        #[arg(long, conflicts_with = "relay")]
+        clear_relays: bool,
+    },
 }
 
 fn passphrase(file: &Option<PathBuf>) -> anyhow::Result<String> {
@@ -46,7 +71,49 @@ fn passphrase(file: &Option<PathBuf>) -> anyhow::Result<String> {
 }
 
 pub fn run(cli: &Cli, c: &PracticeCommand) -> anyhow::Result<()> {
+    if let PracticeCommand::Settings {
+        hold_ms,
+        cue_mode,
+        sound_pattern,
+        drill_mode,
+        opening_hours,
+        relay,
+        clear_relays,
+    } = c
+    {
+        let mut p = serde_json::Map::new();
+        if let Some(h) = hold_ms {
+            p.insert("hold_ms".into(), json!(h));
+        }
+        if let Some(v) = cue_mode {
+            p.insert("cue_mode".into(), json!(v));
+        }
+        if let Some(v) = sound_pattern {
+            p.insert("sound_pattern".into(), json!(v));
+        }
+        if let Some(v) = drill_mode {
+            p.insert("drill_mode".into(), json!(v));
+        }
+        if let Some(v) = opening_hours {
+            p.insert("opening_hours".into(), json!(v));
+        }
+        if *clear_relays {
+            p.insert("relay_urls".into(), serde_json::Value::Null);
+        } else if !relay.is_empty() {
+            p.insert("relay_urls".into(), json!(relay));
+        }
+        return crate::ctl::call_and_emit(
+            cli,
+            if p.is_empty() {
+                "practice.settings"
+            } else {
+                "practice.set_settings"
+            },
+            serde_json::Value::Object(p),
+        );
+    }
     match c {
+        PracticeCommand::Settings { .. } => Ok(()),
         PracticeCommand::Init {
             name,
             recovery_kit,

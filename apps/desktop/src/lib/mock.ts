@@ -188,6 +188,20 @@ export const mock = {
           ...peers.map((p, i) => ({ device: p.device, device_short: p.device_short, this_device: false, label: p.label, room: p.room, user: p.user, role: "member", enrolled_at: now - 8e8, token_id: i < 2 ? "7".repeat(32) : null, path: p.path, last_heard_ms: p.last_heard_ms, status: "green" })),
           { device: "9".repeat(64), device_short: "99999999", this_device: false, label: "OLD-LAPTOP", room: null, user: null, role: "member", enrolled_at: now - 7e9, token_id: null, path: null, last_heard_ms: null, status: null },
         ];
+      case "practice.settings":
+        return {
+          version: 3,
+          hold_ms: 1500,
+          cue_mode: "soft",
+          sound_pattern: "A",
+          override_mute: null,
+          drill_mode: "silent",
+          drill_schedule: null,
+          drill_coordinator: null,
+          opening_hours: "Mon-Fri 08:00-18:30",
+          relay_urls: ["wss://relay.example-pcn.org.uk/v1/ws"],
+          seed_peers: null,
+        };
       case "tokens":
         return [
           { token_id: "7".repeat(32), label: "Reception PCs", issued_at: now - 9e8, expires_at: now + 9e8, expired: false, revoked: false, enrolled: [{ device: "0".repeat(64), label: "PC-1", enrolled_at: now - 8e8 }, { device: "1".repeat(64), label: "PC-2", enrolled_at: now - 8e8 }] },

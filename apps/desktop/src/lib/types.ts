@@ -82,6 +82,20 @@ export interface DrillSummary {
   expected: number;
 }
 
+export interface PracticeSettings {
+  version: number;
+  hold_ms: number | null;
+  cue_mode: "silent" | "soft" | "alarm_ramp" | null;
+  sound_pattern: "A" | "B" | "C" | null;
+  override_mute: boolean | null;
+  drill_mode: "silent" | "audible" | null;
+  drill_schedule: string | null;
+  drill_coordinator: string | null;
+  opening_hours: string | null;
+  relay_urls: string[] | null;
+  seed_peers: string[] | null;
+}
+
 export interface AgentConfig {
   label: string;
   room: string;

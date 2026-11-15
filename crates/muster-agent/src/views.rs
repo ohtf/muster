@@ -246,3 +246,188 @@ pub fn tokens(core: &Core, wall: u64) -> Value {
     }
     Value::Array(out)
 }
+
+fn cue_name(c: muster_proto::CueMode) -> &'static str {
+    match c {
+        muster_proto::CueMode::Silent => "silent",
+        muster_proto::CueMode::Soft => "soft",
+        muster_proto::CueMode::AlarmRamp => "alarm_ramp",
+        muster_proto::CueMode::Other(_) => "unknown",
+    }
+}
+
+fn pattern_name(p: muster_proto::SoundPattern) -> &'static str {
+    match p {
+        muster_proto::SoundPattern::A => "A",
+        muster_proto::SoundPattern::B => "B",
+        muster_proto::SoundPattern::C => "C",
+        muster_proto::SoundPattern::Other(_) => "unknown",
+    }
+}
+
+fn drill_name(d: muster_proto::DrillMode) -> &'static str {
+    match d {
+        muster_proto::DrillMode::Silent => "silent",
+        muster_proto::DrillMode::Audible => "audible",
+        muster_proto::DrillMode::Other(_) => "unknown",
+    }
+}
+
+/// Practice-wide settings (FR-ADM-003); unset fields are null.
+pub fn practice_settings(s: &muster_proto::PracticeSettings, version: u64) -> Value {
+    json!({
+        "version": version,
+        "hold_ms": s.hold_ms,
+        "cue_mode": s.cue_mode.map(cue_name),
+        "sound_pattern": s.sound_pattern.map(pattern_name),
+        "override_mute": s.override_mute,
+        "drill_mode": s.drill_mode.map(drill_name),
+        "drill_schedule": s.drill_schedule,
+        "drill_coordinator": s.drill_coordinator.map(|d| d.to_hex()),
+        "opening_hours": s.opening_hours,
+        "relay_urls": s.relay_urls,
+        "seed_peers": s.seed_peers,
+    })
+}
+
+/// Applies the fields present in `p` to `cur`. A field given as null
+/// clears it (back to the default); an absent field is unchanged.
+pub fn merge_practice_settings(
+    mut cur: muster_proto::PracticeSettings,
+    p: &Value,
+) -> Result<muster_proto::PracticeSettings, String> {
+    use muster_proto::{CueMode, DrillMode, SoundPattern};
+    let Some(m) = p.as_object() else {
+        return Err("settings must be an object".into());
+    };
+    for (k, v) in m {
+        let s = v.as_str();
+        match k.as_str() {
+            "hold_ms" => {
+                cur.hold_ms = match v.as_u64() {
+                    None if v.is_null() => None,
+                    Some(h) if (1000..=3000).contains(&h) => Some(h as u32),
+                    _ => return Err("hold_ms must be 1000 to 3000".into()),
+                }
+            }
+            "cue_mode" => {
+                cur.cue_mode = match s {
+                    None if v.is_null() => None,
+                    Some("silent") => Some(CueMode::Silent),
+                    Some("soft") => Some(CueMode::Soft),
+                    Some("alarm_ramp") => Some(CueMode::AlarmRamp),
+                    _ => return Err("cue_mode must be silent, soft or alarm_ramp".into()),
+                }
+            }
+            "sound_pattern" => {
+                cur.sound_pattern = match s {
+                    None if v.is_null() => None,
+                    Some("A") => Some(SoundPattern::A),
+                    Some("B") => Some(SoundPattern::B),
+                    Some("C") => Some(SoundPattern::C),
+                    _ => return Err("sound_pattern must be A, B or C".into()),
+                }
+            }
+            "drill_mode" => {
+                cur.drill_mode = match s {
+                    None if v.is_null() => None,
+                    Some("silent") => Some(DrillMode::Silent),
+                    Some("audible") => Some(DrillMode::Audible),
+                    _ => return Err("drill_mode must be silent or audible".into()),
+                }
+            }
+            "override_mute" => {
+                cur.override_mute = match v {
+                    Value::Null => None,
+                    Value::Bool(b) => Some(*b),
+                    _ => return Err("override_mute must be true or false".into()),
+                }
+            }
+            "opening_hours" | "drill_schedule" => {
+                let t = match v {
+                    Value::Null => None,
+                    Value::String(t) if t.len() <= muster_proto::limits::CONFIG_STRING_MAX => {
+                        Some(t.trim().to_owned()).filter(|t| !t.is_empty())
+                    }
+                    _ => return Err(format!("{k} must be text")),
+                };
+                if k == "opening_hours" {
+                    cur.opening_hours = t;
+                } else {
+                    cur.drill_schedule = t;
+                }
+            }
+            "relay_urls" | "seed_peers" => {
+                let list = match v {
+                    Value::Null => None,
+                    Value::Array(a) => {
+                        let mut out = Vec::new();
+                        for x in a {
+                            let x = x
+                                .as_str()
+                                .ok_or(format!("{k} must be a list of text"))?
+                                .trim();
+                            if k == "relay_urls"
+                                && !(x.starts_with("wss://") || x.starts_with("ws://"))
+                            {
+                                return Err(format!("relay URL {x:?} must start with wss://"));
+                            }
+                            if !x.is_empty() {
+                                out.push(x.to_owned());
+                            }
+                        }
+                        if out.len() > 64 {
+                            return Err(format!("{k}: at most 64"));
+                        }
+                        Some(out).filter(|o| !o.is_empty())
+                    }
+                    _ => return Err(format!("{k} must be a list")),
+                };
+                if k == "relay_urls" {
+                    cur.relay_urls = list;
+                } else {
+                    cur.seed_peers = list;
+                }
+            }
+            "drill_coordinator" => {
+                cur.drill_coordinator = match s {
+                    None if v.is_null() => None,
+                    Some(h) => Some(
+                        muster_proto::DeviceId::from_hex(h)
+                            .ok_or("drill_coordinator must be a device id")?,
+                    ),
+                    None => return Err("drill_coordinator must be a device id".into()),
+                }
+            }
+            other => return Err(format!("unknown setting {other}")),
+        }
+    }
+    Ok(cur)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_merge_and_validate() {
+        let s = merge_practice_settings(
+            Default::default(),
+            &json!({"hold_ms": 2000, "cue_mode": "silent", "relay_urls": ["wss://r.example/v1/ws"]}),
+        )
+        .expect("valid");
+        assert_eq!(s.hold_ms, Some(2000));
+        assert_eq!(
+            s.relay_urls.as_deref(),
+            Some(&["wss://r.example/v1/ws".to_owned()][..])
+        );
+        let s = merge_practice_settings(s, &json!({"hold_ms": null})).expect("clear");
+        assert_eq!(s.hold_ms, None);
+        assert_eq!(s.cue_mode, Some(muster_proto::CueMode::Silent), "untouched");
+        assert!(merge_practice_settings(s.clone(), &json!({"hold_ms": 50})).is_err());
+        assert!(merge_practice_settings(s.clone(), &json!({"relay_urls": ["http://x"]})).is_err());
+        assert!(merge_practice_settings(s, &json!({"colour": "red"})).is_err());
+        let v = practice_settings(&Default::default(), 0);
+        assert!(v["hold_ms"].is_null());
+    }
+}

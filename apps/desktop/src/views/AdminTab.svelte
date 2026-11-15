@@ -9,7 +9,7 @@ enrolment codes, and test alarms with their reports.
   import { onMount } from "svelte";
   import { api, clock } from "../lib/api";
   import StatusIcon from "../lib/StatusIcon.svelte";
-  import type { Device, DrillSummary, Token } from "../lib/types";
+  import type { Device, DrillSummary, PracticeSettings, Token } from "../lib/types";
 
   let {
     joins = $bindable([]),
@@ -34,6 +34,48 @@ enrolment codes, and test alarms with their reports.
   let token = $state<{ text: string; expires_at: number } | null>(null);
   let copied = $state("");
   let drillSent = $state(false);
+  let settings = $state<PracticeSettings | null>(null);
+  let sHold = $state("1500");
+  let sCue = $state("soft");
+  let sPattern = $state("A");
+  let sDrill = $state("silent");
+  let sHours = $state("");
+  let sRelays = $state("");
+  let settingsSaved = $state(false);
+  let settingsDirty = $state(false);
+
+  function loadSettings(s: PracticeSettings) {
+    settings = s;
+    if (settingsDirty) return;
+    sHold = String(s.hold_ms ?? 1500);
+    sCue = s.cue_mode ?? "soft";
+    sPattern = s.sound_pattern ?? "A";
+    sDrill = s.drill_mode ?? "silent";
+    sHours = s.opening_hours ?? "";
+    sRelays = (s.relay_urls ?? []).join("\n");
+  }
+
+  async function saveSettings() {
+    try {
+      await api.setPracticeSettings({
+        hold_ms: Number(sHold),
+        cue_mode: sCue,
+        sound_pattern: sPattern,
+        drill_mode: sDrill,
+        opening_hours: sHours.trim() || null,
+        relay_urls: sRelays
+          .split("\n")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      });
+      settingsDirty = false;
+      settingsSaved = true;
+      setTimeout(() => (settingsSaved = false), 2500);
+      refresh();
+    } catch (e) {
+      onerror(String(e));
+    }
+  }
 
   const DAY = 86_400_000;
   // "Needs attention": not green, or not heard recently (FR-STS-005).
@@ -44,7 +86,14 @@ enrolment codes, and test alarms with their reports.
 
   async function refresh() {
     try {
-      [devices, tokens, reports] = await Promise.all([api.devices(), api.tokens(), api.drillReports()]);
+      let s: PracticeSettings;
+      [devices, tokens, reports, s] = await Promise.all([
+        api.devices(),
+        api.tokens(),
+        api.drillReports(),
+        api.practiceSettings(),
+      ]);
+      loadSettings(s);
       devices.sort((a, b) => Number(b.this_device) - Number(a.this_device) || (a.room ?? "").localeCompare(b.room ?? ""));
     } catch (e) {
       onerror(String(e));
@@ -306,6 +355,62 @@ enrolment codes, and test alarms with their reports.
 </section>
 
 <section>
+  <h2>Practice settings</h2>
+  <p class="muted small">These apply to every computer in the practice, unless IT has set them on a computer.</p>
+  <div class="grid" oninput={() => (settingsDirty = true)} onchange={() => (settingsDirty = true)}>
+    <div class="field">
+      <label for="s-hold">Hold time</label>
+      <select id="s-hold" bind:value={sHold}>
+        <option value="1000">1 second</option>
+        <option value="1500">1.5 seconds</option>
+        <option value="2000">2 seconds</option>
+        <option value="2500">2.5 seconds</option>
+        <option value="3000">3 seconds</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="s-cue">Sound while holding</label>
+      <select id="s-cue" bind:value={sCue}>
+        <option value="soft">Soft rising tone</option>
+        <option value="silent">None</option>
+        <option value="alarm_ramp">Quiet alarm, getting louder</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="s-pattern">Alarm sound</label>
+      <div class="inline">
+        <select id="s-pattern" bind:value={sPattern}>
+          <option value="A">Pattern A (two tones)</option>
+          <option value="B">Pattern B (three beeps)</option>
+          <option value="C">Pattern C (slow call)</option>
+        </select>
+        <button class="btn" onclick={() => api.playTestSound(sPattern)}>Play</button>
+      </div>
+      <span class="hint">Check it does not sound like your fire alarm.</span>
+    </div>
+    <div class="field">
+      <label for="s-drill">Test alarms</label>
+      <select id="s-drill" bind:value={sDrill}>
+        <option value="silent">Silent (a message only)</option>
+        <option value="audible">With a short chime</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="s-hours">Opening hours</label>
+      <input id="s-hours" bind:value={sHours} placeholder="Mon-Fri 08:00-18:30" />
+    </div>
+    <div class="field wide">
+      <label for="s-relays">Relay addresses</label>
+      <textarea id="s-relays" rows="2" bind:value={sRelays} spellcheck="false" placeholder="wss://relay.example.org.uk/v1/ws"></textarea>
+      <span class="hint">One per line. Only needed for separate networks, Wi-Fi isolation or staff working elsewhere.</span>
+    </div>
+  </div>
+  <button class="btn primary" onclick={saveSettings}>Save practice settings</button>
+  {#if settingsSaved}<span class="saved" role="status">Saved and sent to every computer</span>{/if}
+  {#if settings?.version}<span class="muted small"> Version {settings.version}</span>{/if}
+</section>
+
+<section>
   <h2>Test alarms</h2>
   <p>Every device shows "Test alarm received - no action needed". Nobody is alerted. The report is ready after a minute.</p>
   <button class="btn" onclick={drill}>Run a test alarm now</button>
@@ -413,6 +518,27 @@ enrolment codes, and test alarms with their reports.
     background: var(--status-red);
     border-color: var(--status-red);
     color: var(--paper);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0 16px;
+    align-items: start;
+  }
+
+  .grid .inline {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .grid .inline select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .grid .wide {
+    grid-column: 1 / -1;
   }
 
   .cell {

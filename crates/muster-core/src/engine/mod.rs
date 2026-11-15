@@ -323,6 +323,15 @@ impl Core {
         self.trust.as_ref()
     }
 
+    /// The practice-wide settings (the latest PracticeConfig), and its
+    /// version (0 if none has been published).
+    pub fn practice_settings(&self) -> (muster_proto::PracticeSettings, u64) {
+        self.config_msg
+            .as_ref()
+            .map(|c| (c.settings.clone(), c.version))
+            .unwrap_or_default()
+    }
+
     pub fn config(&self) -> &EffectiveConfig {
         &self.cfg
     }

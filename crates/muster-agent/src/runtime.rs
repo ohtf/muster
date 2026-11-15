@@ -318,6 +318,25 @@ impl Runtime {
                     "room_locked": self.local.room_locked,
                 }))
             }
+            "practice.settings" => {
+                let (s, version) = self.core.practice_settings();
+                Ok(crate::views::practice_settings(&s, version))
+            }
+            "practice.set_settings" => {
+                let (cur, _) = self.core.practice_settings();
+                let next = crate::views::merge_practice_settings(cur, p)
+                    .map_err(RpcError::invalid_params)?;
+                let admin = {
+                    let me = self.core.device_id();
+                    self.core.trust().is_some_and(|t| t.is_admin(&me, wall))
+                };
+                if !admin {
+                    return Err(RpcError::refused(
+                        "only a Practice Admin can change practice settings",
+                    ));
+                }
+                self.user(UserAction::PublishSettings(next))
+            }
             "device.set_room" | "device.set_label" => {
                 let (key, locked) = if method == "device.set_room" {
                     ("room", self.local.room_locked)

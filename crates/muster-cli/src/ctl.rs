@@ -242,6 +242,22 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Calls the running agent and prints the result as JSON (text mode prints
+/// it pretty).
+pub fn call_and_emit(cli: &Cli, method: &str, params: Value) -> anyhow::Result<()> {
+    let sock = cli.control_socket();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let v = rt
+        .block_on(muster_agent::control::call(&sock, method, params))
+        .with_context(|| format!("calling the agent at {}", sock.display()))?;
+    emit(cli.format, &v, |v| {
+        serde_json::to_string_pretty(v).unwrap_or_default()
+    });
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
