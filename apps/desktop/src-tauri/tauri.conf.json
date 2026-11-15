@@ -29,6 +29,27 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "upgradeCode": "3b23abe3-14bd-403a-8514-62b4a749fc51",
+        "fragmentPaths": [
+          "../../../packaging/windows/muster.wxs"
+        ],
+        "componentRefs": [
+          "MusterAutostart"
+        ]
+      }
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/etc/xdg/autostart/muster-desktop.desktop": "../../../packaging/linux/muster-autostart.desktop"
+        },
+        "depends": [
+          "libasound2t64 | libasound2"
+        ]
+      }
+    }
   }
 }

@@ -1,0 +1,84 @@
+name: Installers
+
+# Builds the desktop installers (R52) and keeps them as artifacts for 30
+# days: the Windows MSI, and the Linux deb and AppImage. Unsigned for now,
+# so Windows SmartScreen warns on first run. Run by hand from the Actions
+# tab, or on a version tag.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows MSI
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - name: Build the MSI
+        shell: bash
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npx tauri build --bundles msi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muster-windows-msi
+          path: target/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 30
+
+  linux:
+    name: Linux deb and AppImage
+    # The oldest supported Ubuntu, so the AppImage runs on newer systems.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install WebKitGTK, audio and AppImage tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev libfuse2 file
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Set up pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install --no-self-update
+      - name: Build the deb and AppImage
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npx tauri build --bundles deb,appimage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: muster-linux
+          path: |
+            target/release/bundle/deb/*.deb
+            target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
+          retention-days: 30

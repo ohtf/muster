@@ -398,18 +398,55 @@ fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
     Ok(())
 }
 
-pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("MUSTER_LOG")
-                .unwrap_or_else(|_| "info".into()),
-        )
+/// Logs to stderr and to daily files in `<data dir>/logs`, keeping 7
+/// (FR-LOG-003). Logs never contain secrets or alarm content beyond what
+/// the audit log holds.
+fn init_logging(data_dir: &Path) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    let filter = || {
+        tracing_subscriber::EnvFilter::try_from_env("MUSTER_LOG").unwrap_or_else(|_| "info".into())
+    };
+    let stderr = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
-        .init();
+        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()));
+    let file = tracing_appender::rolling::Builder::new()
+        .rotation(tracing_appender::rolling::Rotation::DAILY)
+        .filename_prefix("muster")
+        .filename_suffix("log")
+        .max_log_files(7)
+        .build(data_dir.join("logs"));
+    match file {
+        Ok(appender) => {
+            let (writer, guard) = tracing_appender::non_blocking(appender);
+            tracing_subscriber::registry()
+                .with(filter())
+                .with(stderr)
+                .with(
+                    tracing_subscriber::fmt::layer()
+                        .with_writer(writer)
+                        .with_ansi(false),
+                )
+                .init();
+            Some(guard)
+        }
+        Err(e) => {
+            tracing_subscriber::registry()
+                .with(filter())
+                .with(stderr)
+                .init();
+            tracing::warn!("no log file: {e}");
+            None
+        }
+    }
+}
+
+pub fn run() {
     let custom_dir = env_path("MUSTER_DATA_DIR");
     let data_dir = custom_dir
         .clone()
         .unwrap_or_else(|| paths::default_data_dir(false));
+    let _log_guard = init_logging(&data_dir);
     let control_socket = env_path("MUSTER_CONTROL_SOCKET")
         .unwrap_or_else(|| paths::default_control_socket(&data_dir));
     let config = match load_config() {
