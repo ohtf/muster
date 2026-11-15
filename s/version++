@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+#
+# Usage: s/version++ [patch|minor|major] [--pr|--direct]   (default: patch)
+#
+# The one release action. It bumps Cargo.toml, regenerates CHANGELOG.md, and
+# commits the release. On protected main it opens a release PR; otherwise it
+# pushes main directly. CI creates the tag only after the release commit lands
+# on main, then runs release.yml (command-line programs, desktop installers,
+# Homebrew, AUR) and publish-crates.yml (crates.io). Adapted from
+# koloki-co/dsc.
+#
+# Commit your feature work FIRST, with a conventional-commit message
+# (`feat(...)`, `fix:`, ...). git-cliff reads *committed* history, so anything
+# uncommitted won't appear in the new CHANGELOG.md section; this script makes
+# only the release commit.
+#
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+bump="patch"
+mode="auto"
+for arg in "$@"; do
+  case "$arg" in
+    patch | minor | major) bump="$arg" ;;
+    --pr) mode="pr" ;;
+    --direct) mode="direct" ;;
+    *)
+    echo "Usage: s/version++ [patch|minor|major] [--pr|--direct]" >&2
+    exit 2
+    ;;
+  esac
+done
+
+# Release from main only.
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$branch" != "main" ]]; then
+  echo "On '$branch', not 'main'. Releases are cut from main." >&2
+  exit 1
+fi
+
+# The release commit must contain only the bump + changelog, so the tree must
+# be clean, including untracked files (feature work already committed).
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "Working tree not clean. Commit your feature work first, then release." >&2
+  exit 1
+fi
+
+git fetch origin main --quiet
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+  echo "HEAD does not match origin/main. Update main before releasing." >&2
+  exit 1
+fi
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "gh is required to detect main protection and create a release PR." >&2
+  exit 1
+fi
+
+repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+protected=false
+if gh api "repos/$repo/branches/main/protection" >/dev/null 2>&1; then
+  protected=true
+fi
+
+if [[ "$mode" == "auto" ]]; then
+  if [[ "$protected" == true ]]; then
+    mode="pr"
+  else
+    mode="direct"
+  fi
+fi
+
+if ! command -v git-cliff >/dev/null 2>&1; then
+  echo "git-cliff is required to refresh CHANGELOG.md but isn't installed." >&2
+  echo "Install with: cargo install git-cliff --locked" >&2
+  exit 1
+fi
+
+# Pre-release gate: the shared fmt + clippy + full-test-suite check mirrors CI.
+# Run it before modifying anything so a failure aborts cleanly.
+echo "Pre-release checks: lint, tests and the desktop app..."
+s/lint
+s/test
+s/desktop-check
+echo "(Run s/check-deep first if core, network or agent code changed since the last release.)"
+
+if [[ "$mode" == "pr" ]]; then
+  git switch -c release/pending
+fi
+
+cargo set-version --workspace --bump "$bump"
+version="$(awk -F\" '/^version = / {print $2; exit}' Cargo.toml)"
+tag="v$version"
+(cd apps/desktop && npm version "$version" --no-git-tag-version --allow-same-version >/dev/null)
+
+if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+  echo "Tag $tag already exists." >&2
+  exit 1
+fi
+
+# Render the in-progress changelog section under the new tag + date.
+git-cliff --tag "$tag" -o CHANGELOG.md
+
+# Sync Cargo.lock's own version to the bump (workspace members only, external
+# deps untouched). A failure is a release failure; never continue with a stale
+# lockfile.
+cargo update --workspace
+git add -u
+git add CHANGELOG.md
+git commit -m "chore(release): $tag"
+
+if [[ "$mode" == "pr" ]]; then
+  release_branch="release/$tag"
+  git branch -m "$release_branch"
+  git push --set-upstream origin "$release_branch"
+  pr_url="$(gh pr create --base main --head "$release_branch" --title "chore(release): $tag" --body "Release $tag. Merging this PR triggers CI auto-tagging and the release workflows.")"
+  echo
+  echo "Opened release PR: $pr_url"
+  echo "If the push or PR creation fails, the release commit remains only on $release_branch; fix the problem and retry. No tag was created."
+  exit 0
+fi
+
+git push origin main
+
+echo
+echo "Release commit landed on main. CI will tag $tag and invoke the release workflows."

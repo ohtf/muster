@@ -9,9 +9,15 @@ members = ["crates/*", "apps/desktop/src-tauri"]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-license = "AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception"
+# crates.io accepts only listed SPDX exceptions after WITH, so package
+# metadata says AGPL-3.0-or-later. The app store additional permission
+# (LICENSE-EXCEPTIONS.md) still applies; source files carry the full SPDX
+# expression.
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/ohtf/panic-button"
-publish = false
+homepage = "https://github.com/ohtf/panic-button#readme"
+readme = "README.md"
+publish = true
 
 [workspace.lints.rust]
 unsafe_code = "deny"
@@ -23,12 +29,12 @@ todo = "warn"
 unwrap_used = "warn"
 
 [workspace.dependencies]
-panic-button-proto = { path = "crates/panic-button-proto" }
-panic-button-crypto = { path = "crates/panic-button-crypto" }
-panic-button-core = { path = "crates/panic-button-core" }
-panic-button-store = { path = "crates/panic-button-store" }
-panic-button-net = { path = "crates/panic-button-net" }
-panic-button-agent = { path = "crates/panic-button-agent" }
+panic-button-proto = { path = "crates/panic-button-proto", version = "0.1.0" }
+panic-button-crypto = { path = "crates/panic-button-crypto", version = "0.1.0" }
+panic-button-core = { path = "crates/panic-button-core", version = "0.1.0" }
+panic-button-store = { path = "crates/panic-button-store", version = "0.1.0" }
+panic-button-net = { path = "crates/panic-button-net", version = "0.1.0" }
+panic-button-agent = { path = "crates/panic-button-agent", version = "0.1.0" }
 
 # Crypto-heavy tests and the simulator are much faster with optimised
 # dependencies.
@@ -37,3 +43,22 @@ opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+# cargo-dist: the command-line programs (panic-button, panic-button-agent,
+# panic-button-relay). The desktop app is built by Tauri in release.yml.
+[workspace.metadata.dist]
+cargo-dist-version = "0.34.0"
+ci = "github"
+installers = ["shell", "powershell", "homebrew"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+install-path = "CARGO_HOME"
+install-updater = false
+tap = "ohtf/homebrew-tap"
+publish-jobs = ["homebrew"]
+publish-prereleases = false
+# release.yml is hand-maintained with pinned actions and a static matrix.
+allow-dirty = ["ci"]
+
+[profile.dist]
+inherits = "release"
+lto = "thin"

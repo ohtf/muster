@@ -77,10 +77,19 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 Priority set by Marcus Baw on 2026-11-15: a Windows installer and Linux packages good enough for a limited test on several Windows and Linux machines at home, ahead of the rest of M7. The full R40 to R43 items still apply afterwards.
 
-- [~] **R52 - Installer builds in CI**: a workflow that builds the Windows MSI and the Linux deb and AppImage from any commit (manual run) and on tags, and keeps them as downloadable artifacts. Unsigned for now: Windows SmartScreen will warn. Workflow written (`.github/workflows/installers.yml`); its first run was refused by GitHub billing.
+- [x] **R52 - Installer builds in CI** (superseded by R64; `installers.yml` stays for test builds without a release): a workflow that builds the Windows MSI and the Linux deb and AppImage from any commit (manual run) and on tags, and keeps them as downloadable artifacts. Unsigned for now: Windows SmartScreen will warn. Workflow written (`.github/workflows/installers.yml`); its first run was refused by GitHub billing.
 - [~] **R53 - Windows MSI basics**: per-machine install to Program Files, Windows Firewall rules for UDP and TCP 47474 (so the first alarm is not blocked behind a firewall prompt), starts at sign-in for every user, a clean uninstall that removes the rules. Signing, policies, the WebView2 bootstrapper check and the watchdog stay in R40. `packaging/windows/panic-button.wxs`; not yet built or installed on Windows.
 - [~] **R54 - Linux packages basics**: a deb and an AppImage that start the app at sign-in (XDG autostart), with the same sounds and icons. Deb and AppImage built in an Ubuntu 22.04 container; the AppImage runs on Arch (CachyOS).
 - [~] **R55 - Home test guide**: a short guide for installing on a few machines, setting up a practice on one, adding the others with an enrolment code, and the checks to run (alarm both ways, a computer switched off, a test alarm). `docs/home-test.md`.
+
+### Distribution
+
+Set up on 2026-11-15. One command, `s/version++`, releases to every channel (house style `distribution.md`).
+
+- [~] **R62 - Release pipeline**: `s/version++` bumps the version (Cargo, npm), regenerates `CHANGELOG.md` with git-cliff and commits; `auto-tag.yml` tags and calls `release.yml` and `publish-crates.yml`. Not yet run for real: the first release is v0.1.0.
+- [~] **R63 - Command-line programs** (`panic-button`, `panic-button-agent`, `panic-button-relay`) for Linux, macOS and Windows on x86-64 and ARM via cargo-dist, with install scripts, `SHA256SUMS` and Homebrew formulae in `ohtf/homebrew-tap`.
+- [~] **R64 - Desktop packages** on every release: MSI, deb, rpm, AppImage and a universal macOS dmg, with stable file names, a Homebrew cask and the AUR package `panic-button-bin`. The AUR PKGBUILD was built with makepkg locally.
+- [~] **R65 - crates.io**: the library crates and the three programs publish on each release, by trusted publishing once the crates exist. Package metadata says `AGPL-3.0-or-later`, because crates.io rejects our licence addition after `WITH`; the addition still applies.
 
 ### Documentation
 

@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+#
+# Template for the AUR package panic-button-bin, filled in by release.yml
+# (@VERSION@, @DEB_SHA256@, @EXCEPTION_SHA256@).
+pkgname=panic-button-bin
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Staff panic alarm: call colleagues for help from this computer (desktop app)"
+arch=('x86_64')
+url="https://github.com/ohtf/panic-button"
+license=('AGPL-3.0-or-later' 'LicenseRef-PanicButton-app-store-exception')
+depends=('webkit2gtk-4.1' 'gtk3' 'alsa-lib' 'libayatana-appindicator' 'hicolor-icon-theme')
+provides=('panic-button')
+conflicts=('panic-button')
+source=("panic-button-desktop_${pkgver}_amd64.deb::https://github.com/ohtf/panic-button/releases/download/v${pkgver}/panic-button-desktop_${pkgver}_amd64.deb"
+        "LICENSE-EXCEPTIONS-${pkgver}.md::https://raw.githubusercontent.com/ohtf/panic-button/v${pkgver}/LICENSE-EXCEPTIONS.md")
+noextract=("panic-button-desktop_${pkgver}_amd64.deb")
+sha256sums=('@DEB_SHA256@'
+            '@EXCEPTION_SHA256@')
+
+package() {
+  bsdtar -xOf "panic-button-desktop_${pkgver}_amd64.deb" data.tar.gz | bsdtar -xf - -C "${pkgdir}"
+  install -Dm644 "LICENSE-EXCEPTIONS-${pkgver}.md" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE-EXCEPTIONS.md"
+}

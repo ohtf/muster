@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+#
+# Template for Casks/panic-button.rb in ohtf/homebrew-tap, filled in by
+# release.yml (@VERSION@, @SHA256@).
+cask "panic-button" do
+  version "@VERSION@"
+  sha256 "@SHA256@"
+
+  url "https://github.com/ohtf/panic-button/releases/download/v#{version}/panic-button-desktop_#{version}_universal.dmg"
+  name "Panic Button"
+  desc "Staff panic alarm: call colleagues for help from this computer"
+  homepage "https://github.com/ohtf/panic-button"
+
+  depends_on macos: ">= :monterey"
+
+  app "Panic Button.app"
+
+  zap trash: [
+    "~/Library/Application Support/org.ohtf.panic-button",
+    "~/Library/Caches/org.ohtf.panic-button",
+    "~/.local/share/panic-button",
+  ]
+
+  caveats <<~EOS
+    Panic Button is not yet signed by Apple. If macOS says it cannot be
+    opened, run:
+      xattr -dr com.apple.quarantine "/Applications/Panic Button.app"
+  EOS
+end

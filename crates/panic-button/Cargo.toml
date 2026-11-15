@@ -10,6 +10,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords = ["panic-alarm", "staff-safety", "healthcare", "lan"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "panic-button"
@@ -34,3 +38,7 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3.27.0"
+
+[package.metadata.dist]
+# The cask "panic-button" is the desktop app.
+formula = "panic-button-cli"

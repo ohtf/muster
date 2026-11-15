@@ -27,6 +27,10 @@ Commercial on-screen panic alarms are expensive for what they are, Windows-only,
 5. Nothing leaves the practice: no telemetry and no third-party services. The practice holds its own keys, relay and audit log.
 6. There is one kind of alarm, "come and help". Responders judge what is needed when they arrive.
 
+## Installing
+
+See [docs/install.md](docs/install.md). Panic Button is not yet ready for real practices.
+
 ## Quick start (developers)
 
 Requires Rust (the pinned toolchain in `rust-toolchain.toml` is installed automatically by `rustup`).

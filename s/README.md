@@ -11,6 +11,12 @@ Run the full test suite, including simulator scenarios and properties.
 - `PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties` - CI-scale property run
 - `PROPTEST_CASES=1000 s/test --release -p panic-button-sim --test properties` - long property run (about an hour)
 
+## `s/version++`
+
+Release: bump the version (`patch`, `minor` or `major`), regenerate `CHANGELOG.md` and push the release commit. CI tags it and publishes to GitHub Releases, Homebrew, the AUR and crates.io.
+
+- `s/version++ minor`
+
 ## `s/check-deep`
 
 The slow checks that GitHub Actions no longer runs on every push: simulator properties and scenarios, network-namespace scenarios, the desktop app, and a short fuzz of every target. Run it before pushing changes to `panic-button-core`, `panic-button-net` or the agent.
