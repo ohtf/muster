@@ -87,7 +87,7 @@ Priority set by Marcus Baw on 2026-11-15: a Windows installer and Linux packages
 The guides for people who use Muster, in plain English for practice staff. Every page is checked against the "Signs of AI writing" patterns (Wikipedia; also the humanizer skill) before it is committed, and screenshots come from the real app.
 
 - [x] **R56 - Writing checklist**: the AI-writing patterns to avoid, as a short checklist in `docs/` that every page is checked against. Fix the patterns already in `README.md`. `docs/writing-checklist.md`; README fixed.
-- [ ] **R57 - Staff quick guide**: one printable page. How to call for help, what the status shapes mean, answering an alert, cancelling a mistake.
+- [~] **R57 - Staff quick guide**: one printable page. How to call for help, what the status shapes mean, answering an alert, cancelling a mistake. Draft in `docs/staff-guide.md` with screenshots; needs a one-page print layout and a read-through by practice staff.
 - [ ] **R58 - Practice Admin guide**: setting up the practice, the recovery kit, adding and removing computers, rooms and names, test alarms and their reports, what to do when a computer shows amber or red.
 - [ ] **R59 - Docs site** with Zensical (house style `docs.md`), published to GitHub Pages, with a check that every page is in the navigation.
 - [ ] **R60 - Install guides**, written with the installers and tested against them: for practice staff installing on one computer (Windows first), and for IT deploying the MSI silently with policy settings. They become part of R46.
