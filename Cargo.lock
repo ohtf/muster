@@ -2833,6 +2833,7 @@ dependencies = [
  "anyhow",
  "clap",
  "getrandom 0.4.3",
+ "jiff",
  "muster-core",
  "muster-crypto",
  "muster-net",

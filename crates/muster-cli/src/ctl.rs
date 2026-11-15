@@ -212,6 +212,12 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
         }),
         CtlCommand::DrillReports | CtlCommand::DrillReport { .. } => {
             let one = |r: &Value| {
+                if r["skipped"].as_bool() == Some(true) {
+                    return format!(
+                        "{}  skipped (scheduled drill did not run)",
+                        r["alarm_id"].as_str().unwrap_or("")
+                    );
+                }
                 format!(
                     "{}  received {} of {}",
                     r["alarm_id"].as_str().unwrap_or(""),

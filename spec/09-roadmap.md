@@ -56,7 +56,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M5 Admin and drills in the app
 
-- [~] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export. Done: devices with a needs-attention filter, rename, room, promote and remove; join approvals; enrolment codes (create, copy, revoke, devices per code); test alarms with reports and CSV copy; a warning when there is only one admin; practice settings (hold time, cue, alarm pattern, drill mode, opening hours, relay URLs; also `muster practice settings`). Also audit log export as CSV (`muster ctl audit-export`). Still to do: drill schedules (the core does not run them yet) and recovery.
+- [~] **R34 - Admin section**: coverage, devices (approve, revoke, rename, rooms, promote), tokens, drills (schedule, run, reports, CSV), practice settings, admins and recovery, audit export. Done: devices with a needs-attention filter, rename, room, promote and remove; join approvals; enrolment codes (create, copy, revoke, devices per code); test alarms with reports and CSV copy; a warning when there is only one admin; practice settings (hold time, cue, alarm pattern, drill mode, opening hours, relay URLs; also `muster practice settings`). Also audit log export as CSV (`muster ctl audit-export`). Also weekly test alarms run from a chosen coordinator, with skips recorded on admin devices (FR-DRL-001, FR-DRL-006). Still to do: recovery.
 - [ ] **R35 - M5 exit**: a practice can be set up, enrolled, drilled and administered entirely from the GUI.
 
 ### M6 Relay

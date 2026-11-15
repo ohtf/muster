@@ -27,7 +27,7 @@ use muster_proto::{CertSerial, MsgId, PracticeId};
 use rusqlite::{Connection, OptionalExtension, params};
 
 /// Schema version (`PRAGMA user_version`).
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
@@ -136,6 +136,14 @@ impl Store {
                  COMMIT;",
             )?;
         }
+        if version < 3 {
+            db.execute_batch(
+                "BEGIN;
+                 ALTER TABLE drill_reports ADD COLUMN skipped INTEGER NOT NULL DEFAULT 0;
+                 PRAGMA user_version = 3;
+                 COMMIT;",
+            )?;
+        }
         Ok(Store { db })
     }
 
@@ -203,7 +211,7 @@ impl Store {
     /// replaces it.
     pub fn save_drill_report(&self, r: &muster_core::drill::DrillReport) -> Result<()> {
         self.db.execute(
-            "INSERT OR REPLACE INTO drill_reports VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT OR REPLACE INTO drill_reports VALUES (?1, ?2, ?3, ?4, ?5, 0)",
             params![
                 &r.alarm_id.0[..],
                 r.started_at as i64,
@@ -215,10 +223,22 @@ impl Store {
         Ok(())
     }
 
+    /// Records that the scheduled drill at `slot` (Unix ms) did not run
+    /// (FR-DRL-006).
+    pub fn save_skipped_drill(&self, slot: u64) -> Result<()> {
+        let mut id = [0xffu8; 16];
+        id[..8].copy_from_slice(&slot.to_be_bytes());
+        self.db.execute(
+            "INSERT OR IGNORE INTO drill_reports VALUES (?1, ?2, 0, 0, '', 1)",
+            params![&id[..], slot as i64],
+        )?;
+        Ok(())
+    }
+
     /// Drill reports, newest first.
     pub fn drill_reports(&self) -> Result<Vec<StoredDrillReport>> {
         let mut s = self.db.prepare(
-            "SELECT alarm_id, started_at, received, expected, csv FROM drill_reports
+            "SELECT alarm_id, started_at, received, expected, csv, skipped FROM drill_reports
              ORDER BY started_at DESC",
         )?;
         let rows = s.query_map([], |r| {
@@ -228,17 +248,19 @@ impl Store {
                 r.get::<_, i64>(2)?,
                 r.get::<_, i64>(3)?,
                 r.get::<_, String>(4)?,
+                r.get::<_, bool>(5)?,
             ))
         })?;
         let mut out = Vec::new();
         for row in rows {
-            let (id, started_at, received, expected, csv) = row?;
+            let (id, started_at, received, expected, csv, skipped) = row?;
             out.push(StoredDrillReport {
                 alarm_id: muster_proto::MsgId(id16(&id, "drill report")?),
                 started_at: started_at as u64,
                 received: received as usize,
                 expected: expected as usize,
                 csv,
+                skipped,
             });
         }
         Ok(out)
@@ -479,6 +501,8 @@ pub struct StoredDrillReport {
     pub received: usize,
     pub expected: usize,
     pub csv: String,
+    /// A scheduled drill that did not run; `started_at` is the slot.
+    pub skipped: bool,
 }
 
 #[cfg(test)]

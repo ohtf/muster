@@ -41,6 +41,9 @@ enrolment codes, and test alarms with their reports.
   let sDrill = $state("silent");
   let sHours = $state("");
   let sRelays = $state("");
+  let sDay = $state("off");
+  let sTime = $state("07:45");
+  let sCoord = $state("");
   let settingsSaved = $state(false);
   let settingsDirty = $state(false);
 
@@ -53,6 +56,10 @@ enrolment codes, and test alarms with their reports.
     sDrill = s.drill_mode ?? "silent";
     sHours = s.opening_hours ?? "";
     sRelays = (s.relay_urls ?? []).join("\n");
+    const [d, t] = (s.drill_schedule ?? "").split(" ");
+    sDay = s.drill_schedule ? d : "off";
+    sTime = t || "07:45";
+    sCoord = s.drill_coordinator ?? devices.find((x) => x.this_device)?.device ?? "";
   }
 
   async function saveSettings() {
@@ -63,6 +70,8 @@ enrolment codes, and test alarms with their reports.
         sound_pattern: sPattern,
         drill_mode: sDrill,
         opening_hours: sHours.trim() || null,
+        drill_schedule: sDay === "off" ? null : `${sDay} ${sTime}`,
+        drill_coordinator: sDay === "off" ? null : sCoord || null,
         relay_urls: sRelays
           .split("\n")
           .map((x) => x.trim())
@@ -405,6 +414,31 @@ enrolment codes, and test alarms with their reports.
       </select>
     </div>
     <div class="field">
+      <label for="s-day">Weekly test alarm</label>
+      <div class="inline">
+        <select id="s-day" bind:value={sDay}>
+          <option value="off">Off</option>
+          <option value="Mon">Monday</option>
+          <option value="Tue">Tuesday</option>
+          <option value="Wed">Wednesday</option>
+          <option value="Thu">Thursday</option>
+          <option value="Fri">Friday</option>
+          <option value="Sat">Saturday</option>
+          <option value="Sun">Sunday</option>
+        </select>
+        <input type="time" aria-label="Time" bind:value={sTime} disabled={sDay === "off"} />
+      </div>
+    </div>
+    <div class="field">
+      <label for="s-coord">Run it from</label>
+      <select id="s-coord" bind:value={sCoord} disabled={sDay === "off"}>
+        {#each devices as d (d.device)}
+          <option value={d.device}>{d.label || d.device_short}{d.this_device ? " (this computer)" : ""}</option>
+        {/each}
+      </select>
+      <span class="hint">Choose a computer that is on at that time.</span>
+    </div>
+    <div class="field">
       <label for="s-hours">Opening hours</label>
       <input id="s-hours" bind:value={sHours} placeholder="Mon-Fri 08:00-18:30" />
     </div>
@@ -431,13 +465,18 @@ enrolment codes, and test alarms with their reports.
         {#each reports as r (r.alarm_id)}
           <tr>
             <td>{new Date(r.started_at).toLocaleDateString("en-GB")} {clock(r.started_at)}</td>
-            <td>
-              {r.received} of {r.expected} computers
-              {#if r.received < r.expected}<span class="warn">({r.expected - r.received} missed)</span>{/if}
-            </td>
-            <td class="right">
-              <button class="btn" onclick={() => copyReport(r)}>{copied === r.alarm_id ? "Copied" : "Copy as CSV"}</button>
-            </td>
+            {#if r.skipped}
+              <td><span class="warn">Did not run: the computer that runs it was off</span></td>
+              <td></td>
+            {:else}
+              <td>
+                {r.received} of {r.expected} computers
+                {#if r.received < r.expected}<span class="warn">({r.expected - r.received} missed)</span>{/if}
+              </td>
+              <td class="right">
+                <button class="btn" onclick={() => copyReport(r)}>{copied === r.alarm_id ? "Copied" : "Copy as CSV"}</button>
+              </td>
+            {/if}
           </tr>
         {/each}
       </tbody>

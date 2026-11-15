@@ -55,6 +55,12 @@ pub enum PracticeCommand {
         /// Remove the practice's relay URLs.
         #[arg(long, conflicts_with = "relay")]
         clear_relays: bool,
+        /// Weekly test alarm, like "Tue 07:45" (local time), or "off".
+        #[arg(long)]
+        drill_schedule: Option<String>,
+        /// The device that runs the weekly test alarm (device id).
+        #[arg(long)]
+        drill_coordinator: Option<String>,
     },
 }
 
@@ -79,6 +85,8 @@ pub fn run(cli: &Cli, c: &PracticeCommand) -> anyhow::Result<()> {
         opening_hours,
         relay,
         clear_relays,
+        drill_schedule,
+        drill_coordinator,
     } = c
     {
         let mut p = serde_json::Map::new();
@@ -96,6 +104,13 @@ pub fn run(cli: &Cli, c: &PracticeCommand) -> anyhow::Result<()> {
         }
         if let Some(v) = opening_hours {
             p.insert("opening_hours".into(), json!(v));
+        }
+        if let Some(v) = drill_schedule {
+            let v = (!v.eq_ignore_ascii_case("off")).then_some(v);
+            p.insert("drill_schedule".into(), json!(v));
+        }
+        if let Some(v) = drill_coordinator {
+            p.insert("drill_coordinator".into(), json!(v));
         }
         if *clear_relays {
             p.insert("relay_urls".into(), serde_json::Value::Null);

@@ -380,7 +380,19 @@ admin() {
   ctl n1 --format json token list | tr -d '\n ' | grep -q '"revoked":true' || fail "token not revoked"
   [[ $(ctl n1 --format json device list | grep -c '"device_short"') == 2 ]] || fail "n2 should stay a member"
   expect_level n2 green 10
-  pass "admin: tokens, drill report, token revoke"
+  # A weekly drill scheduled for the next minute runs from the coordinator.
+  local me
+  me=$(ctl n1 --format json ctl status | sed -n 's/.*"device": "\([0-9a-f]*\)".*/\1/p')
+  ctl n1 practice settings --drill-schedule "$(LC_ALL=C date -d '+1 min' +'%a %H:%M')" --drill-coordinator "$me" >/dev/null
+  ctl n2 --format json practice settings | grep -q '"drill_schedule": "' || fail "n2 did not get the schedule"
+  local n=0
+  for _ in $(seq 400); do
+    n=$(ctl n1 --format json ctl drill-reports | grep -c '"received": 1' || true)
+    [[ $n -ge 2 ]] && break
+    sleep 0.5
+  done
+  [[ $n -ge 2 ]] || fail "the scheduled drill did not run"
+  pass "admin: tokens, drill report, token revoke, practice settings, scheduled drill"
 }
 
 scenarios=("$@")

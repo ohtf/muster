@@ -428,6 +428,7 @@ impl Runtime {
                                 "started_at": r.started_at,
                                 "received": r.received,
                                 "expected": r.expected,
+                                "skipped": r.skipped,
                             })
                         })
                         .collect(),
@@ -493,6 +494,57 @@ impl Runtime {
             "admin.reject_join" => self.user(UserAction::RejectJoin { device: device(p)? }),
             "admin.promote" => self.user(UserAction::Promote { device: device(p)? }),
             _ => Err(RpcError::not_found(method)),
+        }
+    }
+
+    /// Weekly drills: run one if this device is the coordinator and it is
+    /// time; on admin devices, record a slot with no drill as skipped.
+    fn check_schedule(&mut self) {
+        use crate::schedule::{Due, counts_for, due, last_slot, parse};
+        let (s, _) = self.core.practice_settings();
+        let (Some(text), Some(coord)) = (s.drill_schedule, s.drill_coordinator) else {
+            return;
+        };
+        let w = match parse(&text) {
+            Ok(w) => w,
+            Err(e) => {
+                tracing::debug!("drill schedule: {e}");
+                return;
+            }
+        };
+        let Some(slot) = last_slot(w, &jiff::Zoned::now()) else {
+            return;
+        };
+        let wall = wall_now();
+        // Only recent slots: an agent that was off for a week should not
+        // backfill skips it cannot judge.
+        if wall.saturating_sub(slot) > 24 * 60 * 60 * 1000 {
+            return;
+        }
+        let me = self.core.device_id();
+        let admin = self.core.trust().is_some_and(|t| t.is_admin(&me, wall));
+        let reports = self.store.drill_reports().unwrap_or_default();
+        let ran = self
+            .core
+            .alarm_views(wall)
+            .iter()
+            .any(|v| v.drill && v.origin == coord && counts_for(slot, v.raised_at))
+            || reports
+                .iter()
+                .any(|r| !r.skipped && counts_for(slot, r.started_at) && coord == me);
+        let recorded = reports.iter().any(|r| r.skipped && r.started_at == slot);
+        match due(slot, wall, coord == me, admin, ran, recorded) {
+            Due::Run(_) => {
+                tracing::info!("running the scheduled drill ({text})");
+                self.handle(Input::User(UserAction::RunDrill));
+            }
+            Due::Skipped(slot) => {
+                tracing::warn!("the scheduled drill ({text}) did not run");
+                if let Err(e) = self.store.save_skipped_drill(slot) {
+                    tracing::error!("recording a skipped drill: {e}");
+                }
+            }
+            Due::Nothing => {}
         }
     }
 
@@ -635,6 +687,7 @@ async fn agent_loop(
     mut auth_rx: mpsc::Receiver<muster_net::relay::AuthRequest>,
 ) {
     let mut ifaces = tokio::time::interval(Duration::from_secs(5));
+    let mut schedule = tokio::time::interval(Duration::from_secs(30));
     loop {
         let deadline = rt
             .core
@@ -660,6 +713,7 @@ async fn agent_loop(
                 let _ = a.reply.send(env);
             }
             _ = tokio::time::sleep_until(deadline.into()) => rt.handle(Input::Tick),
+            _ = schedule.tick() => rt.check_schedule(),
             _ = ifaces.tick() => {
                 if let Some(i) = rt.net.poll_interfaces() {
                     rt.handle(i);

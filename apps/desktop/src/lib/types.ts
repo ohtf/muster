@@ -80,6 +80,7 @@ export interface DrillSummary {
   started_at: number;
   received: number;
   expected: number;
+  skipped?: boolean;
 }
 
 export interface PracticeSettings {

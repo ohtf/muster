@@ -351,6 +351,11 @@ pub fn merge_practice_settings(
                     }
                     _ => return Err(format!("{k} must be text")),
                 };
+                if k == "drill_schedule"
+                    && let Some(t) = &t
+                {
+                    crate::schedule::parse(t)?;
+                }
                 if k == "opening_hours" {
                     cur.opening_hours = t;
                 } else {
@@ -483,6 +488,10 @@ mod tests {
         assert_eq!(s.cue_mode, Some(muster_proto::CueMode::Silent), "untouched");
         assert!(merge_practice_settings(s.clone(), &json!({"hold_ms": 50})).is_err());
         assert!(merge_practice_settings(s.clone(), &json!({"relay_urls": ["http://x"]})).is_err());
+        assert!(merge_practice_settings(s.clone(), &json!({"drill_schedule": "Someday"})).is_err());
+        assert!(
+            merge_practice_settings(s.clone(), &json!({"drill_schedule": "Tue 07:45"})).is_ok()
+        );
         assert!(merge_practice_settings(s, &json!({"colour": "red"})).is_err());
         let v = practice_settings(&Default::default(), 0);
         assert!(v["hold_ms"].is_null());

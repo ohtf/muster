@@ -198,8 +198,8 @@ export const mock = {
           sound_pattern: "A",
           override_mute: null,
           drill_mode: "silent",
-          drill_schedule: null,
-          drill_coordinator: null,
+          drill_schedule: "Tue 07:45",
+          drill_coordinator: "a".repeat(64),
           opening_hours: "Mon-Fri 08:00-18:30",
           relay_urls: ["wss://relay.example-pcn.org.uk/v1/ws"],
           seed_peers: null,
@@ -210,7 +210,10 @@ export const mock = {
           { token_id: "8".repeat(32), label: "Locum laptop", issued_at: now - 9e9, expires_at: now - 1e9, expired: true, revoked: false, enrolled: [] },
         ];
       case "drill.reports":
-        return [{ alarm_id: "5".repeat(32), started_at: now - 86_400_000, received: 4, expected: 5 }];
+        return [
+          { alarm_id: "5".repeat(32), started_at: now - 86_400_000, received: 4, expected: 5, skipped: false },
+          { alarm_id: "6".repeat(32), started_at: now - 8 * 86_400_000, received: 0, expected: 0, skipped: true },
+        ];
       case "drill.report":
         return { alarm_id: "5".repeat(32), started_at: now - 86_400_000, received: 4, expected: 5, csv: "device,label,room,received\n" };
       case "config":

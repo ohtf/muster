@@ -167,6 +167,12 @@ fn drill_reports_are_kept_newest_first_and_pruned() {
     assert!(all[0].csv.contains("Room 1"));
     assert_eq!(s.prune_drill_reports(150).expect("prune"), 1);
     assert_eq!(s.drill_reports().expect("list").len(), 1);
+    s.save_skipped_drill(300).expect("skip");
+    s.save_skipped_drill(300).expect("idempotent");
+    let all = s.drill_reports().expect("list");
+    assert_eq!(all.len(), 2);
+    assert!(all[0].skipped && all[0].started_at == 300);
+    assert!(!all[1].skipped);
 }
 
 #[test]
