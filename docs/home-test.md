@@ -6,13 +6,13 @@ Use computers on the same home network. Panic Button finds the others on the net
 
 ## Getting the installers
 
-The Installers workflow on GitHub builds both (Actions, then Installers, then Run workflow). When it finishes, download `panic-button-windows-msi` and `panic-button-linux` from the run's page. Each is a zip containing:
+Download them from the [releases page](https://github.com/ohtf/panic-button/releases), under Assets:
 
-- `Panic Button_0.1.0_x64_en-US.msi` for Windows;
-- `Panic Button_0.1.0_amd64.AppImage` for any 64-bit Linux, including Arch;
-- `Panic Button_0.1.0_amd64.deb` for Debian and Ubuntu.
+- `panic-button-desktop_0.1.0_x64_en-US.msi` for Windows;
+- `panic-button-desktop_0.1.0_amd64.AppImage` for any 64-bit Linux;
+- `panic-button-desktop_0.1.0_amd64.deb` for Debian and Ubuntu.
 
-If GitHub Actions is not available, see [Building the MSI on a Windows PC](#building-the-msi-on-a-windows-pc) at the end.
+On Arch you can install `panic-button-bin` from the AUR instead. [install.md](install.md) lists every other way.
 
 ## Installing on Windows
 
@@ -30,9 +30,9 @@ On Arch, or anything that is not Debian or Ubuntu, use the AppImage:
 
 ```sh
 mkdir -p ~/Applications
-mv ~/Downloads/Panic Button_0.1.0_amd64.AppImage ~/Applications/
-chmod +x ~/Applications/Panic Button_0.1.0_amd64.AppImage
-~/Applications/Panic Button_0.1.0_amd64.AppImage
+mv ~/Downloads/panic-button-desktop_0.1.0_amd64.AppImage ~/Applications/
+chmod +x ~/Applications/panic-button-desktop_0.1.0_amd64.AppImage
+~/Applications/panic-button-desktop_0.1.0_amd64.AppImage
 ```
 
 If AppImageLauncher is installed, it asks whether to integrate the AppImage. Either answer works.
@@ -42,10 +42,10 @@ To start it when you sign in:
 ```sh
 mkdir -p ~/.config/autostart
 printf '[Desktop Entry]\nType=Application\nName=Panic Button\nExec=%s\n' \
-  ~/Applications/Panic Button_0.1.0_amd64.AppImage > ~/.config/autostart/panic-button.desktop
+  ~/Applications/panic-button-desktop_0.1.0_amd64.AppImage > ~/.config/autostart/panic-button.desktop
 ```
 
-On Debian or Ubuntu, install the deb instead (`sudo apt install ./Panic Button_0.1.0_amd64.deb`). It starts Panic Button at sign-in by itself.
+On Debian or Ubuntu, install the deb instead (`sudo apt install ./panic-button-desktop_0.1.0_amd64.deb`). It starts Panic Button at sign-in by itself.
 
 If a firewall is running (for example `ufw` or `firewalld`), allow UDP and TCP port 47474.
 
@@ -99,7 +99,7 @@ There is one file per day. They hold connection events and device names, not the
 
 ## Building the MSI on a Windows PC
 
-If GitHub Actions cannot run, build the MSI on one of the Windows computers. It takes about half an hour the first time.
+To test a change that has not been released, build the MSI on one of the Windows computers. It takes about half an hour the first time.
 
 1. Install [Rust](https://rustup.rs) (accept the offer to install the Visual Studio C++ build tools), [Node.js 24](https://nodejs.org), and [Git](https://git-scm.com).
 2. In PowerShell:

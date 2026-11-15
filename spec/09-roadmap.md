@@ -86,9 +86,9 @@ Priority set by Marcus Baw on 2026-11-15: a Windows installer and Linux packages
 
 Set up on 2026-11-15. One command, `s/version++`, releases to every channel (house style `distribution.md`).
 
-- [~] **R62 - Release pipeline**: `s/version++` bumps the version (Cargo, npm), regenerates `CHANGELOG.md` with git-cliff and commits; `auto-tag.yml` tags and calls `release.yml` and `publish-crates.yml`. Not yet run for real: the first release is v0.1.0.
-- [~] **R63 - Command-line programs** (`panic-button`, `panic-button-agent`, `panic-button-relay`) for Linux, macOS and Windows on x86-64 and ARM via cargo-dist, with install scripts, `SHA256SUMS` and Homebrew formulae in `ohtf/homebrew-tap`.
-- [~] **R64 - Desktop packages** on every release: MSI, deb, rpm, AppImage and a universal macOS dmg, with stable file names, a Homebrew cask and the AUR package `panic-button-bin`. The AUR PKGBUILD was built with makepkg locally.
+- [~] **R62 - Release pipeline**: `s/version++` bumps the version (Cargo, npm), regenerates `CHANGELOG.md` with git-cliff and commits; `auto-tag.yml` tags and calls `release.yml` and `publish-crates.yml`. First release v0.1.0 on 2026-11-15.
+- [~] **R63 - Command-line programs** (`panic-button`, `panic-button-agent`, `panic-button-relay`) for Linux, macOS and Windows on x86-64 and ARM via cargo-dist, with install scripts, `SHA256SUMS` and Homebrew formulae in `ohtf/homebrew-tap`. Published for v0.1.0.
+- [~] **R64 - Desktop packages** on every release: MSI, deb, rpm, AppImage and a universal macOS dmg, with stable file names, a Homebrew cask and the AUR package `panic-button-bin`. v0.1.0: all five built and published, the cask is in the tap, the deb and rpm install cleanly on Ubuntu 24.04 and Fedora 41, and the AUR package builds from the release. The AUR push waits for the CI key to be added to an AUR account; the rpm lacked the autostart entry until 0.1.1.
 - [~] **R65 - crates.io**: the library crates and the three programs publish on each release, by trusted publishing once the crates exist. Package metadata says `AGPL-3.0-or-later`, because crates.io rejects our licence addition after `WITH`; the addition still applies.
 
 ### Documentation

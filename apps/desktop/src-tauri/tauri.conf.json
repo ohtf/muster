@@ -49,6 +49,11 @@
         "depends": [
           "libasound2t64 | libasound2"
         ]
+      },
+      "rpm": {
+        "files": {
+          "/etc/xdg/autostart/panic-button-desktop.desktop": "../../../packaging/linux/panic-button-autostart.desktop"
+        }
       }
     }
   }
