@@ -35,6 +35,8 @@ chmod +x ~/Applications/Muster_0.1.0_amd64.AppImage
 ~/Applications/Muster_0.1.0_amd64.AppImage
 ```
 
+If AppImageLauncher is installed, it asks whether to integrate the AppImage. Either answer works.
+
 To start it when you sign in:
 
 ```sh
