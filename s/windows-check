@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# Clippy the desktop app for Windows (x86_64-pc-windows-gnu, with MinGW) in
+# a Rust container, so Windows-only code such as platform::windows_audio is
+# at least compiled and linted before it reaches a Windows computer. Needs
+# Docker and a built frontend (apps/desktop/dist; s/desktop-check builds it).
+# The first run takes about 10 minutes.
+#
+#   s/windows-check
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+command -v docker >/dev/null || { echo "s/windows-check needs Docker" >&2; exit 2; }
+[[ -f apps/desktop/dist/index.html ]] || { echo "no apps/desktop/dist: run s/desktop-check first" >&2; exit 2; }
+version="$(awk -F\" '/^channel/ {print $2}' rust-toolchain.toml)"
+
+# The Tauri build script writes into the source tree, so check a copy.
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+{ git ls-files -co --exclude-standard | grep -v '^apps/desktop/node_modules/'; find apps/desktop/dist -type f; } \
+  | sort -u | tar -cf - -T - | tar -xf - -C "$work"
+
+exec docker run --rm -v "$work:/src" -v "${CARGO_HOME:-$HOME/.cargo}/registry:/usr/local/cargo/registry" \
+  -e CARGO_TARGET_DIR=/tmp/target -w /src "rust:${version%.0}-bookworm" bash -c '
+  set -euo pipefail
+  apt-get update -qq >/dev/null
+  apt-get install -y -qq mingw-w64 >/dev/null
+  rustup target add x86_64-pc-windows-gnu >/dev/null 2>&1
+  cargo clippy --locked -q -p panic-button-desktop --all-targets --target x86_64-pc-windows-gnu -- -D warnings
+  echo "Windows clippy passed"
+'

@@ -11,6 +11,7 @@
 
 pub mod audio;
 mod placement;
+mod platform;
 mod shortcut;
 mod volume;
 mod windows;
@@ -39,6 +40,7 @@ struct Shared {
     agent: Mutex<Option<AgentHandle>>,
     audio: Audio,
     audio_ok: bool,
+    volume: volume::Volume,
 }
 
 fn env_path(var: &str) -> Option<PathBuf> {
@@ -116,7 +118,8 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
     h.input(Input::UserDisplay(user_display())).await;
     tauri::async_runtime::spawn(pump_events(app.clone(), h.clone()));
     tauri::async_runtime::spawn(pump_audio(h.clone(), st.audio.clone()));
-    tauri::async_runtime::spawn(watch_volume(h.clone(), st.audio_ok));
+    tauri::async_runtime::spawn(watch_volume(h.clone(), st.audio_ok, st.volume.clone()));
+    tauri::async_runtime::spawn(pump_volume_override(h.clone(), st.volume.clone()));
     *slot = Some(h);
     drop(slot);
     let _ = app.emit("panic-button-started", ());
@@ -151,13 +154,13 @@ async fn pump_events(app: AppHandle, h: AgentHandle) {
 
 /// Tells the agent whether sound is muted or at zero, now and whenever it
 /// changes (checked every 10 s). An unreadable level counts as not muted.
-async fn watch_volume(h: AgentHandle, output_present: bool) {
+async fn watch_volume(h: AgentHandle, output_present: bool, volume: volume::Volume) {
     let mut tick = tokio::time::interval(std::time::Duration::from_secs(10));
     let mut last = None;
     let mut readable = None;
     loop {
         tick.tick().await;
-        let level = volume::read().await;
+        let level = volume.read().await;
         if readable != Some(level.is_some()) {
             readable = Some(level.is_some());
             if level.is_none() {
@@ -177,10 +180,24 @@ async fn watch_volume(h: AgentHandle, output_present: bool) {
             );
             h.input(Input::AudioStatus {
                 status,
-                override_available: false,
+                override_available: volume.override_available(),
             })
             .await;
             last = Some(status);
+        }
+    }
+}
+
+/// The core asks for the mute override while an alarm sounds
+/// (`alarm.override_mute`).
+async fn pump_volume_override(h: AgentHandle, volume: volume::Volume) {
+    use tokio::sync::broadcast::error::RecvError;
+    let mut rx = h.volume_override();
+    loop {
+        match rx.recv().await {
+            Ok(on) => volume.set_override(on),
+            Err(RecvError::Lagged(_)) => {}
+            Err(RecvError::Closed) => break,
         }
     }
 }
@@ -524,6 +541,7 @@ pub fn run() {
             agent: Mutex::new(None),
             audio,
             audio_ok,
+            volume: volume::Volume::new(),
         })
         .invoke_handler(tauri::generate_handler![
             app_info,

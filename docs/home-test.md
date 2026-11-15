@@ -79,6 +79,8 @@ Run a test alarm from the Admin tab. The others should show "Test alarm received
 
 Try a few things that went wrong for the commercial products: put a computer to sleep and wake it, turn its sound off, or move a laptop to another Wi-Fi network. Note what each status light says.
 
+Mute a Windows computer, then call for help from another. The muted one should still sound the alarm. When you click I'm coming, it should go quiet and be muted again. On Linux, a muted computer should turn amber instead.
+
 Hold Ctrl, Shift and F12 together for one and a half seconds, in another program. It should call for help just like the button. On Wayland it will not; the Settings tab says so.
 
 Move the button with Shift and drag, then sign out and back in. It should come back where you left it.
@@ -99,7 +101,7 @@ There is one file per day. They hold connection events and device names, not the
 - The installer is unsigned, so Windows warns about it.
 - On Windows, only one account per computer can use Panic Button.
 - The keyboard shortcut (hold Ctrl+Shift+F12) does not work on Wayland desktops. Settings says whether it works on a computer.
-- On Linux, a muted computer turns amber within about 10 seconds. On Windows it does not notice yet, so a muted Windows computer stays silent and still shows green.
+- On Linux, a muted computer turns amber within about 10 seconds. On Windows, Panic Button unmutes the computer and turns the volume up to at least 60% while an alarm sounds, then puts both back; this has not been tried on a real Windows computer yet.
 
 ## Building the MSI on a Windows PC
 

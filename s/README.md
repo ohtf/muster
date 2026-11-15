@@ -63,6 +63,12 @@ Build the release desktop app and CLI, then check them on a real X server in an 
 
 - `s/x11-test`
 
+## `s/windows-check`
+
+Clippy the desktop app for Windows (the GNU target, with MinGW) in a Rust container, so Windows-only code is at least compiled and linted here. Needs Docker and a built frontend. Part of `s/check-deep`.
+
+- `s/windows-check`
+
 ## `s/sounds`
 
 Regenerate the built-in sounds in `sounds/` from the synthesiser, then commit them. A test checks the files match.

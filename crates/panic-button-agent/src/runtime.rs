@@ -60,6 +60,7 @@ pub struct AgentHandle {
     inputs: mpsc::Sender<Input>,
     events: broadcast::Sender<UiEvent>,
     audio: broadcast::Sender<AudioCmd>,
+    volume_override: broadcast::Sender<bool>,
 }
 
 impl AgentHandle {
@@ -89,6 +90,12 @@ impl AgentHandle {
 
     pub fn audio(&self) -> broadcast::Receiver<AudioCmd> {
         self.audio.subscribe()
+    }
+
+    /// True while an alarm should override the system mute and volume
+    /// (`alarm.override_mute`, only when the platform reported that it can).
+    pub fn volume_override(&self) -> broadcast::Receiver<bool> {
+        self.volume_override.subscribe()
     }
 }
 
@@ -205,6 +212,7 @@ struct Runtime {
     start: Instant,
     events: broadcast::Sender<UiEvent>,
     audio: broadcast::Sender<AudioCmd>,
+    volume_override: broadcast::Sender<bool>,
     allow_raise: bool,
     audit_failures: u64,
     local: panic_button_core::config::LocalConfig,
@@ -251,7 +259,10 @@ impl Runtime {
                 tracing::debug!("audio: {a:?}");
                 let _ = self.audio.send(*a);
             }
-            Output::SetSystemVolumeOverride(on) => tracing::info!("volume override: {on}"),
+            Output::SetSystemVolumeOverride(on) => {
+                tracing::info!("volume override: {on}");
+                let _ = self.volume_override.send(*on);
+            }
             Output::Log(e) => {
                 if self.store.audit(wall_now(), e).is_err() {
                     self.audit_failures += 1;
@@ -633,6 +644,7 @@ pub async fn start(
     tracing::info!("device {} starting", core.device_id());
     let (events, _) = broadcast::channel(1024);
     let (audio, _) = broadcast::channel(64);
+    let (volume_override, _) = broadcast::channel(16);
     let mut rt = Runtime {
         core,
         store,
@@ -641,6 +653,7 @@ pub async fn start(
         start: Instant::now(),
         events: events.clone(),
         audio: audio.clone(),
+        volume_override: volume_override.clone(),
         allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
         audit_failures: 0,
         local,
@@ -671,6 +684,7 @@ pub async fn start(
         inputs: in_tx,
         events,
         audio,
+        volume_override,
     };
     // Drill reports are kept for 400 days (spec/02-architecture.md).
     let cutoff = wall_now().saturating_sub(400 * 24 * 60 * 60 * 1000);

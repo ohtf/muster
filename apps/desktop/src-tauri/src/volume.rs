@@ -7,9 +7,13 @@
 //!
 //! Read from the system's own tools: `pactl` (PulseAudio and PipeWire),
 //! then `wpctl` (PipeWire), then `amixer` (ALSA) on Linux, and `osascript`
-//! on macOS. Windows needs the audio endpoint API (R32) and reports nothing
-//! yet. When nothing can be read the level is unknown, and the status is
-//! left as it was: an unknown level is never reported as muted.
+//! on macOS, and the audio endpoint API on Windows
+//! (`platform::windows_audio`), which can also override the mute while an
+//! alarm sounds. When nothing can be read the level is unknown: an unknown
+//! level is never reported as muted.
+
+// The command-line readers are not used on Windows.
+#![cfg_attr(windows, allow(dead_code))]
 
 use std::time::Duration;
 
@@ -36,8 +40,59 @@ async fn run(cmd: &str, args: &[&str]) -> Option<String> {
     }
 }
 
-/// The current level, or `None` if it cannot be read on this computer.
-pub async fn read() -> Option<Level> {
+/// Reads the level, and on Windows overrides the mute.
+#[derive(Debug, Clone)]
+pub struct Volume {
+    #[cfg(windows)]
+    endpoint: Option<crate::platform::windows_audio::Endpoint>,
+}
+
+impl Volume {
+    pub fn new() -> Self {
+        Self {
+            #[cfg(windows)]
+            endpoint: crate::platform::windows_audio::Endpoint::start(),
+        }
+    }
+
+    /// Whether `set_override` can unmute and raise the volume.
+    #[cfg(windows)]
+    pub fn override_available(&self) -> bool {
+        self.endpoint.is_some()
+    }
+
+    #[cfg(not(windows))]
+    pub fn override_available(&self) -> bool {
+        false
+    }
+
+    #[cfg(windows)]
+    pub fn set_override(&self, on: bool) {
+        if let Some(e) = &self.endpoint {
+            e.set_override(on);
+        }
+    }
+
+    #[cfg(not(windows))]
+    pub fn set_override(&self, _on: bool) {}
+
+    /// The current level, or `None` if it cannot be read on this computer.
+    #[cfg(windows)]
+    pub async fn read(&self) -> Option<Level> {
+        let e = self.endpoint.clone()?;
+        tokio::task::spawn_blocking(move || e.read())
+            .await
+            .ok()
+            .flatten()
+    }
+
+    #[cfg(not(windows))]
+    pub async fn read(&self) -> Option<Level> {
+        read_with_tools().await
+    }
+}
+
+async fn read_with_tools() -> Option<Level> {
     if cfg!(target_os = "macos") {
         return parse_osascript(&run("osascript", &["-e", "get volume settings"]).await?);
     }
