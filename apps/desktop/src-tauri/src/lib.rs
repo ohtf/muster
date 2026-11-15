@@ -12,6 +12,7 @@
 pub mod audio;
 mod placement;
 mod shortcut;
+mod volume;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -111,19 +112,11 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
     })
     .await
     .map_err(err)?;
-    h.input(Input::AudioStatus {
-        status: AudioStatus {
-            output_present: st.audio_ok,
-            muted: false,
-            volume_pct: 100,
-        },
-        override_available: false,
-    })
-    .await;
     h.input(Input::SessionState(SessionState::Active)).await;
     h.input(Input::UserDisplay(user_display())).await;
     tauri::async_runtime::spawn(pump_events(app.clone(), h.clone()));
     tauri::async_runtime::spawn(pump_audio(h.clone(), st.audio.clone()));
+    tauri::async_runtime::spawn(watch_volume(h.clone(), st.audio_ok));
     *slot = Some(h);
     drop(slot);
     let _ = app.emit("panic-button-started", ());
@@ -152,6 +145,42 @@ async fn pump_events(app: AppHandle, h: AgentHandle) {
             }
             Err(RecvError::Lagged(_)) => {}
             Err(RecvError::Closed) => break,
+        }
+    }
+}
+
+/// Tells the agent whether sound is muted or at zero, now and whenever it
+/// changes (checked every 10 s). An unreadable level counts as not muted.
+async fn watch_volume(h: AgentHandle, output_present: bool) {
+    let mut tick = tokio::time::interval(std::time::Duration::from_secs(10));
+    let mut last = None;
+    let mut readable = None;
+    loop {
+        tick.tick().await;
+        let level = volume::read().await;
+        if readable != Some(level.is_some()) {
+            readable = Some(level.is_some());
+            if level.is_none() {
+                tracing::info!("cannot read the sound level on this computer");
+            }
+        }
+        let status = AudioStatus {
+            output_present,
+            muted: level.is_some_and(|l| l.muted),
+            volume_pct: level.map_or(100, |l| l.volume_pct),
+        };
+        if last != Some(status) {
+            tracing::info!(
+                muted = status.muted,
+                volume_pct = status.volume_pct,
+                "sound level"
+            );
+            h.input(Input::AudioStatus {
+                status,
+                override_available: false,
+            })
+            .await;
+            last = Some(status);
         }
     }
 }

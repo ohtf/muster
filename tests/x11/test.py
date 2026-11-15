@@ -5,7 +5,8 @@
 # tests/x11/run.sh): the button's size and default corner, a moved button is
 # saved and restored per monitor layout, a saved position off every monitor
 # falls back to the corner, and the keyboard shortcut raises an alarm only
-# when held (with key auto-repeat on).
+# when held (with key auto-repeat on), and muting the sound turns the status
+# amber.
 
 import json
 import os
@@ -97,6 +98,20 @@ check("short shortcut press raises nothing", alarms() == [], str(alarms()))
 press(2.5)
 a = alarms()
 check("held shortcut raises an alarm", len(a) == 1 and a[0].get("own") is True, json.dumps(a)[:300])
+
+def reasons():
+    out = subprocess.run(["/w/panic-button", "--format", "json", "--control-socket", SOCK, "ctl", "status"],
+                         capture_output=True, text=True)
+    return json.loads(out.stdout or "{}").get("reasons", [])
+
+subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "1"], check=True)
+time.sleep(12)
+r = reasons()
+check("muted sound is reported", "Sound is muted on this computer" in r, str(r))
+subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"], check=True)
+time.sleep(12)
+r = reasons()
+check("unmuted sound clears it", "Sound is muted on this computer" not in r, str(r))
 
 p.terminate()
 p.wait(10)

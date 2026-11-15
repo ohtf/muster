@@ -116,6 +116,7 @@ Coming: Jane Smith (Reception)                (16 px, live)
 - At least 3 patterns, generated programmatically. Default pattern A: two tones of 880 Hz and 660 Hz, 200 ms each with 5 ms ramps, repeated 3 times, then 600 ms of silence, looping. Patterns B and C differ in rhythm and pitch.
 - Volume: 50% of the alarm volume setting, rising to 100% over 8 s, looping until acknowledged.
 - Played via `rodio`/`cpal` on the default output device. If playback fails, report it in the heartbeat audio status and show amber.
+- The default output's mute and volume are read every 10 s and sent to the core as the audio status, so muted or zero volume shows amber ("Sound is muted on this computer") and appears in test alarm reports. Linux reads them with `pactl`, then `wpctl`, then `amixer`; macOS with `osascript`; Windows needs `IAudioEndpointVolume` (R32). A level that cannot be read counts as not muted, so a computer is never shown amber for a reading it could not make.
 - `override_mute` (Windows, v1): use `IAudioEndpointVolume` to unmute and set master volume to at least 60% while alerting, then restore exactly. Log each override.
 - The hazard log tracks confusion with fire alarms. Practices are told to listen to the default pattern next to their fire alarm test and to change it if there is any resemblance.
 

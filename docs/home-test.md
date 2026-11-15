@@ -99,7 +99,7 @@ There is one file per day. They hold connection events and device names, not the
 - The installer is unsigned, so Windows warns about it.
 - On Windows, only one account per computer can use Panic Button.
 - The keyboard shortcut (hold Ctrl+Shift+F12) does not work on Wayland desktops. Settings says whether it works on a computer.
-- Panic Button does not yet notice a muted computer or turn the volume up, so a muted computer stays silent and still shows green.
+- On Linux, a muted computer turns amber within about 10 seconds. On Windows it does not notice yet, so a muted Windows computer stays silent and still shows green.
 
 ## Building the MSI on a Windows PC
 

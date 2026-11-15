@@ -4,7 +4,7 @@
 #
 # Runs tests/x11/test.py against the release desktop app and CLI in an Arch
 # Linux container with Xvfb: once with no window manager and once under
-# openbox. Arch, because binaries built on an up-to-date Arch host need its
+# openbox, with PulseAudio for the sound checks. Arch, because binaries built on an up-to-date Arch host need its
 # newer C library. Needs Docker and the release binaries
 # (target/release/panic-button-desktop and target/release/panic-button).
 
@@ -25,8 +25,10 @@ cp "$BIN/panic-button-desktop" "$BIN/panic-button" "$ROOT/tests/x11/test.py" "$w
 exec docker run --rm -v "$work:/w:ro" "$IMAGE" bash -c '
   set -euo pipefail
   pacman -Syu --noconfirm --needed -q xorg-server-xvfb openbox python python-xlib \
-    webkit2gtk-4.1 gtk3 alsa-lib libayatana-appindicator >/dev/null 2>&1
+    webkit2gtk-4.1 gtk3 alsa-lib libayatana-appindicator pulseaudio pulseaudio-alsa >/dev/null 2>&1
   Xvfb :99 -screen 0 1920x1080x24 >/dev/null 2>&1 &
+  pulseaudio -D --exit-idle-time=-1 >/dev/null 2>&1
+  pactl info >/dev/null
   sleep 2
   echo "== no window manager"
   python3 /w/test.py || { tail -40 /tmp/app.log; exit 1; }
