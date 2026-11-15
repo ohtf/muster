@@ -1,9 +1,15 @@
 name: CI
 
+# Runs on every push: the quick checks only, on Linux runners. Windows
+# and macOS minutes cost 2x and 10x on a private repository, and the slow
+# checks (simulator properties, network namespaces, desktop build, fuzzing)
+# run locally with s/check-deep, or by hand in the Deep checks workflow.
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "spec/**", "safety/**", "**/*.md"]
   pull_request:
+    paths-ignore: ["docs/**", "spec/**", "safety/**", "**/*.md"]
   workflow_dispatch:
 
 permissions:
@@ -34,12 +40,9 @@ jobs:
       - run: cargo clippy --workspace --exclude muster-desktop --all-targets --all-features -- -D warnings
 
   test:
-    name: Test (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,65 +55,6 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - run: cargo build --workspace --exclude muster-desktop --all-targets --all-features
       - run: cargo test --workspace --exclude muster-desktop --all-features
-
-  properties:
-    name: Simulator properties (256 cases)
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Set up pinned Rust toolchain
-        shell: bash
-        run: rustup toolchain install --no-self-update
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo test --release -p muster-sim --test properties --test scenarios
-        env:
-          PROPTEST_CASES: "256"
-
-  netns:
-    name: Network namespace scenarios
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Set up pinned Rust toolchain
-        shell: bash
-        run: rustup toolchain install --no-self-update
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo build --release -p muster-agent -p muster-cli -p muster-relay
-      - run: sudo --preserve-env=MUSTER_BIN tests/netns/run.sh
-        timeout-minutes: 20
-        env:
-          MUSTER_BIN: ${{ github.workspace }}/target/release
-
-  desktop:
-    name: Desktop app (Linux)
-    runs-on: ubuntu-latest
-    # A cold build of the Tauri stack takes about 30 minutes; the cache
-    # brings later runs well under that.
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install WebKitGTK and audio development files
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
-      - name: Set up pinned Rust toolchain
-        shell: bash
-        run: rustup toolchain install --no-self-update
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: s/desktop-check
 
   deny:
     name: cargo-deny
@@ -161,26 +105,3 @@ jobs:
       - run: zizmor --strict-collection .
         env:
           GH_TOKEN: ${{ github.token }}
-
-  fuzz-smoke:
-    name: Fuzz smoke (60 s per target)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Set up nightly Rust
-        shell: bash
-        run: rustup toolchain install nightly --profile minimal --no-self-update
-      # install-action has no prebuilt cargo-fuzz; build the locked release.
-      - name: Install cargo-fuzz
-        shell: bash
-        run: cargo +nightly install --locked cargo-fuzz@0.13.2
-      - name: Run every fuzz target
-        shell: bash
-        run: |
-          for t in $(cargo +nightly fuzz list --fuzz-dir fuzz); do
-            echo "::group::$t"
-            cargo +nightly fuzz run --fuzz-dir fuzz "$t" -- -max_total_time=60
-            echo "::endgroup::"
-          done

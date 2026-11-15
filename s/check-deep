@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# The slow checks, on this machine instead of GitHub Actions: simulator
+# properties and scenarios, the network-namespace scenarios, the desktop
+# app, and a short fuzz of every target. About 25 minutes on a fast laptop.
+#
+#   s/check-deep          256 property cases, 60 s per fuzz target
+#   s/check-deep --long   1,000 property cases, S13 at 250 devices,
+#                         10 minutes per fuzz target (a few hours)
+#
+# Fuzzing needs nightly Rust and cargo-fuzz; it is skipped if they are
+# missing. Stops at the first failure.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+cases=256 fuzz_secs=60 long=
+if [[ ${1:-} == --long ]]; then
+  cases=1000 fuzz_secs=600 long=1
+fi
+
+step() { printf '\n== %s\n' "$*"; }
+
+step "simulator properties ($cases cases) and scenarios"
+PROPTEST_CASES=$cases cargo test --release -p muster-sim --test properties --test scenarios
+if [[ -n $long ]]; then
+  step "S13 at 250 devices"
+  MUSTER_FULL_SCALE=1 cargo test --release -p muster-sim --test scenarios s13
+fi
+
+step "network namespace scenarios"
+s/netns-test
+
+step "desktop app"
+s/desktop-check
+
+if rustup toolchain list | grep -q '^nightly' && command -v cargo-fuzz >/dev/null 2>&1; then
+  for t in $(cargo +nightly fuzz list --fuzz-dir fuzz); do
+    step "fuzz $t (${fuzz_secs} s)"
+    cargo +nightly fuzz run --fuzz-dir fuzz "$t" -- -max_total_time="$fuzz_secs"
+  done
+else
+  echo "s/check-deep: nightly Rust or cargo-fuzz missing, skipping fuzzing" >&2
+fi
+
+step "all deep checks passed"

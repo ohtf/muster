@@ -56,6 +56,7 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 ## Workflow
 
 - `s/test` - full test suite (unit, simulator scenarios and properties).
+- `s/check-deep` - the slow checks CI no longer runs on push (256-case properties, netns scenarios, desktop app, fuzz smoke). Run it before pushing changes to core, net, agent or relay code. Do not add scheduled or per-push jobs that use Windows or macOS runners, or long runs, without asking: Actions minutes are limited.
 - `s/lint` - `cargo fmt --check`, clippy, `cargo deny check` (if installed), `reuse lint` (if installed).
 - `s/fuzz <target>` - run a fuzz target (needs nightly and `cargo-fuzz`).
 - See [s/README.md](s/README.md).

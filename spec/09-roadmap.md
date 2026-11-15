@@ -94,6 +94,7 @@ The guides for people who use Muster, in plain English for practice staff. Every
 
 ### M8 Hardening and release candidate
 
+- [ ] **R61 - Adversarial and long runs back in CI** for release candidates: 1,000-case properties, S13 at full scale, long fuzzing including hostile LAN traffic, Windows and macOS tests. Moved to local runs (`s/check-deep`) on 2026-11-15 to save Actions minutes until the home test (M7a) has passed.
 - [ ] **R44 - Hardware lab protocol** L1 to L14 executed and recorded.
 - [ ] **R45 - Hazard log** updated with evidence and residual risks.
 - [ ] **R46 - Documentation set** from `08-deployment.md`.

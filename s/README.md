@@ -9,7 +9,14 @@ Run the full test suite, including simulator scenarios and properties.
 - `s/test` - everything
 - `s/test -p muster-core` - one crate
 - `PROPTEST_CASES=256 s/test --release -p muster-sim --test properties` - CI-scale property run
-- `PROPTEST_CASES=1000 s/test --release -p muster-sim --test properties` - nightly-scale property run (about an hour)
+- `PROPTEST_CASES=1000 s/test --release -p muster-sim --test properties` - long property run (about an hour)
+
+## `s/check-deep`
+
+The slow checks that GitHub Actions no longer runs on every push: simulator properties and scenarios, network-namespace scenarios, the desktop app, and a short fuzz of every target. Run it before pushing changes to `muster-core`, `muster-net` or the agent.
+
+- `s/check-deep` - about 25 minutes
+- `s/check-deep --long` - 1,000 property cases, S13 at 250 devices, 10 minutes per fuzz target (a few hours)
 
 ## `s/lint`
 
