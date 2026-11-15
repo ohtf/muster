@@ -188,6 +188,8 @@ export const mock = {
           ...peers.map((p, i) => ({ device: p.device, device_short: p.device_short, this_device: false, label: p.label, room: p.room, user: p.user, role: "member", enrolled_at: now - 8e8, token_id: i < 2 ? "7".repeat(32) : null, path: p.path, last_heard_ms: p.last_heard_ms, status: "green" })),
           { device: "9".repeat(64), device_short: "99999999", this_device: false, label: "OLD-LAPTOP", room: null, user: null, role: "member", enrolled_at: now - 7e9, token_id: null, path: null, last_heard_ms: null, status: null },
         ];
+      case "audit.export":
+        return { csv: "time_utc,kind,detail\n", entries: 0 };
       case "practice.settings":
         return {
           version: 3,

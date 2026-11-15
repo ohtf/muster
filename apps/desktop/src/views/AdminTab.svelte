@@ -180,6 +180,15 @@ enrolment codes, and test alarms with their reports.
     }
   }
 
+  async function copyAudit() {
+    try {
+      const a = await api.auditExport();
+      await copy(a.csv, "audit");
+    } catch (e) {
+      onerror(String(e));
+    }
+  }
+
   async function drill() {
     await api.runDrill();
     drillSent = true;
@@ -434,6 +443,12 @@ enrolment codes, and test alarms with their reports.
       </tbody>
     </table>
   {/if}
+</section>
+
+<section>
+  <h2>Audit log</h2>
+  <p>This computer's record of alarms, test alarms, enrolments, removals and settings changes.</p>
+  <button class="btn" onclick={copyAudit}>{copied === "audit" ? "Copied" : "Copy as CSV"}</button>
 </section>
 
 <style>

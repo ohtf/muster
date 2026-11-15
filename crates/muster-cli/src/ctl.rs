@@ -62,6 +62,8 @@ pub enum CtlCommand {
     Tokens,
     /// Revoke an enrolment token (admin). Devices it already enrolled stay.
     TokenRevoke { token_id: String },
+    /// This device's audit log as CSV.
+    AuditExport,
     /// Drill reports kept on this device.
     DrillReports,
     /// One drill report (`--format json` for the details).
@@ -154,6 +156,7 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
         CtlCommand::Tokens => ("tokens", Value::Null),
         CtlCommand::TokenRevoke { token_id } => ("token.revoke", json!({"token_id": token_id})),
         CtlCommand::DrillReports => ("drill.reports", Value::Null),
+        CtlCommand::AuditExport => ("audit.export", Value::Null),
         CtlCommand::DrillReport { alarm_id, .. } => ("drill.report", json!({"alarm_id": alarm_id})),
     };
     let sock = cli.control_socket();
@@ -163,6 +166,10 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
     let v = rt
         .block_on(muster_agent::control::call(&sock, method, params))
         .with_context(|| format!("calling the agent at {}", sock.display()))?;
+    if matches!(c, CtlCommand::AuditExport) && cli.format == crate::Format::Text {
+        print!("{}", v["csv"].as_str().unwrap_or(""));
+        return Ok(());
+    }
     if let CtlCommand::DrillReport { csv: true, .. } = c {
         print!("{}", v["csv"].as_str().unwrap_or(""));
         return Ok(());

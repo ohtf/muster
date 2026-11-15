@@ -405,8 +405,65 @@ pub fn merge_practice_settings(
     Ok(cur)
 }
 
+fn csv_field(s: &str) -> String {
+    // Quote always; neutralise spreadsheet formulas.
+    let s = if s.starts_with(['=', '+', '-', '@']) {
+        format!("'{s}")
+    } else {
+        s.to_owned()
+    };
+    format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+/// Audit entries as CSV: time (UTC, RFC 3339), kind, detail.
+pub fn audit_csv(rows: &[(u64, String, String)]) -> String {
+    let mut out = String::from("time_utc,kind,detail\n");
+    for (at, kind, detail) in rows {
+        out.push_str(&format!(
+            "{},{},{}\n",
+            rfc3339(*at),
+            csv_field(kind),
+            csv_field(detail)
+        ));
+    }
+    out
+}
+
+/// Milliseconds since the epoch as `YYYY-MM-DDTHH:MM:SSZ`.
+fn rfc3339(ms: u64) -> String {
+    let secs = ms / 1000;
+    let (days, rem) = (secs / 86_400, secs % 86_400);
+    // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+    let z = days as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn audit_csv_quotes_and_dates() {
+        assert_eq!(super::rfc3339(0), "1970-01-01T00:00:00Z");
+        assert_eq!(super::rfc3339(1_763_100_000_000), "2025-11-14T06:00:00Z");
+        let csv = super::audit_csv(&[(0, "Kind".into(), "=cmd \"x\"".into())]);
+        assert_eq!(
+            csv,
+            "time_utc,kind,detail\n1970-01-01T00:00:00Z,\"Kind\",\"'=cmd \"\"x\"\"\"\n"
+        );
+    }
+
     use super::*;
 
     #[test]

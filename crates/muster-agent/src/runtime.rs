@@ -318,6 +318,14 @@ impl Runtime {
                     "room_locked": self.local.room_locked,
                 }))
             }
+            "audit.export" => {
+                // This device's audit log as CSV (FR-LOG-001), oldest first.
+                let rows = self
+                    .store
+                    .audit_entries()
+                    .map_err(|e| RpcError::refused(e.to_string()))?;
+                Ok(json!({ "csv": crate::views::audit_csv(&rows), "entries": rows.len() }))
+            }
             "practice.settings" => {
                 let (s, version) = self.core.practice_settings();
                 Ok(crate::views::practice_settings(&s, version))
