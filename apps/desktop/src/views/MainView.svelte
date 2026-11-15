@@ -26,6 +26,25 @@ settings, admin and about; or first run if this computer is not set up.
 
   let room = $state("");
   let roomSaved = $state(false);
+  let kitPath = $state("");
+  let kitPass = $state("");
+  let recovering = $state(false);
+  let recovered = $state(false);
+
+  async function recover() {
+    error = "";
+    recovering = true;
+    try {
+      await api.recoverAdmin(kitPath.trim(), kitPass);
+      kitPass = "";
+      recovered = true;
+      setTimeout(refresh, 1500);
+    } catch (e) {
+      error = String(e);
+    } finally {
+      recovering = false;
+    }
+  }
   let joins = $state<{ device: string; label: string; code: string }[]>([]);
 
   const tabs = $derived<[Tab, string][]>([
@@ -221,6 +240,24 @@ settings, admin and about; or first run if this computer is not set up.
             <dd>Pattern {cfg?.sound_pattern ?? "A"}</dd>
           </dl>
           <p class="muted">Your Practice Admin sets these for the whole practice.</p>
+          <details class="recover">
+            <summary>Recover admin access</summary>
+            <p>
+              If every Practice Admin computer is lost, the recovery kit and its passphrase make this computer an admin.
+            </p>
+            <div class="field narrow">
+              <label for="kit">Recovery kit file</label>
+              <input id="kit" bind:value={kitPath} spellcheck="false" placeholder="/media/usb/Muster recovery kit.muster-kit" />
+            </div>
+            <div class="field narrow">
+              <label for="kitpass">Passphrase</label>
+              <input id="kitpass" type="password" bind:value={kitPass} autocomplete="off" />
+            </div>
+            <button class="btn" disabled={recovering || !kitPath.trim() || !kitPass} onclick={recover}>
+              {recovering ? "Opening the kit (a few seconds)..." : "Make this computer an admin"}
+            </button>
+            {#if recovered}<span class="saved" role="status">Done. This computer is now a Practice Admin.</span>{/if}
+          </details>
           <p class="muted">
             To use a different sound on this computer, put a WAV file named <code>alarm-a.wav</code> (or
             <code>alarm-b.wav</code>, <code>alarm-c.wav</code>) in <code>{info?.sounds_dir}</code>.
@@ -405,6 +442,15 @@ settings, admin and about; or first run if this computer is not set up.
 
   dd {
     margin: 0;
+  }
+
+  .recover {
+    margin-top: 16px;
+  }
+
+  .recover summary {
+    cursor: pointer;
+    font-weight: 600;
   }
 
   .saved {

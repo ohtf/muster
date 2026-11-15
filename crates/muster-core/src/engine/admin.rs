@@ -297,6 +297,34 @@ impl Core {
         }
     }
 
+    /// Admin recovery (`spec/04-security.md`): a cert for this device,
+    /// signed by the practice root outside the core.
+    pub(crate) fn install_own_cert(&mut self, now: Mono, wall: WallMs, raw: Vec<u8>) {
+        let Ok(cert) = Cert::from_cbor(&raw) else {
+            return;
+        };
+        let Ok(body) = cert.body() else { return };
+        if body.subject != self.me {
+            return;
+        }
+        let Some(t) = self.trust.as_mut() else { return };
+        if body.practice_id != t.practice_id() {
+            return;
+        }
+        let Ok((serial, _)) = t.add_cert(cert) else {
+            return;
+        };
+        if t.validate(&serial, wall).is_err() {
+            return;
+        }
+        self.persist(PersistOp::AddCert(raw));
+        self.log(AuditEvent::CertAdded {
+            device: self.me,
+            role: body.role,
+        });
+        self.send_cert_announce(now, wall);
+    }
+
     // ---- Admin device -------------------------------------------------
 
     fn require_admin(&self, wall: WallMs) -> bool {

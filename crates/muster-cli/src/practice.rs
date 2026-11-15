@@ -31,6 +31,17 @@ pub enum PracticeCommand {
         #[arg(long)]
         label: Option<String>,
     },
+    /// Make this device a Practice Admin using the recovery kit (asks the
+    /// running agent). Use it when every admin computer is lost.
+    Recover {
+        /// The recovery kit file.
+        #[arg(long)]
+        recovery_kit: PathBuf,
+        /// File holding the passphrase. Read from MUSTER_PASSPHRASE if not
+        /// given.
+        #[arg(long)]
+        passphrase_file: Option<PathBuf>,
+    },
     /// Show the practice-wide settings, or change them (admin; asks the
     /// running agent, which signs and distributes the change).
     Settings {
@@ -127,8 +138,22 @@ pub fn run(cli: &Cli, c: &PracticeCommand) -> anyhow::Result<()> {
             serde_json::Value::Object(p),
         );
     }
+    if let PracticeCommand::Recover {
+        recovery_kit,
+        passphrase_file,
+    } = c
+    {
+        let pass = passphrase(passphrase_file)?;
+        eprintln!("Opening the recovery kit (this takes a few seconds)...");
+        let kit = muster_agent::paths::expand(recovery_kit);
+        return crate::ctl::call_and_emit(
+            cli,
+            "admin.recover",
+            json!({"kit_path": kit.display().to_string(), "passphrase": pass}),
+        );
+    }
     match c {
-        PracticeCommand::Settings { .. } => Ok(()),
+        PracticeCommand::Settings { .. } | PracticeCommand::Recover { .. } => Ok(()),
         PracticeCommand::Init {
             name,
             recovery_kit,

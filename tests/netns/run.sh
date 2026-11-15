@@ -392,7 +392,17 @@ admin() {
     sleep 0.5
   done
   [[ $n -ge 2 ]] || fail "the scheduled drill did not run"
-  pass "admin: tokens, drill report, token revoke, practice settings, scheduled drill"
+  # A member recovers admin rights with the recovery kit; everyone agrees.
+  ctl n2 practice recover --recovery-kit "$WORK/kit" --passphrase-file "$WORK/pass" >/dev/null || fail "recovery refused"
+  local n2dev
+  n2dev=$(ctl n2 --format json ctl status | sed -n 's/.*"device": "\([0-9a-f]*\)".*/\1/p')
+  local ok=
+  for _ in $(seq 20); do
+    ctl n1 --format json device list | tr -d '\n ' | grep -q "\"device\":\"$n2dev\"[^}]*\"role\":\"admin\"" && ok=1 && break
+    sleep 0.5
+  done
+  [[ -n $ok ]] || fail "n1 does not see n2 as an admin after recovery"
+  pass "admin: tokens, drill report, token revoke, practice settings, scheduled drill, recovery"
 }
 
 scenarios=("$@")

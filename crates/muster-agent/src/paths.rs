@@ -19,6 +19,11 @@ pub fn expand(p: &Path) -> PathBuf {
     p.to_owned()
 }
 
+/// [`expand`] for a string.
+pub fn expand_str(p: &str) -> PathBuf {
+    expand(Path::new(p))
+}
+
 /// Headless service data directory, or the per-user one.
 pub fn default_data_dir(headless: bool) -> PathBuf {
     if headless && cfg!(unix) {

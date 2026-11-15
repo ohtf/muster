@@ -49,6 +49,7 @@ export const api = {
   setPracticeSettings: (changes: Record<string, unknown>) => call("practice.set_settings", changes),
   tokens: () => call<Token[]>("tokens"),
   revokeToken: (token_id: string) => call("token.revoke", { token_id }),
+  recoverAdmin: (kit_path: string, passphrase: string) => call("admin.recover", { kit_path, passphrase }),
   auditExport: () => call<{ csv: string; entries: number }>("audit.export"),
   drillReports: () => call<DrillSummary[]>("drill.reports"),
   drillReport: (alarm_id: string) => call<DrillSummary & { csv: string }>("drill.report", { alarm_id }),

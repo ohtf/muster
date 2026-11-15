@@ -676,12 +676,110 @@ pub async fn start(
     if let Err(e) = rt.store.prune_drill_reports(cutoff) {
         tracing::warn!("pruning drill reports: {e}");
     }
-    let task = tokio::spawn(agent_loop(rt, in_rx, ctl_rx, auth_rx));
+    let task = tokio::spawn(agent_loop(
+        rt,
+        handle.inputs.clone(),
+        in_rx,
+        ctl_rx,
+        auth_rx,
+    ));
     Ok((handle, task))
+}
+
+/// Admin recovery: opens the kit (slow, by design) and has the practice
+/// root sign an admin cert for this device.
+fn recovery_cert(
+    kit_path: &std::path::Path,
+    passphrase: &str,
+    practice: muster_proto::PracticeId,
+    me: DeviceId,
+    kx: [u8; 32],
+    label: String,
+    wall: u64,
+) -> Result<Vec<u8>, String> {
+    use muster_proto::Cbor;
+    let bytes =
+        std::fs::read(kit_path).map_err(|e| format!("cannot read {}: {e}", kit_path.display()))?;
+    let kit = muster_crypto::recovery::RecoveryKit::from_cbor(&bytes)
+        .map_err(|_| "that file is not a Muster recovery kit".to_owned())?;
+    let contents = muster_crypto::recovery::open_kit(&kit, passphrase)
+        .map_err(|_| "the passphrase does not open this recovery kit".to_owned())?;
+    if contents.practice_id != practice {
+        return Err(format!(
+            "this recovery kit is for {}, not this practice",
+            contents.practice_name
+        ));
+    }
+    let mut serial = [0u8; 16];
+    getrandom::fill(&mut serial).map_err(|_| "no random numbers".to_owned())?;
+    let cert = muster_crypto::cert::issue_cert(
+        &contents.root,
+        muster_proto::CertBody {
+            version: muster_proto::cert::CERT_VERSION,
+            practice_id: practice,
+            serial: muster_proto::CertSerial(serial),
+            subject: me,
+            subject_kx: kx,
+            role: muster_proto::Role::Admin,
+            label,
+            issued_at: wall,
+            expires_at: 0,
+            issuer: [0; 32],
+            token_id: None,
+        },
+    );
+    Ok(cert.to_cbor())
+}
+
+/// Starts admin recovery off the agent loop and answers when the new cert
+/// has been handed to the core.
+fn start_recovery(rt: &Runtime, req: Request, inputs: mpsc::Sender<Input>) {
+    let wall = wall_now();
+    let me = rt.core.device_id();
+    let own = rt.core.trust().and_then(|t| {
+        t.valid_certs(&me, wall)
+            .into_iter()
+            .max_by_key(|b| b.issued_at)
+            .map(|b| (b.practice_id, b.subject_kx, b.label.clone()))
+    });
+    let kit = req
+        .params
+        .get("kit_path")
+        .and_then(Value::as_str)
+        .map(crate::paths::expand_str);
+    let pass = req
+        .params
+        .get("passphrase")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let (Some((practice, kx, label)), Some(kit), Some(pass)) = (own, kit, pass) else {
+        let _ = req.reply.send(Err(RpcError::invalid_params(
+            "kit_path and passphrase required, on a device enrolled in the practice",
+        )));
+        return;
+    };
+    tokio::spawn(async move {
+        let r = tokio::task::spawn_blocking(move || {
+            recovery_cert(&kit, &pass, practice, me, kx, label, wall)
+        })
+        .await
+        .unwrap_or_else(|_| Err("recovery failed".into()));
+        let reply = match r {
+            Ok(raw) => {
+                let _ = inputs
+                    .send(Input::User(UserAction::InstallOwnCert(raw)))
+                    .await;
+                Ok(json!({"ok": true}))
+            }
+            Err(e) => Err(RpcError::refused(e)),
+        };
+        let _ = req.reply.send(reply);
+    });
 }
 
 async fn agent_loop(
     mut rt: Runtime,
+    inputs: mpsc::Sender<Input>,
     mut in_rx: mpsc::Receiver<Input>,
     mut ctl_rx: mpsc::Receiver<Request>,
     mut auth_rx: mpsc::Receiver<muster_net::relay::AuthRequest>,
@@ -704,6 +802,8 @@ async fn agent_loop(
                         let r = wait_alarm(rx, Duration::from_millis(ms)).await;
                         let _ = req.reply.send(r);
                     });
+                } else if req.method == "admin.recover" {
+                    start_recovery(&rt, req, inputs.clone());
                 } else {
                     rt.control(req);
                 }

@@ -827,6 +827,7 @@ impl Core {
                 self.join_requests.remove(&device);
             }
             UserAction::Promote { device } => self.promote(now, wall, device),
+            UserAction::InstallOwnCert(raw) => self.install_own_cert(now, wall, raw),
             UserAction::SetOwnSettings { label, room } => {
                 self.apply_own_settings(label, room, wall, None);
             }

@@ -100,6 +100,10 @@ pub enum UserAction {
     Promote {
         device: DeviceId,
     },
+    /// Install a cert for this device made outside the core (admin
+    /// recovery: the practice root, from the recovery kit, signs a new admin
+    /// cert). Ignored unless it is valid and for this device.
+    InstallOwnCert(Vec<u8>),
     /// Set this device's own label or room (`None` leaves it unchanged).
     SetOwnSettings {
         label: Option<String>,
