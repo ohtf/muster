@@ -133,7 +133,9 @@ enrolment codes, and test alarms with their reports.
         api.practiceSettings(),
       ]);
       loadSettings(s);
-      devices.sort((a, b) => Number(b.this_device) - Number(a.this_device) || (a.room ?? "").localeCompare(b.room ?? ""));
+      devices.sort(
+        (a, b) => Number(b.this_device) - Number(a.this_device) || (a.room ?? "").localeCompare(b.room ?? ""),
+      );
     } catch (e) {
       onerror(String(e));
     }
@@ -291,7 +293,11 @@ enrolment codes, and test alarms with their reports.
     <h2>Devices ({devices.length})</h2>
     <div class="seg" role="group" aria-label="Show">
       <button class:on={filter === "all"} aria-pressed={filter === "all"} onclick={() => (filter = "all")}>All</button>
-      <button class:on={filter === "attention"} aria-pressed={filter === "attention"} onclick={() => (filter = "attention")}>
+      <button
+        class:on={filter === "attention"}
+        aria-pressed={filter === "attention"}
+        onclick={() => (filter = "attention")}
+      >
         Needs attention ({devices.filter(attention).length})
       </button>
     </div>
@@ -309,7 +315,9 @@ enrolment codes, and test alarms with their reports.
             <td>
               {d.label || d.device_short}
               {#if d.role === "admin"}<span class="tag">Admin</span>{/if}
-              {#if d.token_id && tokenOf(d.token_id)}<br /><span class="muted small">Joined with "{tokenOf(d.token_id)}"</span>{/if}
+              {#if d.token_id && tokenOf(d.token_id)}<br /><span class="muted small"
+                  >Joined with "{tokenOf(d.token_id)}"</span
+                >{/if}
             </td>
             <td>{d.room || "-"}</td>
           {/if}
@@ -363,8 +371,12 @@ enrolment codes, and test alarms with their reports.
     <div class="token">
       <textarea readonly rows="3" aria-label="Enrolment code">{token.text}</textarea>
       <div class="inline">
-        <button class="btn" onclick={() => token && copy(token.text, "token")}>{copied === "token" ? "Copied" : "Copy"}</button>
-        <span class="muted">Valid until {new Date(token.expires_at).toLocaleDateString("en-GB")}. Treat it like a password.</span>
+        <button class="btn" onclick={() => token && copy(token.text, "token")}
+          >{copied === "token" ? "Copied" : "Copy"}</button
+        >
+        <span class="muted"
+          >Valid until {new Date(token.expires_at).toLocaleDateString("en-GB")}. Treat it like a password.</span
+        >
       </div>
     </div>
   {/if}
@@ -478,8 +490,15 @@ enrolment codes, and test alarms with their reports.
     </div>
     <div class="field wide">
       <label for="s-relays">Relay addresses</label>
-      <textarea id="s-relays" rows="2" bind:value={sRelays} spellcheck="false" placeholder="wss://relay.example.org.uk/v1/ws"></textarea>
-      <span class="hint">One per line. Only needed for separate networks, Wi-Fi isolation or staff working elsewhere.</span>
+      <textarea
+        id="s-relays"
+        rows="2"
+        bind:value={sRelays}
+        spellcheck="false"
+        placeholder="wss://relay.example.org.uk/v1/ws"></textarea>
+      <span class="hint"
+        >One per line. Only needed for separate networks, Wi-Fi isolation or staff working elsewhere.</span
+      >
     </div>
   </div>
   <button class="btn primary" onclick={saveSettings}>Save practice settings</button>
@@ -489,7 +508,9 @@ enrolment codes, and test alarms with their reports.
 
 <section>
   <h2>Test alarms</h2>
-  <p>Every device shows "Test alarm received - no action needed". Nobody is alerted. The report is ready after a minute.</p>
+  <p>
+    Every device shows "Test alarm received - no action needed". Nobody is alerted. The report is ready after a minute.
+  </p>
   <button class="btn" onclick={drill}>Run a test alarm now</button>
   {#if drillSent}<span class="saved" role="status">Sent</span>{/if}
   {#if reports.length}
@@ -508,7 +529,9 @@ enrolment codes, and test alarms with their reports.
                 {#if r.received < r.expected}<span class="warn">({r.expected - r.received} missed)</span>{/if}
               </td>
               <td class="right">
-                <button class="btn" onclick={() => copyReport(r)}>{copied === r.alarm_id ? "Copied" : "Copy as CSV"}</button>
+                <button class="btn" onclick={() => copyReport(r)}
+                  >{copied === r.alarm_id ? "Copied" : "Copy as CSV"}</button
+                >
               </td>
             {/if}
           </tr>

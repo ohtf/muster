@@ -148,7 +148,9 @@ settings, admin and about; or first run if this computer is not set up.
     </header>
 
     {#if error}
-      <p class="banner error" role="alert">{error} <button class="link" onclick={() => (error = "")}>Dismiss</button></p>
+      <p class="banner error" role="alert">
+        {error} <button class="link" onclick={() => (error = "")}>Dismiss</button>
+      </p>
     {/if}
 
     <main>
@@ -159,7 +161,9 @@ settings, admin and about; or first run if this computer is not set up.
             <h1>{status?.summary ?? "Starting..."}</h1>
             {#each status?.reasons ?? [] as r (r)}<p>{r}</p>{/each}
             {#if info?.wayland}
-              <p>On-screen button may be hidden behind windows on this desktop. Use the tray icon to reach Panic Button.</p>
+              <p>
+                On-screen button may be hidden behind windows on this desktop. Use the tray icon to reach Panic Button.
+              </p>
             {/if}
           </div>
         </section>
@@ -227,7 +231,9 @@ settings, admin and about; or first run if this computer is not set up.
             <label for="room">Room</label>
             <input id="room" bind:value={room} disabled={cfg?.room_locked} />
             <span class="hint">
-              {cfg?.room_locked ? "Set by this computer's IT configuration." : "Shown to colleagues when you call for help."}
+              {cfg?.room_locked
+                ? "Set by this computer's IT configuration."
+                : "Shown to colleagues when you call for help."}
             </span>
           </div>
           <button class="btn primary" onclick={saveRoom} disabled={cfg?.room_locked}>Save room</button>
@@ -256,7 +262,12 @@ settings, admin and about; or first run if this computer is not set up.
             </p>
             <div class="field narrow">
               <label for="kit">Recovery kit file</label>
-              <input id="kit" bind:value={kitPath} spellcheck="false" placeholder="/media/usb/Panic Button recovery kit.panic-button-kit" />
+              <input
+                id="kit"
+                bind:value={kitPath}
+                spellcheck="false"
+                placeholder="/media/usb/Panic Button recovery kit.panic-button-kit"
+              />
             </div>
             <div class="field narrow">
               <label for="kitpass">Passphrase</label>
@@ -277,10 +288,13 @@ settings, admin and about; or first run if this computer is not set up.
       {:else if tab === "about"}
         <section>
           <h1>About Panic Button</h1>
-          <p>Version {info?.version}. A staff alarm for calling colleagues for help, from the Open Health Technology Foundation.</p>
           <p>
-            Panic Button is free software under the GNU Affero General Public License, version 3 or later, with an app store
-            exception. The source is at <code>https://github.com/ohtf/panic-button</code>.
+            Version {info?.version}. A staff alarm for calling colleagues for help, from the Open Health Technology
+            Foundation.
+          </p>
+          <p>
+            Panic Button is free software under the GNU Affero General Public License, version 3 or later, with an app
+            store exception. The source is at <code>https://github.com/ohtf/panic-button</code>.
           </p>
           <p class="muted">Data folder: <code>{info?.data_dir}</code></p>
           {#if info?.allow_quit}
@@ -419,9 +433,6 @@ settings, admin and about; or first run if this computer is not set up.
     font-weight: 600;
   }
 
-
-
-
   .inline {
     display: flex;
     gap: 12px;
@@ -429,15 +440,9 @@ settings, admin and about; or first run if this computer is not set up.
     flex-wrap: wrap;
   }
 
-
   .end {
     justify-content: flex-end;
   }
-
-
-
-
-
 
   dl {
     display: grid;

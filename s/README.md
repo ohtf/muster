@@ -53,7 +53,7 @@ Run the desktop app in development (Vite hot reload plus the Tauri shell).
 
 ## `s/desktop-check`
 
-Type-check and build the frontend, then clippy and test the Tauri crate. `s/test` and `s/lint` leave the desktop crate out because it needs WebKit and a built frontend.
+Lint (ESLint, Prettier), type-check and build the frontend, then clippy and test the Tauri crate. `npm run format` in `apps/desktop` fixes formatting. `s/test` and `s/lint` leave the desktop crate out because it needs WebKit and a built frontend.
 
 - `s/desktop-check`
 

@@ -67,10 +67,12 @@ export const api = {
   approveJoin: (device: string) => call("admin.approve_join", { device }),
   rejectJoin: (device: string) => call("admin.reject_join", { device }),
   setupPractice: (name: string, label: string, passphrase: string, kitPath: string) =>
-    invoke<{ practice: string; practice_id: string; root_pub: string; recovery_kit: string }>(
-      "setup_practice",
-      { name, label, passphrase, kitPath },
-    ),
+    invoke<{ practice: string; practice_id: string; root_pub: string; recovery_kit: string }>("setup_practice", {
+      name,
+      label,
+      passphrase,
+      kitPath,
+    }),
   joinWithToken: (token: string) => invoke<void>("join_with_token", { token }),
   newRecoveryKit: (oldPath: string, oldPass: string, newPath: string, newPass: string) =>
     invoke<{ practice: string; recovery_kit: string }>("new_recovery_kit", { oldPath, oldPass, newPath, newPass }),

@@ -14,6 +14,8 @@ for 15 s; the window hides when no cards remain.
 
   let cards = $state<Alarm[]>([]);
   let now = $state(Date.now());
+  // Timer handles only; nothing renders from this, so it need not be reactive.
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function upsert(a: Alarm, add: boolean) {

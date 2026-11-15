@@ -92,7 +92,9 @@ colours, no flashing. The honest delivery messages must be shown.
   {#if own}
     <section aria-live="polite">
       {#if closed}
-        <h1>{own.state === "resolved" ? "Resolved" : own.state === "cancelled" ? "Cancelled - sent in error" : "Ended"}</h1>
+        <h1>
+          {own.state === "resolved" ? "Resolved" : own.state === "cancelled" ? "Cancelled - sent in error" : "Ended"}
+        </h1>
         {#if own.state === "resolved" && own.resolved_by}
           <p class="muted">By {own.resolved_by}{own.closed_at ? ` at ${clock(own.closed_at)}` : ""}</p>
         {/if}
@@ -131,7 +133,9 @@ colours, no flashing. The honest delivery messages must be shown.
           <button class="btn" onclick={() => ask("resolve")}>Resolved</button>
         </div>
       {/if}
-      <button class="collapse" aria-label="Hide this panel" title="Hide" onclick={() => api.hideWindow("panel")}>×</button>
+      <button class="collapse" aria-label="Hide this panel" title="Hide" onclick={() => api.hideWindow("panel")}
+        >×</button
+      >
     </section>
   {:else if toast}
     <section aria-live="polite">

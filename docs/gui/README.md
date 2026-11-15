@@ -49,7 +49,7 @@ With `PANIC_BUTTON_DATA_DIR` set, the single-instance check is off and the tray 
 s/desktop-check
 ```
 
-This type-checks and builds the frontend, then runs clippy and the tests for the Tauri crate. `s/test` and `s/lint` leave the desktop crate out because it needs WebKit and a built frontend.
+This lints (ESLint, Prettier), type-checks and builds the frontend, then runs clippy and the tests for the Tauri crate. `npm run format` in `apps/desktop` fixes formatting; CI runs the frontend checks on every push. `s/test` and `s/lint` leave the desktop crate out because it needs WebKit and a built frontend.
 
 Each view also runs in an ordinary browser against a mock agent, for layout work and screenshots. Run `npm run dev` in `apps/desktop`, then open `http://localhost:1420/?view=alert&mock=alert`. Views: `button`, `panel`, `alert`, `main`. Mock scenarios: `idle`, `alert`, `sender`, `firstrun`, `amber`, `red`.
 

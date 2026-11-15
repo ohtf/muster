@@ -145,7 +145,9 @@ alerts nobody.
     <div class="field">
       <label for="pass">Recovery passphrase</label>
       <input id="pass" type="password" bind:value={pass} autocomplete="new-password" />
-      <span class="hint">At least 12 characters. With the recovery kit, it restores admin access if this computer is lost.</span>
+      <span class="hint"
+        >At least 12 characters. With the recovery kit, it restores admin access if this computer is lost.</span
+      >
     </div>
     <div class="field">
       <label for="pass2">Passphrase again</label>
@@ -189,8 +191,7 @@ alerts nobody.
   {:else if step === "practice"}
     <h1>Try it now</h1>
     <p>
-      Press and hold the button for {(holdMs / 1000).toFixed(1)} seconds. This is a practice and will not alert
-      anyone.
+      Press and hold the button for {(holdMs / 1000).toFixed(1)} seconds. This is a practice and will not alert anyone.
     </p>
     <div class="practice">
       <HoldButton size={96} practice label="Practice: press and hold" />
