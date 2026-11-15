@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+#
+# Install Panic Button from this checkout.
+#
+#   s/install            the command-line programs (panic-button,
+#                        panic-button-agent, panic-button-relay) into
+#                        ~/.cargo/bin
+#   s/install --desktop  those, plus the desktop app as a system package
+#
+# The desktop app is built as a deb and installed with the system's package
+# manager, so it starts at sign-in, appears in the app menu and can be removed
+# cleanly:
+#
+#   Arch and derivatives  package panic-button-git (wraps the deb with
+#                         packaging/aur/PKGBUILD.in); remove with
+#                         `sudo pacman -R panic-button-git`
+#   Debian, Ubuntu        `sudo apt remove panic-button`
+#   Fedora                built as an rpm; `sudo dnf remove panic-button`
+#
+# It asks for your sudo password for the last step. Quit the running app (tray
+# menu) and start it again afterwards to use the new build. Uncommitted
+# changes are included in the build but not in the package version.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+desktop=false
+case "${1:-}" in
+  "") ;;
+  --desktop) desktop=true ;;
+  *) echo "usage: s/install [--desktop]" >&2; exit 2 ;;
+esac
+
+command -v cargo >/dev/null || { echo "cargo not found: install Rust from https://rustup.rs" >&2; exit 1; }
+
+for p in panic-button panic-button-agent panic-button-relay; do
+  cargo install --locked --target-dir target --path "crates/$p"
+done
+$desktop || exit 0
+
+if command -v pacman >/dev/null; then
+  system=arch
+elif command -v apt-get >/dev/null; then
+  system=debian
+elif command -v dnf >/dev/null; then
+  system=fedora
+else
+  echo "s/install --desktop knows pacman, apt and dnf. Elsewhere, build the AppImage and run it:" >&2
+  echo "  (cd apps/desktop && npx tauri build --bundles appimage)" >&2
+  exit 1
+fi
+
+command -v npm >/dev/null || { echo "npm not found: install Node.js 24 (https://nodejs.org)" >&2; exit 1; }
+if ! pkg-config --exists webkit2gtk-4.1 libsoup-3.0 alsa 2>/dev/null; then
+  echo "The desktop app needs WebKitGTK 4.1, libsoup 3 and ALSA development files:" >&2
+  case $system in
+    arch) echo "  sudo pacman -S --needed webkit2gtk-4.1 libsoup3 alsa-lib libayatana-appindicator librsvg" >&2 ;;
+    debian) echo "  sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev" >&2 ;;
+    fedora) echo "  sudo dnf install webkit2gtk4.1-devel libayatana-appindicator-gtk3-devel librsvg2-devel alsa-lib-devel" >&2 ;;
+  esac
+  exit 1
+fi
+
+version="$(awk -F\" '/^version = / {print $2; exit}' Cargo.toml)"
+bundle=target/release/bundle
+bundles=deb
+[[ $system == fedora ]] && bundles=rpm
+(cd apps/desktop && { [[ -d node_modules ]] || npm ci; } && npx tauri build --bundles "$bundles")
+
+case $system in
+  arch)
+    command -v makepkg >/dev/null || { echo "makepkg not found: sudo pacman -S --needed base-devel" >&2; exit 1; }
+    pkgver="${version}.r$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    build=target/install/arch
+    rm -rf "$build"
+    mkdir -p "$build"
+    cp "$bundle/deb/Panic Button_${version}_amd64.deb" "$build/panic-button-desktop_${pkgver}_amd64.deb"
+    cp LICENSE-EXCEPTIONS.md "$build/LICENSE-EXCEPTIONS-${pkgver}.md"
+    # makepkg uses source files already in the build folder instead of
+    # downloading them, so the release URLs in the template are never fetched.
+    sed -e "s/^pkgname=panic-button-bin$/pkgname=panic-button-git/" \
+        -e "s/@VERSION@/${pkgver}/" \
+        -e "s/@DEB_SHA256@/$(sha256sum "$build/panic-button-desktop_${pkgver}_amd64.deb" | cut -d' ' -f1)/" \
+        -e "s/@EXCEPTION_SHA256@/$(sha256sum LICENSE-EXCEPTIONS.md | cut -d' ' -f1)/" \
+        packaging/aur/PKGBUILD.in > "$build/PKGBUILD"
+    grep -q '^pkgname=panic-button-git$' "$build/PKGBUILD"
+    (cd "$build" && makepkg -f -d --noconfirm)
+    exec sudo pacman -U "$build/panic-button-git-${pkgver}-1-x86_64.pkg.tar.zst"
+    ;;
+  debian)
+    exec sudo apt-get install --reinstall "$PWD/$bundle/deb/Panic Button_${version}_amd64.deb"
+    ;;
+  fedora)
+    rpm="$PWD/$bundle/rpm/Panic Button-${version}-1.x86_64.rpm"
+    if rpm -q panic-button >/dev/null 2>&1; then
+      exec sudo dnf reinstall "$rpm"
+    fi
+    exec sudo dnf install "$rpm"
+    ;;
+esac

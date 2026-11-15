@@ -11,6 +11,13 @@ Run the full test suite, including simulator scenarios and properties.
 - `PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties` - CI-scale property run
 - `PROPTEST_CASES=1000 s/test --release -p panic-button-sim --test properties` - long property run (about an hour)
 
+## `s/install`
+
+Install from this checkout. The command-line programs go into `~/.cargo/bin`. With `--desktop`, the desktop app is also built and installed as a system package: `panic-button-git` on Arch (via the AUR PKGBUILD), the deb on Debian and Ubuntu, the rpm on Fedora. Asks for your sudo password at the end.
+
+- `s/install` - the command-line programs
+- `s/install --desktop` - and the desktop app
+
 ## `s/version++`
 
 Release: bump the version (`patch`, `minor` or `major`), regenerate `CHANGELOG.md` and push the release commit. CI tags it and publishes to GitHub Releases, Homebrew, the AUR and crates.io.
