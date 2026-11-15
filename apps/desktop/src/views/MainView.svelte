@@ -240,6 +240,15 @@ settings, admin and about; or first run if this computer is not set up.
             <dd>Pattern {cfg?.sound_pattern ?? "A"}</dd>
           </dl>
           <p class="muted">Your Practice Admin sets these for the whole practice.</p>
+          <h2>Keyboard shortcut</h2>
+          {#if info?.shortcut?.active}
+            <p>
+              Hold <kbd>{info.shortcut.keys}</kbd> for {cfg ? (cfg.hold_ms / 1000).toFixed(1) : "1.5"} seconds to call for
+              help, from any program. It works like holding the red button.
+            </p>
+          {:else if info?.shortcut}
+            <p>{info.shortcut.problem}</p>
+          {/if}
           <details class="recover">
             <summary>Recover admin access</summary>
             <p>
@@ -492,5 +501,15 @@ settings, admin and about; or first run if this computer is not set up.
 
   code {
     word-break: break-all;
+  }
+
+  kbd {
+    padding: 1px 6px;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
   }
 </style>

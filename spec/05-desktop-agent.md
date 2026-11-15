@@ -52,6 +52,7 @@ Holding --Tick, elapsed >= hold_ms--> Triggered --> raise alarm --> Idle
 - The core emits `UiEvent::HoldProgress{fraction}` at 30 Hz so the ring animation stays in sync with the real timer. The UI may interpolate.
 - Touch long-press uses the same path.
 - The shortcut (`tauri-plugin-global-shortcut`, which reports Pressed and Released) sends `HoldStart{source: hotkey}` on the first Pressed and `HoldEnd` on Released. Repeated Pressed events are ignored. If Released is unsupported on the platform, switch to double-press mode (FR-ACT-007) and say so in settings.
+- The shortcut works on Windows, macOS and X11. In a Wayland session it cannot work without the XDG GlobalShortcuts portal (not yet supported), even under XWayland, so Settings says it is unavailable there. `alarm.hotkey = ""` or `"none"` turns it off; a shortcut that cannot be registered (another program has it) is logged and shown in Settings, and the app still starts.
 
 ### Hold cue
 
@@ -67,7 +68,9 @@ After a trigger, **no sound** plays on the sender's device in any mode (ADR 0008
 
 - Tray menu "Move button": the button gets a dashed outline and can be dragged freely for 30 s, or until clicked once. In this mode holding does nothing.
 - Shift+drag at any time also moves it (Shift held at `pointerdown` means move, not hold).
-- Positions are saved keyed by a hash of the monitor layout. If the saved monitor is missing, the button goes to the default position on the primary monitor.
+- Positions are saved keyed by the monitor layout (each monitor's size, position and scale; names are left out because some systems change them), in `button-position.json` in the data folder, at most 16 layouts. A saved position is pulled wholly onto the monitor holding its centre; if no monitor holds it, the button goes to the default position on the primary monitor.
+- Every 5 s the app checks the layout. If it changed (a laptop docked or undocked, a screen unplugged) or the button is no longer wholly on a screen, the button is placed again for the new layout.
+- On Wayland the compositor places windows, so positions are neither saved nor restored.
 
 ## Sender panel (after trigger)
 

@@ -57,6 +57,12 @@ Type-check and build the frontend, then clippy and test the Tauri crate. `s/test
 
 - `s/desktop-check`
 
+## `s/x11-test`
+
+Build the release desktop app and CLI, then check them on a real X server in an Arch container (Xvfb, with and without a window manager): the button's size and corner, that a moved button is remembered per monitor layout, and that holding the keyboard shortcut raises an alarm. Needs Docker. Part of `s/check-deep`.
+
+- `s/x11-test`
+
 ## `s/sounds`
 
 Regenerate the built-in sounds in `sounds/` from the synthesiser, then commit them. A test checks the files match.

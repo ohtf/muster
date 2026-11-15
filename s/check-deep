@@ -2,7 +2,8 @@
 #
 # The slow checks, on this machine instead of GitHub Actions: simulator
 # properties and scenarios, the network-namespace scenarios, the desktop
-# app, and a short fuzz of every target. About 25 minutes on a fast laptop.
+# app (with s/x11-test if Docker is present), and a short fuzz of every
+# target. About 30 minutes on a fast laptop.
 #
 #   s/check-deep          256 property cases, 60 s per fuzz target
 #   s/check-deep --long   1,000 property cases, S13 at 250 devices,
@@ -33,6 +34,13 @@ s/netns-test
 
 step "desktop app"
 s/desktop-check
+
+if command -v docker >/dev/null 2>&1; then
+  step "desktop app on X11 (button position, keyboard shortcut)"
+  s/x11-test
+else
+  echo "s/check-deep: Docker missing, skipping s/x11-test" >&2
+fi
 
 if rustup toolchain list | grep -q '^nightly' && command -v cargo-fuzz >/dev/null 2>&1; then
   for t in $(cargo +nightly fuzz list --fuzz-dir fuzz); do

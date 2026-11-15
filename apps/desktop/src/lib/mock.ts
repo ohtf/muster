@@ -152,6 +152,15 @@ export const mock = {
           token_configured: false,
           home_dir: "/home/user",
           sounds_dir: "~/.local/share/panic-button/sounds",
+          shortcut:
+            scenario === "amber"
+              ? {
+                  keys: "Ctrl+Shift+F12",
+                  active: false,
+                  problem:
+                    "Keyboard shortcuts for other apps do not work on this desktop (Wayland). Use the on-screen button.",
+                }
+              : { keys: "Ctrl+Shift+F12", active: true, problem: null },
         };
       case "setup_practice":
         await new Promise((r) => setTimeout(r, 1500));

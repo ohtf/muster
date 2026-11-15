@@ -120,6 +120,13 @@ export interface AppInfo {
   token_configured: boolean;
   home_dir: string;
   sounds_dir: string;
+  shortcut: ShortcutInfo | null;
+}
+
+export interface ShortcutInfo {
+  keys: string;
+  active: boolean;
+  problem: string | null;
 }
 
 export type SenderPhase = "requested" | "delivered" | "not_yet_delivered" | "could_not_reach";

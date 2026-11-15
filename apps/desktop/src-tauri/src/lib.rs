@@ -10,6 +10,8 @@
 //! `PANIC_BUTTON_DATA_DIR` set, the single-instance check is skipped.
 
 pub mod audio;
+mod placement;
+mod shortcut;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -77,6 +79,15 @@ fn user_display() -> String {
         }
     }
     user
+}
+
+/// Running as a Wayland client, where the compositor places windows and
+/// global shortcuts need a portal. `GDK_BACKEND=x11` runs the app under
+/// XWayland instead.
+fn wayland() -> bool {
+    cfg!(target_os = "linux")
+        && std::env::var_os("WAYLAND_DISPLAY").is_some()
+        && !std::env::var("GDK_BACKEND").is_ok_and(|b| b.starts_with("x11"))
 }
 
 fn err(e: impl std::fmt::Display) -> String {
@@ -157,6 +168,11 @@ async fn pump_audio(h: AgentHandle, audio: Audio) {
     }
 }
 
+/// The running agent, if this computer is set up.
+async fn agent_handle(app: &AppHandle) -> Option<AgentHandle> {
+    app.state::<Shared>().agent.lock().await.clone()
+}
+
 async fn agent(st: &State<'_, Shared>) -> Result<AgentHandle, String> {
     st.agent
         .lock()
@@ -177,10 +193,11 @@ struct AppInfo {
     token_configured: bool,
     home_dir: String,
     sounds_dir: String,
+    shortcut: Option<shortcut::Info>,
 }
 
 #[tauri::command]
-async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
+async fn app_info(app: AppHandle, st: State<'_, Shared>) -> Result<AppInfo, String> {
     let running = st.agent.lock().await.is_some();
     let cfg = st.config.lock().await;
     Ok(AppInfo {
@@ -190,10 +207,11 @@ async fn app_info(st: State<'_, Shared>) -> Result<AppInfo, String> {
         data_dir: st.data_dir.display().to_string(),
         allow_quit: st.allow_quit,
         audio_ok: st.audio_ok,
-        wayland: cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some(),
+        wayland: wayland(),
         token_configured: cfg.enrolment.token.is_some() || cfg.enrolment.token_file.is_some(),
         home_dir: paths::expand(Path::new("~")).display().to_string(),
         sounds_dir: st.data_dir.join("sounds").display().to_string(),
+        shortcut: app.try_state::<shortcut::State>().map(|s| s.info()),
     })
 }
 
@@ -467,6 +485,7 @@ pub fn run() {
     }
     let token_configured =
         config.enrolment.token.is_some() || config.enrolment.token_file.is_some();
+    let hotkey = config.alarm.hotkey.clone();
     let result = builder
         .manage(Shared {
             data_dir: data_dir.clone(),
@@ -492,8 +511,11 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             build_tray(&handle, allow_quit)?;
+            shortcut::setup(&handle, hotkey.as_deref());
             let enrolled = panic_button_agent::setup::is_enrolled(&data_dir).unwrap_or(false);
+            app.manage(windows::Placer::new(&data_dir, wayland()));
             windows::create_all(&handle, !enrolled)?;
+            tauri::async_runtime::spawn(windows::watch_button(handle.clone()));
             if enrolled || token_configured {
                 let h = handle.clone();
                 tauri::async_runtime::spawn(async move {
@@ -506,13 +528,17 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|w, e| {
+        .on_window_event(|w, e| match e {
             // Closing a window hides it: Panic Button keeps running so alarms
             // still arrive.
-            if let tauri::WindowEvent::CloseRequested { api, .. } = e {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 let _ = w.hide();
             }
+            tauri::WindowEvent::Moved(pos) if w.label() == "button" => {
+                windows::button_moved(w.app_handle(), *pos);
+            }
+            _ => {}
         })
         .run(tauri::generate_context!());
     if let Err(e) = result {

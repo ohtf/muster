@@ -33,7 +33,7 @@ Highest wins, per key:
 | `alarm.sound_pattern` | enum | `A` | `A` | 1, 3 | `A`, `B`, `C` |
 | `alarm.volume_pct` | u8 | 100 | 100 | 1, 4 | |
 | `alarm.override_mute` | bool | true | false | 1, 3 | Windows only in v1 |
-| `alarm.hotkey` | string | `Ctrl+Shift+F12` | same | 1, 4 | |
+| `alarm.hotkey` | string | `Ctrl+Shift+F12` | same | 1, 4 | `""` or `none` turns it off. Not available on Wayland |
 | `ui.floating_button.allow_hide` | bool | false | true | 1 | |
 | `ui.allow_quit` | bool | false | true | 1 | |
 | `drill.schedule` | string | | | 3 | e.g. `Tue 07:45` (local time) |

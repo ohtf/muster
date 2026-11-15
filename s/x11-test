@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#
+# Build the release desktop app and CLI, then check the button window, its
+# remembered position and the keyboard shortcut on a real X server in a
+# container (tests/x11/run.sh). Needs Docker; about 3 minutes.
+#
+#   s/x11-test
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+cargo build --release -p panic-button
+(cd apps/desktop && { [[ -d node_modules ]] || npm ci; } && npx tauri build --no-bundle)
+exec tests/x11/run.sh "$@"

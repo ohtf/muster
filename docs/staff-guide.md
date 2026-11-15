@@ -18,6 +18,8 @@ Your computer makes no sound once the alarm has gone, so nobody in the room is a
 
 If you let go before the ring is full, nothing is sent. Moving the mouse while you hold does not stop the alarm.
 
+You can also hold the keys Ctrl, Shift and F12 together for the same time, whatever program you are in. The Settings tab says whether this works on your computer.
+
 ## If you pressed it by mistake
 
 Click Cancel - sent in error, then Cancel alarm. Everyone's screen then shows that it was sent in error.
@@ -48,4 +50,4 @@ Your practice may run test alarms. They show "Test alarm received - no action ne
 
 ## Moving the button
 
-Hold the Shift key and drag the button to where you want it.
+Hold the Shift key and drag the button to where you want it. It stays there next time. If you use a laptop with and without a monitor, it remembers a place for each.

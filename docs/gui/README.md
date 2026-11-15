@@ -79,6 +79,7 @@ window-rule {
 ## Not done yet
 
 - Join by approval code (the app joins with an enrolment code only).
-- The global shortcut, "Move button" position memory, and the per-OS work in R32: Windows audio endpoint and named pipe, session detection, macOS Local Network.
-- Practice settings and drill schedules in Admin.
-- Installers (M7).
+- The keyboard shortcut on Wayland (needs the GlobalShortcuts portal).
+- The rest of R32: the Windows audio endpoint, session detection, macOS Local Network.
+
+`s/x11-test` checks the button window, its remembered position and the keyboard shortcut on a real X server in a container.
