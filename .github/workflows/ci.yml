@@ -81,23 +81,11 @@ jobs:
         shell: bash
         run: rustup toolchain install --no-self-update
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      # Dev profile: release builds of these binaries left the runner
-      # unresponsive in CI (not reproducible locally or in a 4-CPU
-      # container). The monitor prints memory and the busiest processes
-      # each minute, so a recurrence leaves evidence in the log.
-      - name: Build agent, CLI and relay
-        timeout-minutes: 25
-        shell: bash
-        run: |
-          (while sleep 60; do free -m | sed -n 2p; ps -eo rss,etimes,comm --sort=-rss | sed -n 2,4p; done) &
-          monitor=$!
-          cargo build -j 2 -p muster-agent -p muster-cli -p muster-relay
-          kill "$monitor"
-        env:
-          CARGO_TERM_PROGRESS_WHEN: never
+      - run: cargo build --release -p muster-agent -p muster-cli -p muster-relay
       - run: sudo --preserve-env=MUSTER_BIN tests/netns/run.sh
+        timeout-minutes: 20
         env:
-          MUSTER_BIN: ${{ github.workspace }}/target/debug
+          MUSTER_BIN: ${{ github.workspace }}/target/release
 
   desktop:
     name: Desktop app (Linux)

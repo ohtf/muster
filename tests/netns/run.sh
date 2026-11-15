@@ -9,14 +9,21 @@
 # Usage: tests/netns/run.sh [scenario...]   (default: all)
 # Scenarios: s1 s2 s4 s7 (LAN), s5 s6 s12 s14 (relay and revocation)
 #
-# Runs as root (CI uses sudo), or re-executes itself in an unprivileged user
-# and network namespace where the kernel allows it. Needs ip, nft and the
+# Re-executes itself in a private network and mount namespace (as root in
+# CI, or in an unprivileged user namespace where the kernel allows it). Needs ip, nft and the
 # release binaries (cargo build --release -p muster-agent -p muster-cli).
 
 set -euo pipefail
 
-if [[ $(id -u) -ne 0 ]]; then
-  exec unshare --user --map-root-user --net --mount "$0" "$@"
+# Always run in a private network and mount namespace, even as root: the
+# script mounts over /run and deletes every bridge it can see, which on the
+# host would break DNS and Docker (it took CI runners offline).
+if [[ -z ${MUSTER_NETNS_INNER:-} ]]; then
+  export MUSTER_NETNS_INNER=1
+  if [[ $(id -u) -ne 0 ]]; then
+    exec unshare --user --map-root-user --net --mount --propagation private "$0" "$@"
+  fi
+  exec unshare --net --mount --propagation private "$0" "$@"
 fi
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
