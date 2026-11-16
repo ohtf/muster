@@ -319,6 +319,28 @@ impl Core {
         self.practice.as_ref()
     }
 
+    /// Admin devices: join requests heard in the last 20 s (a joining
+    /// device repeats its request every 5 s until it stops), as
+    /// `(device, label, code)`.
+    pub fn pending_joins(&self, now: Mono) -> Vec<(DeviceId, String, String)> {
+        self.join_requests
+            .iter()
+            .filter(|(_, j)| now.since(j.at) <= 4 * JOIN_RESEND)
+            .map(|(d, j)| (*d, j.req.label.clone(), j.req.code.clone()))
+            .collect()
+    }
+
+    /// While joining by approval (flow C): this device's six-digit code,
+    /// and the practice name once an admin has approved.
+    pub fn joining(&self) -> Option<(String, Option<String>)> {
+        self.joining.as_ref().map(|j| {
+            (
+                panic_button_crypto::join_code(&self.me.0, &self.keys.kx_pub()),
+                j.approval.as_ref().map(|a| a.info.name.clone()),
+            )
+        })
+    }
+
     pub fn trust(&self) -> Option<&TrustStore> {
         self.trust.as_ref()
     }

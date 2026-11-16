@@ -28,6 +28,14 @@ Copy the kit to a USB stick and keep it somewhere locked, such as the practice s
 
 One code works for as many computers as you like until it expires. Anyone who has the code can add a computer to your practice, so send it in a way only staff can see, and choose a short expiry. The Enrolment codes list shows which computers joined with each code. If a code may have got out, click Revoke next to it. Computers that already joined stay; remove any you do not recognise.
 
+### Adding one computer without a code
+
+If you are adding one computer and both are on the practice network, you do not need a code:
+
+1. On the new computer, choose Join an existing practice, then Ask a Practice Admin to approve this computer. It shows a six-digit code.
+2. On your computer, the Admin tab shows the new computer under Waiting to join. Check the code matches the one on its screen, then click Approve. If the codes differ, click Reject.
+3. On the new computer, click Join and choose the room.
+
 ## Rooms and names
 
 The room is what colleagues see in the alert, so make sure it matches the sign on the door. On the Admin tab, click Edit next to a computer to change its name or room. The change reaches the computer the next time it is on.

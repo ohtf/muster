@@ -17,6 +17,13 @@ function emit(name: string, payload: unknown) {
   for (const l of listeners.get(name) ?? []) l(payload);
 }
 const event = (e: PanicButtonEvent) => emit("panic-button", e);
+const join = {
+  enrolled: false,
+  practice: null as string | null,
+  joining: false,
+  code: "095245",
+  approved: null as string | null,
+};
 
 const status: Status = {
   device: "a".repeat(64),
@@ -177,6 +184,14 @@ export const mock = {
       case "join_with_token":
         status.enrolled = true;
         return null;
+      case "start_join":
+        join.joining = true;
+        // An admin approves a few seconds later.
+        setTimeout(() => {
+          join.approved = "Riverside Surgery";
+          event({ type: "join_approved", practice: "Riverside Surgery" });
+        }, 4000);
+        return { ...join };
       case "create_token":
         return { token_id: "1234", expires_at: now + 86_400_000, text: "PANIC_BUTTON1-EXAMPLE-TOKEN-TEXT" };
       case "agent_call":
@@ -338,6 +353,17 @@ export const mock = {
         }
         return { ok: true };
       }
+      case "join.status":
+        return { ...join };
+      case "join.confirm":
+        Object.assign(join, { enrolled: true, practice: join.approved, joining: false, code: null, approved: null });
+        status.enrolled = true;
+        return { ...join };
+      case "join.cancel":
+        Object.assign(join, { joining: false, approved: null });
+        return { ok: true };
+      case "admin.join_requests":
+        return [];
       default:
         return { ok: true };
     }

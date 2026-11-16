@@ -707,3 +707,112 @@ fn admin_assigns_label_and_room() {
     w.run_for(25_000);
     assert_eq!(heard(&w, 0, 2).1, "Room 2");
 }
+
+fn join_codes(w: &World, node: usize) -> Vec<String> {
+    w.ui_events(node)
+        .filter_map(|(_, e)| match e {
+            UiEvent::JoinCode(c) => Some(c.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn join_requests_seen(w: &World, node: usize) -> Vec<(panic_button_proto::DeviceId, String)> {
+    w.ui_events(node)
+        .filter_map(|(_, e)| match e {
+            UiEvent::JoinRequested { device, code, .. } => Some((*device, code.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn approved(w: &World, node: usize) -> Option<String> {
+    w.ui_events(node).find_map(|(_, e)| match e {
+        UiEvent::JoinApproved { practice_name } => Some(practice_name.clone()),
+        _ => None,
+    })
+}
+
+/// Flow C (`spec/04-security.md`): a computer with no enrolment code joins
+/// on the LAN. It shows a six-digit code, an admin sees the same code and
+/// approves, the joining user confirms the practice name, and it then sends
+/// and receives alarms. Non-admins never see the request; a rejected or
+/// cancelled join enrols nothing.
+#[test]
+fn join_by_approval_on_the_lan() {
+    let mut spec = WorldSpec::flat(6, 18);
+    for i in 3..6 {
+        spec.nodes[i].enrolled = false;
+    }
+    let mut w = World::new(spec);
+    w.run_until(WARMUP);
+    assert!(!w.core(3).expect("core").is_enrolled());
+
+    for i in 3..6 {
+        w.act_now(
+            i,
+            UserAction::StartJoin {
+                practice_hint: None,
+            },
+        );
+    }
+    w.run_for(6_000);
+    let code = join_codes(&w, 3)
+        .into_iter()
+        .next()
+        .expect("join code shown");
+    assert_eq!(code.len(), 6);
+    let seen = join_requests_seen(&w, 0);
+    assert!(
+        seen.contains(&(w.device_id(3), code)),
+        "admin sees node 3's code: {seen:?}"
+    );
+    for i in [1, 2] {
+        assert!(
+            join_requests_seen(&w, i).is_empty(),
+            "non-admin {i} saw a join request"
+        );
+    }
+
+    // Approve 3, reject 4, and 5 cancels.
+    w.act_now(
+        0,
+        UserAction::ApproveJoin {
+            device: w.device_id(3),
+        },
+    );
+    w.act_now(
+        0,
+        UserAction::RejectJoin {
+            device: w.device_id(4),
+        },
+    );
+    w.act_now(5, UserAction::CancelJoin);
+    w.run_for(6_000);
+    assert_eq!(approved(&w, 3).as_deref(), Some("Practice 0"));
+    assert!(approved(&w, 4).is_none());
+    // Approval alone does not enrol: the user confirms first.
+    assert!(!w.core(3).expect("core").is_enrolled());
+    w.act_now(3, UserAction::ConfirmJoin);
+    w.run_for(30_000);
+    assert!(w.core(3).expect("core").is_enrolled());
+    assert!(!w.core(4).expect("core").is_enrolled());
+    assert!(!w.core(5).expect("core").is_enrolled());
+    assert_status(&w, 0..4, StatusLevel::Green);
+
+    // The new device's alarms reach everyone, and it receives theirs.
+    let t0 = w.now;
+    let id = w.raise_now(3).expect("raised");
+    w.run_for(5_000);
+    delivered_within(&w, &id, t0, 2_000, [0, 1, 2]);
+    let t1 = w.now;
+    let id = w.raise_now(1).expect("raised");
+    w.run_for(5_000);
+    delivered_within(&w, &id, t1, 2_000, [0, 2, 3]);
+    for i in [4, 5] {
+        assert!(
+            !w.shown(&id).contains_key(&i),
+            "unenrolled node {i} alerted"
+        );
+    }
+}

@@ -216,6 +216,9 @@ struct Runtime {
     allow_raise: bool,
     audit_failures: u64,
     local: panic_button_core::config::LocalConfig,
+    /// The latest platform inputs (audio, session, user, interfaces), sent
+    /// again to a core rebuilt by `enrol`.
+    platform: Vec<Input>,
 }
 
 impl Runtime {
@@ -224,6 +227,17 @@ impl Runtime {
     }
 
     fn handle(&mut self, input: Input) {
+        if matches!(
+            input,
+            Input::AudioStatus { .. }
+                | Input::SessionState(_)
+                | Input::UserDisplay(_)
+                | Input::InterfacesChanged(_)
+        ) {
+            let kind = std::mem::discriminant(&input);
+            self.platform.retain(|i| std::mem::discriminant(i) != kind);
+            self.platform.push(input.clone());
+        }
         let now = self.now();
         let outs = self.core.handle(now, wall_now(), input);
         for o in outs {
@@ -502,6 +516,34 @@ impl Runtime {
                     .unwrap_or("")
                     .to_owned(),
             }),
+            "join.start" => {
+                if self.core.is_enrolled() {
+                    return Err(RpcError::refused("this computer is already in a practice"));
+                }
+                if self.core.joining().is_none() {
+                    self.handle(Input::User(UserAction::StartJoin {
+                        practice_hint: None,
+                    }));
+                }
+                Ok(self.join_view())
+            }
+            "join.status" => Ok(self.join_view()),
+            "enrol" => self.enrol(p.get("token").and_then(Value::as_str)),
+            "admin.join_requests" => Ok(Value::Array(
+                self.core
+                    .pending_joins(self.now())
+                    .into_iter()
+                    .map(|(d, label, code)| json!({"device": d.to_hex(), "label": label, "code": code}))
+                    .collect(),
+            )),
+            "join.confirm" => {
+                if !matches!(self.core.joining(), Some((_, Some(_)))) {
+                    return Err(RpcError::refused("no Practice Admin has approved this computer yet"));
+                }
+                self.handle(Input::User(UserAction::ConfirmJoin));
+                Ok(self.join_view())
+            }
+            "join.cancel" => self.user(UserAction::CancelJoin),
             "admin.approve_join" => self.user(UserAction::ApproveJoin { device: device(p)? }),
             "admin.reject_join" => self.user(UserAction::RejectJoin { device: device(p)? }),
             "admin.promote" => self.user(UserAction::Promote { device: device(p)? }),
@@ -558,6 +600,58 @@ impl Runtime {
             }
             Due::Nothing => {}
         }
+    }
+
+    /// Enrols a running agent that has no practice: with an enrolment
+    /// token, or from a practice already written to the store (the desktop
+    /// app's "Set up a new practice"). The core is rebuilt from the store;
+    /// the network keeps running and platform inputs are sent again.
+    fn enrol(&mut self, token: Option<&str>) -> Result<Value, RpcError> {
+        if self.core.is_enrolled() {
+            return Err(RpcError::refused("this computer is already in a practice"));
+        }
+        let err = |e: &dyn std::fmt::Display| RpcError::refused(e.to_string());
+        let keys = self
+            .store
+            .load_identity()
+            .map_err(|e| err(&e))?
+            .ok_or_else(|| RpcError::refused("no device identity"))?;
+        if let Some(text) = token {
+            let token = Token::parse(text.trim()).map_err(|e| {
+                RpcError::invalid_params(format!("not a valid enrolment code: {e}"))
+            })?;
+            let mut rng = CoreRng::from_seed(os_seed().map_err(|e| err(&e))?);
+            let enrolled =
+                enrol_with_token_state(&mut rng, &keys, &token, &self.local.label, wall_now())
+                    .map_err(|e| err(&e))?;
+            self.store
+                .apply_all(enrolled.to_ops().iter())
+                .map_err(|e| err(&e))?;
+            tracing::info!("enrolled in {} with token", token.practice_name);
+        }
+        let state = self.store.load().map_err(|e| err(&e))?;
+        if state.practice.is_none() {
+            return Err(RpcError::refused("no practice to join"));
+        }
+        let seed = os_seed().map_err(|e| err(&e))?;
+        self.core = Core::new(Identity { keys }, state, self.local.clone(), seed);
+        tracing::info!("core restarted in practice");
+        for i in self.platform.clone() {
+            self.handle(i);
+        }
+        Ok(self.join_view())
+    }
+
+    /// Joining by approval: `{enrolled, practice, joining, code, approved}`.
+    fn join_view(&self) -> Value {
+        let j = self.core.joining();
+        json!({
+            "enrolled": self.core.is_enrolled(),
+            "practice": self.core.practice().map(|p| p.name.clone()),
+            "joining": j.is_some(),
+            "code": j.as_ref().map(|(c, _)| c.clone()),
+            "approved": j.and_then(|(_, a)| a),
+        })
     }
 
     fn user(&mut self, a: UserAction) -> Result<Value, RpcError> {
@@ -657,6 +751,7 @@ pub async fn start(
         allow_raise: opts.allow_raise || opts.config.policy.allow_cli_raise.unwrap_or(false),
         audit_failures: 0,
         local,
+        platform: Vec::new(),
     };
     if opts.headless {
         rt.handle(Input::AudioStatus {

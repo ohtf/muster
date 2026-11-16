@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 //! Practice set-up for simulated worlds: the first node of each practice
-//! creates it (flow A); every other node enrols with a token (flow B).
+//! creates it (flow A); every other node enrols with a token (flow B),
+//! unless it is marked not enrolled, when it only gets device keys and can
+//! join by approval (flow C).
 
 use std::collections::BTreeMap;
 
@@ -48,7 +50,14 @@ pub fn setup(rng: &mut CoreRng, spec: &WorldSpec) -> Vec<PracticeSetup> {
             .nodes
             .iter()
             .enumerate()
-            .filter(|(_, n)| n.practice == p)
+            .filter(|(_, n)| n.practice == p && n.enrolled)
+            .map(|(i, _)| i)
+            .collect();
+        let unenrolled: Vec<usize> = spec
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.practice == p && !n.enrolled)
             .map(|(i, _)| i)
             .collect();
         let Some(&admin_node) = members.first() else {
@@ -123,6 +132,9 @@ pub fn setup(rng: &mut CoreRng, spec: &WorldSpec) -> Vec<PracticeSetup> {
                 st.certs.push(cert.to_cbor());
             }
             states.insert(m, (keys, st));
+        }
+        for &m in &unenrolled {
+            states.insert(m, (new_device_keys(rng), PersistedState::default()));
         }
         let _ = token.to_cbor();
         out.push(PracticeSetup {

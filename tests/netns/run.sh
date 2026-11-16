@@ -7,7 +7,7 @@
 # bridges, with nftables and bridge port isolation shaping what gets through.
 #
 # Usage: tests/netns/run.sh [scenario...]   (default: all)
-# Scenarios: s1 s2 s4 s7 (LAN), s5 s6 s12 s14 (relay and revocation)
+# Scenarios: s1 s2 s4 s7 (LAN), s5 s6 s12 s14 (relay and revocation), admin, join
 #
 # Re-executes itself in a private network and mount namespace (as root in
 # CI, or in an unprivileged user namespace where the kernel allows it). Needs ip, nft and the
@@ -96,15 +96,15 @@ practice() {
   "$CLI" --data-dir "$WORK/$admin" token create --days 1 --out "$WORK/token" >/dev/null
 }
 
-# start NODE [extra config lines]
+# start NODE [extra config lines]   (NO_TOKEN=1: start with no practice)
 start() {
   local node=$1; shift
   {
     printf '[network]\nport = %s\nmdns = false\n' "$PORT"
     [[ $# -gt 0 ]] && printf '%s\n' "$@"
-    [[ -d $WORK/$node ]] || printf '[enrolment]\ntoken_file = "%s"\n' "$WORK/token.$node"
+    [[ -d $WORK/$node || -n ${NO_TOKEN:-} ]] || printf '[enrolment]\ntoken_file = "%s"\n' "$WORK/token.$node"
   } > "$WORK/$node.toml"
-  [[ -d $WORK/$node ]] || cp "$WORK/token" "$WORK/token.$node"
+  [[ -d $WORK/$node || -n ${NO_TOKEN:-} ]] || cp "$WORK/token" "$WORK/token.$node"
   # shellcheck disable=SC2086 # AGENT_ENV is a list of NAME=value words.
   ip netns exec "$node" env PANIC_BUTTON_LOG=info ${AGENT_ENV:-} "$AGENT" --headless \
     --config "$WORK/$node.toml" --policy /dev/null --data-dir "$WORK/$node" \
@@ -412,8 +412,46 @@ admin() {
   pass "admin: tokens, drill report, token revoke, practice settings, scheduled drill, recovery"
 }
 
+# Joining a running agent that has no practice: by an admin's approval
+# after comparing the six-digit code (flow C), and with an enrolment code.
+join() {
+  bridge br0
+  for i in 1 2 3; do attach "n$i" br0 "10.10.0.$i/24"; done
+  practice n1
+  start n1
+  NO_TOKEN=1 start n2
+  NO_TOKEN=1 start n3
+  wait_ready n1 n2 n3
+  ctl n2 ctl join-confirm >/dev/null 2>&1 && fail "n2 joined before any approval"
+  ctl n2 ctl join >/dev/null
+  local code req=
+  code=$(ctl n2 --format json ctl join-status | sed -n 's/.*"code": "\([0-9]*\)".*/\1/p')
+  for _ in $(seq 40); do
+    req=$(ctl n1 --format json ctl join-requests | tr -d '\n ')
+    grep -q '"code":"' <<<"$req" && break
+    sleep 0.5
+  done
+  grep -q "\"code\":\"$code\"" <<<"$req" || fail "n1 does not show n2's code $code: $req"
+  local dev
+  dev=$(sed -n 's/.*"device":"\([0-9a-f]*\)".*/\1/p' <<<"$req")
+  ctl n1 ctl approve-join "$dev" >/dev/null
+  local ok=
+  for _ in $(seq 40); do
+    ctl n2 --format json ctl join-status | grep -q '"approved": "Netns Surgery"' && ok=1 && break
+    sleep 0.5
+  done
+  [[ -n $ok ]] || fail "n2 was not approved"
+  ctl n2 ctl join-confirm >/dev/null || fail "join-confirm refused"
+  for n in n1 n2; do expect_level "$n" green 25; done
+  raise_and_expect n2 3 n1
+  ctl n3 ctl enrol --token-file "$WORK/token" >/dev/null || fail "n3 enrol refused"
+  for n in n1 n2 n3; do expect_level "$n" green 25; done
+  raise_and_expect n3 3 n1 n2
+  pass "join: by approval code, and enrolling a running agent with a code"
+}
+
 scenarios=("$@")
-[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s5lp s6 s12 s14 admin)
+[[ ${#scenarios[@]} -eq 0 ]] && scenarios=(s1 s2 s4 s7 s5 s5lp s6 s12 s14 admin join)
 if [[ ${#scenarios[@]} -gt 1 ]]; then
   # Each scenario in a fresh set of namespaces.
   for s in "${scenarios[@]}"; do

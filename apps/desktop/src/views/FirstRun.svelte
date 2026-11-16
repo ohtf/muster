@@ -3,8 +3,9 @@ SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
 SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 First run (`spec/05-desktop-agent.md`, First run): join with an enrolment
-code or set up a new practice, choose the room, then a practice hold that
-alerts nobody.
+code, or by showing a code that a Practice Admin approves (flow C in
+`spec/04-security.md`), or set up a new practice; then choose the room and
+try a practice hold that alerts nobody.
 -->
 <script lang="ts">
   import { onMount } from "svelte";
@@ -14,7 +15,7 @@ alerts nobody.
 
   let { info, ondone }: { info: AppInfo; ondone: () => void } = $props();
 
-  type Step = "welcome" | "join" | "create" | "created" | "room" | "practice";
+  type Step = "welcome" | "join" | "ask" | "create" | "created" | "room" | "practice";
   let step = $state<Step>("welcome");
   let error = $state("");
   let busy = $state(false);
@@ -30,6 +31,10 @@ alerts nobody.
   let practiced = $state(false);
   let holdMs = $state(1500);
   let roomLocked = false;
+  let joinCode = $state("");
+  let approvedBy = $state<string | null>(null);
+  let joinExpired = $state(false);
+  let joinTimer: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
     // Enrolled already (for example by a token in the config): skip to the room.
@@ -37,9 +42,64 @@ alerts nobody.
     kitPath = `${info.home_dir}/Panic Button recovery kit.panic-button-kit`;
     const off = api.onEvent((e) => {
       if (e.type === "hold_progress" && e.fraction >= 1 && step === "practice") practiced = true;
+      if (e.type === "join_approved" && step === "ask") approvedBy = e.practice;
     });
-    return () => off.then((f) => f());
+    return () => {
+      off.then((f) => f());
+      clearInterval(joinTimer);
+    };
   });
+
+  /** Ask a Practice Admin to approve this computer. */
+  async function ask() {
+    error = "";
+    joinExpired = false;
+    approvedBy = null;
+    step = "ask";
+    try {
+      const j = await api.startJoin();
+      joinCode = j.code ?? "";
+      approvedBy = j.approved;
+    } catch (e) {
+      error = String(e);
+      return;
+    }
+    clearInterval(joinTimer);
+    // Events can be missed; the agent's view is the truth.
+    joinTimer = setInterval(async () => {
+      try {
+        const j = await api.joinStatus();
+        if (j.approved) approvedBy = j.approved;
+        if (!j.joining && !j.enrolled) {
+          joinExpired = true;
+          clearInterval(joinTimer);
+        }
+      } catch {
+        /* try again next tick */
+      }
+    }, 2000);
+  }
+
+  async function confirmJoin() {
+    error = "";
+    busy = true;
+    try {
+      await api.confirmJoin();
+      clearInterval(joinTimer);
+      await afterEnrol();
+    } catch (e) {
+      error = String(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function stopAsking() {
+    clearInterval(joinTimer);
+    await api.cancelJoin().catch(() => {});
+    approvedBy = null;
+    step = "welcome";
+  }
 
   async function afterEnrol() {
     try {
@@ -132,6 +192,46 @@ alerts nobody.
         {busy ? "Joining..." : "Join"}
       </button>
     </div>
+    <p class="alt">
+      No code? <button class="link" onclick={ask}>Ask a Practice Admin to approve this computer</button> instead. They need
+      to be on the same network.
+    </p>
+  {:else if step === "ask"}
+    {#if approvedBy}
+      <h1>Join {approvedBy}?</h1>
+      <p>A Practice Admin has approved this computer. Only join if {approvedBy} is your practice.</p>
+      {#if error}<p class="error" role="alert">{error}</p>{/if}
+      <div class="row">
+        <button class="btn" onclick={stopAsking}>Cancel</button>
+        <button class="btn primary" disabled={busy} onclick={confirmJoin}>
+          {busy ? "Joining..." : `Join ${approvedBy}`}
+        </button>
+      </div>
+    {:else}
+      <h1>Ask to join</h1>
+      <p>
+        On a Practice Admin's computer, open Panic Button and go to the Admin tab. Check it shows this code, then click
+        Approve.
+      </p>
+      {#if joinCode}
+        <p class="join-code" aria-label="Code {joinCode.split('').join(' ')}">
+          {joinCode.slice(0, 3)}&nbsp;{joinCode.slice(3)}
+        </p>
+      {/if}
+      {#if joinExpired}
+        <p class="error" role="alert">Nobody approved this computer within 10 minutes.</p>
+        <div class="row">
+          <button class="btn" onclick={() => (step = "welcome")}>Back</button>
+          <button class="btn primary" onclick={ask}>Ask again</button>
+        </div>
+      {:else}
+        {#if error}<p class="error" role="alert">{error}</p>{/if}
+        <p class="muted" role="status">Waiting for approval...</p>
+        <div class="row">
+          <button class="btn" onclick={stopAsking}>Cancel</button>
+        </div>
+      {/if}
+    {/if}
   {:else if step === "create"}
     <h1>Set up a new practice</h1>
     <div class="field">
@@ -207,6 +307,19 @@ alerts nobody.
 </section>
 
 <style>
+  .alt {
+    margin-top: 1.5em;
+    color: var(--slate);
+  }
+
+  .join-code {
+    margin: 0.6em 0;
+    font-size: 2.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+  }
+
   .first-run {
     max-width: 560px;
     margin: 0 auto;

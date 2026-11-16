@@ -133,6 +133,9 @@ enrolment codes, and test alarms with their reports.
         api.practiceSettings(),
       ]);
       loadSettings(s);
+      // The agent keeps join requests while the device repeats them, so a
+      // restarted app still shows them.
+      joins = await api.joinRequests();
       devices.sort(
         (a, b) => Number(b.this_device) - Number(a.this_device) || (a.room ?? "").localeCompare(b.room ?? ""),
       );
@@ -260,7 +263,7 @@ enrolment codes, and test alarms with their reports.
       <div class="join">
         <div>
           <strong>{j.label}</strong><br /><span class="muted">Check this code matches their screen:</span>
-          <code class="code">{j.code}</code>
+          <code class="code">{j.code.slice(0, 3)}&nbsp;{j.code.slice(3)}</code>
         </div>
         <button
           class="btn primary"

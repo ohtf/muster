@@ -123,6 +123,15 @@ export interface AppInfo {
   shortcut: ShortcutInfo | null;
 }
 
+/** Joining by approval (`join.status`). */
+export interface JoinView {
+  enrolled: boolean;
+  practice: string | null;
+  joining: boolean;
+  code: string | null;
+  approved: string | null;
+}
+
 export interface ShortcutInfo {
   keys: string;
   active: boolean;

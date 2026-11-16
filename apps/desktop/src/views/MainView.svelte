@@ -477,14 +477,6 @@ settings, admin and about; or first run if this computer is not set up.
     border-radius: 8px;
   }
 
-  .link {
-    border: 0;
-    background: none;
-    color: var(--action-blue);
-    text-decoration: underline;
-    cursor: pointer;
-  }
-
   .scrim {
     position: fixed;
     inset: 0;

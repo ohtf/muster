@@ -45,6 +45,30 @@ pub enum CtlCommand {
     },
     /// Make a device a Practice Admin (admin).
     Promote { device: String },
+    /// Ask to join the practice on this network (a device with no practice
+    /// and no enrolment code). Prints the six-digit code a Practice Admin
+    /// checks before approving.
+    Join,
+    /// Whether this device is joining, its code, and the practice name once
+    /// an admin has approved.
+    JoinStatus,
+    /// Join the practice that approved this device.
+    JoinConfirm,
+    /// Stop asking to join.
+    JoinCancel,
+    /// Put a running agent that has no practice into one: with an enrolment
+    /// code from a file, or (without --token-file) the practice just
+    /// created in its data directory with `practice init`.
+    Enrol {
+        #[arg(long)]
+        token_file: Option<std::path::PathBuf>,
+    },
+    /// Devices asking to join (admin).
+    JoinRequests,
+    /// Approve a device asking to join, after checking its code (admin).
+    ApproveJoin { device: String },
+    /// Refuse a device asking to join (admin).
+    RejectJoin { device: String },
     /// Set a device's label or room (admin; this device's own needs no
     /// admin rights).
     DeviceSettings {
@@ -106,6 +130,21 @@ fn status_text(v: &Value) -> String {
     s
 }
 
+fn join_text(v: &Value) -> String {
+    if v["enrolled"].as_bool() == Some(true) {
+        return format!("In practice {}.", v["practice"].as_str().unwrap_or(""));
+    }
+    match (v["code"].as_str(), v["approved"].as_str()) {
+        (_, Some(p)) => format!("Approved by {p}. Run `panic-button ctl join-confirm` to join."),
+        (Some(c), None) => format!(
+            "Asking to join. Code: {} {}\nA Practice Admin approves this device after checking the code.",
+            &c[..c.len().min(3)],
+            &c[c.len().min(3)..]
+        ),
+        (None, None) => "Not joining.".into(),
+    }
+}
+
 fn alarm_line(a: &Value) -> String {
     format!(
         "{}  {}  {}  {} ({})  delivered {}  coming {}",
@@ -143,6 +182,21 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
             json!({"device": device, "cascade": compromised, "reason": reason}),
         ),
         CtlCommand::Promote { device } => ("admin.promote", json!({"device": device})),
+        CtlCommand::Join => ("join.start", Value::Null),
+        CtlCommand::JoinStatus => ("join.status", Value::Null),
+        CtlCommand::JoinConfirm => ("join.confirm", Value::Null),
+        CtlCommand::JoinCancel => ("join.cancel", Value::Null),
+        CtlCommand::Enrol { token_file } => match token_file {
+            Some(f) => {
+                let t = std::fs::read_to_string(panic_button_agent::paths::expand(f))
+                    .with_context(|| format!("reading {}", f.display()))?;
+                ("enrol", json!({ "token": t.trim() }))
+            }
+            None => ("enrol", json!({})),
+        },
+        CtlCommand::JoinRequests => ("admin.join_requests", Value::Null),
+        CtlCommand::ApproveJoin { device } => ("admin.approve_join", json!({"device": device})),
+        CtlCommand::RejectJoin { device } => ("admin.reject_join", json!({"device": device})),
         CtlCommand::DeviceSettings {
             device,
             label,
@@ -228,6 +282,18 @@ pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
             if v.is_array() { lines(v, &one) } else { one(v) }
         }
         CtlCommand::Status => status_text(v),
+        CtlCommand::Join
+        | CtlCommand::JoinStatus
+        | CtlCommand::JoinConfirm
+        | CtlCommand::Enrol { .. } => join_text(v),
+        CtlCommand::JoinRequests => lines(v, &|j| {
+            format!(
+                "{}  code {}  {}",
+                j["device"].as_str().unwrap_or(""),
+                j["code"].as_str().unwrap_or(""),
+                j["label"].as_str().unwrap_or("")
+            )
+        }),
         CtlCommand::Alarms => v
             .as_array()
             .map(|a| a.iter().map(alarm_line).collect::<Vec<_>>().join("\n"))

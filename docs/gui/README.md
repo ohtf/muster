@@ -78,7 +78,6 @@ window-rule {
 
 ## Not done yet
 
-- Join by approval code (the app joins with an enrolment code only).
 - The keyboard shortcut on Wayland (needs the GlobalShortcuts portal).
 - The rest of R32: the Windows audio endpoint, session detection, macOS Local Network.
 

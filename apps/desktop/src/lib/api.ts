@@ -11,6 +11,7 @@ import type {
   AppInfo,
   Device,
   DrillSummary,
+  JoinView,
   PanicButtonEvent,
   Peer,
   PracticeSettings,
@@ -74,6 +75,11 @@ export const api = {
       kitPath,
     }),
   joinWithToken: (token: string) => invoke<void>("join_with_token", { token }),
+  startJoin: () => invoke<JoinView>("start_join"),
+  joinStatus: () => call<JoinView>("join.status"),
+  confirmJoin: () => call<JoinView>("join.confirm"),
+  cancelJoin: () => call("join.cancel"),
+  joinRequests: () => call<{ device: string; label: string; code: string }[]>("admin.join_requests"),
   newRecoveryKit: (oldPath: string, oldPass: string, newPath: string, newPass: string) =>
     invoke<{ practice: string; recovery_kit: string }>("new_recovery_kit", { oldPath, oldPass, newPath, newPass }),
   createToken: (days: number, label: string) =>

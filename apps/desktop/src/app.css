@@ -161,3 +161,14 @@ html[data-view="main"] body {
   background: var(--mist);
   min-height: 100vh;
 }
+
+/* A button that reads as a link inside a sentence. */
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--action-blue);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -80,6 +80,9 @@ pub struct NodeSpec {
     pub practice: usize,
     /// Start time (virtual ms).
     pub start_at: u64,
+    /// False: the node starts with keys but no practice, ready to join by
+    /// approval (flow C).
+    pub enrolled: bool,
 }
 
 impl Default for NodeSpec {
@@ -98,6 +101,7 @@ impl Default for NodeSpec {
             user: UserModel::Never,
             practice: 0,
             start_at: 0,
+            enrolled: true,
         }
     }
 }

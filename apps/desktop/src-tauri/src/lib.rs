@@ -293,7 +293,13 @@ async fn setup_practice(
     .await
     .map_err(err)?
     .map_err(err)?;
-    start_agent(&app).await?;
+    // Running already (the person tried "Ask to join" first): rebuild its
+    // core from the new practice.
+    if let Some(h) = agent_handle(&app).await {
+        h.call("enrol", json!({})).await.map_err(|e| e.message)?;
+    } else {
+        start_agent(&app).await?;
+    }
     Ok(json!({
         "practice": p.name,
         "practice_id": p.practice_id,
@@ -333,6 +339,12 @@ async fn join_with_token(
     let t = token.trim().to_owned();
     panic_button_proto::Token::parse(&t)
         .map_err(|e| format!("That is not a valid enrolment code: {e}"))?;
+    if let Some(h) = agent_handle(&app).await {
+        h.call("enrol", json!({ "token": t }))
+            .await
+            .map_err(|e| e.message)?;
+        return Ok(());
+    }
     {
         let mut c = st.config.lock().await;
         c.enrolment.token = Some(t);
@@ -342,6 +354,18 @@ async fn join_with_token(
     // The token is used once; do not keep it in memory.
     st.config.lock().await.enrolment.token = None;
     r
+}
+
+/// Join by approval (flow C): start the agent with no practice and ask
+/// admins on the network to approve this computer. Returns the join view
+/// (`join.status`), including the six-digit code to show.
+#[tauri::command]
+async fn start_join(app: AppHandle) -> Result<Value, String> {
+    start_agent(&app).await?;
+    let h = agent_handle(&app)
+        .await
+        .ok_or_else(|| "Panic Button did not start".to_owned())?;
+    h.call("join.start", json!({})).await.map_err(|e| e.message)
 }
 
 #[tauri::command]
@@ -571,6 +595,7 @@ pub fn run() {
             setup_practice,
             new_recovery_kit,
             join_with_token,
+            start_join,
             create_token,
             set_room,
             play_test_sound,
