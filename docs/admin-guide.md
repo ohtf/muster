@@ -13,6 +13,8 @@ Do this once, on the computer of the person who will be the first admin.
 3. Choose where to save the recovery kit, then click Create practice. This takes a few seconds.
 4. Choose this computer's room, and try the practice hold. It does not alert anyone.
 
+Print [Calling for help](staff-guide.md) for each room. It fits on one A4 page.
+
 ### The recovery kit
 
 The recovery kit is a file. With its passphrase, it can make any computer in the practice an admin. You need it if every admin computer is lost or broken, and there is no other way back in.
