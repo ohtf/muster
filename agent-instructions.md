@@ -98,7 +98,6 @@ Choose the safer option, implement it, record it as a short ADR (`spec/adr/NNNN-
 ## Fetch, do not invent
 
 - Licence texts are fetched, not typed (`LICENSE` from gnu.org; `CODE_OF_CONDUCT.md` from contributor-covenant.org).
-- Check the default UDP/TCP port (47474) against the IANA registry before the first release (R50).
 - Pin GitHub Actions to full commit SHAs looked up at the time, never from memory.
 
 ## Approval required

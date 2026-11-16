@@ -218,7 +218,7 @@ Validation rules are in `04-security.md`.
 
 ### Transports and addressing
 
-- UDP socket bound to `0.0.0.0:PORT` (default 47474) with `SO_REUSEADDR` (and `SO_REUSEPORT` on Unix). It joins `MCAST_GROUP` (default `239.255.71.71`) on every up, non-loopback IPv4 interface. Multicast TTL is 1 by default (`multicast_ttl` configurable to 8 for routed multicast). Loopback is enabled, and own messages are discarded by sender id.
+- UDP socket bound to `0.0.0.0:PORT` (default 47474) with `SO_REUSEADDR` (and `SO_REUSEPORT` on Unix). It joins `MCAST_GROUP` (default `239.255.71.71`) on every up, non-loopback IPv4 interface. Multicast TTL is 1 by default (`multicast_ttl` configurable to 8 for routed multicast). Loopback is enabled, and own messages are discarded by sender id. If the port is busy at start (on Linux it is inside the range used for outgoing connections), the bind is retried every second for up to 30 s.
 - Broadcast: to `255.255.255.255:PORT` and to each interface's directed broadcast address.
 - TCP listener on `0.0.0.0:PORT`, falling back to an ephemeral port if busy. The actual port is advertised in the heartbeat. Frames are `u32` big-endian length plus an Envelope. Connections are opened on demand with a 1 s connect timeout, kept for 60 s idle, and limited to 64 concurrent outbound.
 - mDNS: service `_panic-button._udp.local.`, TXT `t=<hex practice tag>`, `p=<tcp port>`, `v=1`. Used to find peers when multicast to the group address is filtered but mDNS is permitted.
@@ -292,7 +292,7 @@ A single-device practice is amber with "No other devices found". This is intende
 
 | Name | Value |
 |---|---|
-| `PORT` | 47474 (UDP and TCP; verify against IANA before release) |
+| `PORT` | 47474 (UDP and TCP; unassigned in the IANA registry, checked 2026-11-16) |
 | `MCAST_GROUP` | 239.255.71.71 |
 | `HEARTBEAT_INTERVAL` | 15 s plus or minus 2 s random jitter |
 | `PEER_STALE` | 45 s |

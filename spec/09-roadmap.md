@@ -113,7 +113,7 @@ The guides for people who use Panic Button, in plain English for practice staff.
 ### Pre-release checks (from the original spec notes)
 
 - [ ] **R49 - Legal review** of the app store additional permission before the first external contribution (ADR 0001).
-- [ ] **R50 - Check port 47474** against the IANA service name and port registry.
+- [x] **R50 - Check port 47474** against the IANA service name and port registry. Checked 2026-11-16: unassigned (in the gap 47101-47556; the nearest assignment is `dbbrowse` on 47557). It lies in Linux's default range for outgoing connections (32768-60999), so the agent retries the UDP bind for up to 30 s, and TCP already falls back to another port. Registering the port with IANA is optional and can wait for v1.
 - [ ] **R51 - Trade mark check** on "Panic Button" (renamed from Muster on 2026-11-15, ADR 0015). The name is descriptive, so it may be hard to register; the check is mainly that using it does not infringe anyone else's mark.
 
 ## Post-v1

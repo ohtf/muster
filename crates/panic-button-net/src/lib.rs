@@ -61,7 +61,24 @@ impl Net {
         let interfaces = Interfaces::new();
         let current = interfaces.list();
         let tcp = tcp::TcpDriver::start(cfg.port, inputs.clone()).await?;
-        let udp = udp::UdpDriver::start(&cfg, &current, inputs.clone())?;
+        // On Linux the UDP port lies in the range used for outgoing
+        // connections (32768-60999), so another program can hold it for a
+        // moment, for example a DNS lookup. Try again for up to 30 s
+        // before giving up (R50).
+        let mut attempt = 0;
+        let udp = loop {
+            match udp::UdpDriver::start(&cfg, &current, inputs.clone()) {
+                Ok(u) => break u,
+                Err(NetError::Io(e))
+                    if e.kind() == std::io::ErrorKind::AddrInUse && attempt < 30 =>
+                {
+                    attempt += 1;
+                    tracing::warn!("UDP port {} busy ({e}); trying again", cfg.port);
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+                Err(e) => return Err(e),
+            }
+        };
         let mdns = if cfg.mdns {
             match mdns::Mdns::start(tcp.port(), cfg.port, inputs.clone()) {
                 Ok(m) => Some(m),
