@@ -12,6 +12,7 @@
 pub mod audio;
 mod placement;
 mod platform;
+mod session;
 mod shortcut;
 mod volume;
 mod windows;
@@ -21,7 +22,7 @@ use std::path::{Path, PathBuf};
 use panic_button_agent::config::ConfigFile;
 use panic_button_agent::{AgentHandle, AgentOptions, paths};
 use panic_button_core::io::{Input, UiEvent};
-use panic_button_proto::{AudioStatus, SessionState, SoundPattern};
+use panic_button_proto::{AudioStatus, SoundPattern};
 use serde::Serialize;
 use serde_json::{Value, json};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -114,12 +115,12 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
     })
     .await
     .map_err(err)?;
-    h.input(Input::SessionState(SessionState::Active)).await;
     h.input(Input::UserDisplay(user_display())).await;
     tauri::async_runtime::spawn(pump_events(app.clone(), h.clone()));
     tauri::async_runtime::spawn(pump_audio(h.clone(), st.audio.clone()));
     tauri::async_runtime::spawn(watch_volume(h.clone(), st.audio_ok, st.volume.clone()));
     tauri::async_runtime::spawn(pump_volume_override(h.clone(), st.volume.clone()));
+    tauri::async_runtime::spawn(watch_session(h.clone()));
     *slot = Some(h);
     drop(slot);
     let _ = app.emit("panic-button-started", ());
@@ -184,6 +185,22 @@ async fn watch_volume(h: AgentHandle, output_present: bool, volume: volume::Volu
             })
             .await;
             last = Some(status);
+        }
+    }
+}
+
+/// Tells the agent the session state (active, locked, remote), now and
+/// whenever it changes (checked every 5 s).
+async fn watch_session(h: AgentHandle) {
+    let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+    let mut last = None;
+    loop {
+        tick.tick().await;
+        let s = session::read().await;
+        if last != Some(s) {
+            tracing::info!(session = ?s, "session");
+            h.input(Input::SessionState(s)).await;
+            last = Some(s);
         }
     }
 }

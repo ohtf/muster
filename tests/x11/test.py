@@ -5,8 +5,8 @@
 # tests/x11/run.sh): the button's size and default corner, a moved button is
 # saved and restored per monitor layout, a saved position off every monitor
 # falls back to the corner, and the keyboard shortcut raises an alarm only
-# when held (with key auto-repeat on), and muting the sound turns the status
-# amber.
+# when held (with key auto-repeat on), muting the sound turns the status
+# amber, and an xrdp remote session is reported.
 
 import json
 import os
@@ -47,9 +47,9 @@ def pos(d, w):
     t = w.translate_coords(d.screen().root, 0, 0)
     return (-t.x, -t.y), (g.width, g.height)
 
-def start():
+def start(extra=None):
     log = open("/tmp/app.log", "a")
-    p = subprocess.Popen(["/w/panic-button-desktop"], env=env, stdout=log, stderr=log)
+    p = subprocess.Popen(["/w/panic-button-desktop"], env=dict(env, **(extra or {})), stdout=log, stderr=log)
     d = display.Display(":99")
     for _ in range(60):
         w = find(d, "Panic Button button")
@@ -127,6 +127,14 @@ json.dump({"positions": {"1920x1080+0+0@100": [2500, 400]}}, open(f, "w"))
 p, d, w = start()
 (x, y), _ = pos(d, w)
 check("off-screen position falls back to the corner", (x, y) == (1820, 980), str((x, y)))
+p.terminate()
+p.wait(10)
+
+# In an xrdp remote session the computer stops taking part, and says why.
+p, d, w = start({"XRDP_SESSION": "1"})
+time.sleep(3)
+r = reasons()
+check("remote session is reported", any("remote session" in x for x in r), str(r))
 p.terminate()
 
 log = open("/tmp/app.log").read()

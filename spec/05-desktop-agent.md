@@ -169,6 +169,7 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 - **Remote sessions (Windows):** if `GetSystemMetrics(SM_REMOTESESSION)` is non-zero, or the session is not the console session, and `allow_remote_session = false`: show the button greyed with the tooltip "Panic Button cannot run inside a remote session. Ask IT to install it on this computer itself." Do not heartbeat as a participating device. Report `session = remote_session_disabled` if running.
 - **Fast user switching (Windows):** only the agent in the active console session (`WTSGetActiveConsoleSessionId` equal to own session id, checked every 5 s and on `WM_WTSSESSION_CHANGE`) opens network sockets. Others stay dormant.
 - **Locked screen:** keep running and keep sound. Heartbeat `session = locked`.
+- **Detection:** the app checks the session every 5 s. Windows uses `SM_REMOTESESSION` and `WTSSessionInfoEx` (`platform::windows_session`); Linux uses logind's `LockedHint` and `Remote` for the graphical session (`loginctl show-session auto`) and treats `XRDP_SESSION` as remote; macOS reports active until it is implemented. Anything that cannot be read counts as active.
 - **Sleep and wake:** on resume (OS power events or a wall-clock jump of more than 30 s between ticks), trigger anti-entropy (see protocol).
 - **Updates:** managed installs (policy `updates = managed`) never self-update. Unmanaged installs may use the Tauri updater with signed update manifests from the OHTF release channel, off by default in v1.
 
