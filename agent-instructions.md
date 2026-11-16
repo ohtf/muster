@@ -104,3 +104,11 @@ Choose the safer option, implement it, record it as a short ADR (`spec/adr/NNNN-
 ## Approval required
 
 Ask before publishing releases, creating tags, deleting branches, force-pushing, changing repository settings or secrets, making the repository public, or posting issues or comments.
+
+## Publicity
+
+See house style `publicity.md`. Suggest posts at milestones; never post without approval.
+
+- Owner: Open Health Technology Foundation (no social accounts of its own yet).
+- Channels: Marcus Baw's Bluesky ([@marcusbaw.com](https://bsky.app/profile/marcusbaw.com)) and LinkedIn ([marcusbaw](https://www.linkedin.com/in/marcusbaw/)); the [Open Health Hub forum](https://openhealthhub.org/) for community announcements.
+- Announcement conventions: say it is pre-alpha and ask for testers until a practice pilot starts; link the releases page or README, not a download.
