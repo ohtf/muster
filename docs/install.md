@@ -37,8 +37,6 @@ or with the install script on the releases page (`panic-button-installer.sh`, an
 cargo install panic-button panic-button-agent panic-button-relay
 ```
 
-The crates are not on crates.io yet, so `cargo install` works only from the source code (below) for now.
-
 Each release includes `SHA256SUMS`, listing the checksum of every file.
 
 ## From the source code
