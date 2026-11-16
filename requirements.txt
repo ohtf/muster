@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+#
+# Documentation site generator (https://zensical.org). Used only to build and
+# preview docs/; not a dependency of Panic Button itself. Pinned; bump
+# deliberately.
+zensical==0.1.1

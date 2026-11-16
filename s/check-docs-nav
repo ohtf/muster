@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# Fail if a page under docs/ is missing from the nav in mkdocs.yml, if the
+# nav names a page that does not exist, or if an exception below names a
+# page that no longer exists. Zensical builds orphaned pages without a
+# warning, so this is the only thing that catches them. No dependencies.
+#
+#   s/check-docs-nav
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Pages deliberately left out of the nav: "path|reason".
+exceptions=(
+  "writing-checklist.md|a checklist for people writing the guides, not for readers"
+)
+
+# Nav entries look like "- Title: page.md"; links to other sites are skipped.
+mapfile -t nav < <(sed -n 's/^ *- [^:]*: *\([^ :]*\.md\) *$/\1/p' mkdocs.yml | sort -u)
+mapfile -t pages < <(cd docs && find . -name '*.md' -printf '%P\n' | sort)
+
+fail=0
+in_list() {
+  local x=$1; shift
+  local e
+  for e in "$@"; do [[ $e == "$x" ]] && return 0; done
+  return 1
+}
+skipped=()
+for e in "${exceptions[@]}"; do
+  p=${e%%|*}
+  skipped+=("$p")
+  [[ -f docs/$p ]] || { echo "exception for a missing page: docs/$p" >&2; fail=1; }
+done
+for p in "${pages[@]}"; do
+  in_list "$p" "${nav[@]}" "${skipped[@]}" || { echo "not in the nav: docs/$p" >&2; fail=1; }
+done
+for p in "${nav[@]}"; do
+  [[ -f docs/$p ]] || { echo "the nav names a missing page: docs/$p" >&2; fail=1; }
+done
+[[ $fail -eq 0 ]] && echo "docs nav: ${#pages[@]} pages, ${#skipped[@]} deliberately unlisted"
+exit "$fail"

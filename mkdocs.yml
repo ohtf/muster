@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+#
+# The documentation site, built with Zensical (house style docs.md). Every
+# page under docs/ must be in the nav, or listed as an exception in
+# s/check-docs-nav.
+
+site_name: Panic Button
+site_description: An open-source staff panic alarm for GP practices and other small workplaces.
+site_url: https://ohtf.github.io/panic-button/
+
+repo_url: https://github.com/ohtf/panic-button
+repo_name: ohtf/panic-button
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: zensical
+  variant: modern
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  features:
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+    - navigation.sections
+    - navigation.footer
+    - search.highlight
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - For practice staff:
+      - Calling for help: staff-guide.md
+  - For Practice Admins:
+      - Practice Admin guide: admin-guide.md
+      - Installing: install.md
+      - Home test: home-test.md
+  - For developers and IT:
+      - The desktop app: gui/README.md
+      - Trying it without a desktop: try-it-headless.md
+      - Running a relay: https://github.com/ohtf/panic-button/blob/main/packaging/relay/README.md
+      - Specification: https://github.com/ohtf/panic-button/tree/main/spec
+
+copyright: >-
+  Copyright &copy; 2026 Open Health Technology Foundation contributors.
+  Text CC-BY-SA-4.0; code AGPL-3.0-or-later with an app store exception.
+  Source <a href="https://github.com/ohtf/panic-button">ohtf/panic-button</a>.

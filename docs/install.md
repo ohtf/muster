@@ -23,7 +23,7 @@ These are for IT staff and servers, not for practice staff:
 
 - `panic-button`: setup and diagnostics from a terminal.
 - `panic-button-agent`: Panic Button without a window, for a server or a Raspberry Pi that should receive and forward alarms.
-- `panic-button-relay`: the optional relay server (see [packaging/relay/README.md](../packaging/relay/README.md)).
+- `panic-button-relay`: the optional relay server (see [Running a relay](https://github.com/ohtf/panic-button/blob/main/packaging/relay/README.md)).
 
 Install them with Homebrew on Mac or Linux:
 

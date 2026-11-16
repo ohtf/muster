@@ -1,0 +1,9 @@
+/*
+ * Panic Button docs colours. Links use the app's action blue; the alarm red
+ * is kept for the logo, so red on a page never means "click here".
+ */
+
+:root {
+  --md-accent-fg-color: #1f4e8c;
+  --md-typeset-a-color: #1f4e8c;
+}

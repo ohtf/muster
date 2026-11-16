@@ -18,6 +18,18 @@ Install from this checkout. The command-line programs go into `~/.cargo/bin`. Wi
 - `s/install` - the command-line programs
 - `s/install --desktop` - and the desktop app
 
+## `s/docs`
+
+Serve the documentation site locally with live reload, on the first free port from 8000. First time: `python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt`.
+
+- `s/docs`
+
+## `s/check-docs-nav`
+
+Fail if a page under `docs/` is missing from the nav in `mkdocs.yml`, or the nav names a missing page. Runs in the docs workflow.
+
+- `s/check-docs-nav`
+
 ## `s/version++`
 
 Release: bump the version (`patch`, `minor` or `major`), regenerate `CHANGELOG.md` and push the release commit. CI tags it and publishes to GitHub Releases, Homebrew, the AUR and crates.io.

@@ -46,3 +46,7 @@ dist/
 
 # Tauri generated schemas
 apps/desktop/src-tauri/gen/
+
+# Docs site (s/docs)
+.venv/
+site/
