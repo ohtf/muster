@@ -5,6 +5,10 @@
 # panic-button-relay crates to crates.io for a release tag, in dependency
 # order. Uses crates.io trusted publishing (OIDC) when it is set up for the
 # crates, otherwise the CARGO_REGISTRY_TOKEN secret.
+#
+# The job runs in the crates-io environment, which only main may deploy to;
+# each crate's trusted publisher config names that environment, so crates.io
+# issues no token to a run from any other branch.
 
 name: Publish to crates.io
 
@@ -33,6 +37,7 @@ jobs:
     name: Publish to crates.io
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: crates-io
     permissions:
       contents: read
       id-token: write
