@@ -5,9 +5,69 @@ All notable changes to Panic Button are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Releases are grouped from conventional-commit messages by [git-cliff](https://git-cliff.org).
 
+## [0.2.0] - 2026-11-18
+
+### Bug fixes
+
+- **scripts**: Sign off the release commit ([2791a9c](https://github.com/ohtf/panic-button/commit/2791a9c5b4dbca238eb6a6c4355380365aae9097))
+
+- **net**: Retry a busy UDP port at start; port 47474 is unassigned (R50) ([e4ae02d](https://github.com/ohtf/panic-button/commit/e4ae02d17e3f1dbbed3b0068180f8953da4a1624))
+
+- **reuse**: Licence header on apps/desktop/.prettierignore ([66c654c](https://github.com/ohtf/panic-button/commit/66c654cabd00ea616ae75e9a154856eea06b9e9b))
+
+- **packaging**: Autostart entry in the rpm; clean cask header; home test guide uses release downloads ([87e7c1a](https://github.com/ohtf/panic-button/commit/87e7c1a948988ae8e2a4ad0a0802d024c13e373a))
+
+### Build
+
+- **desktop**: ESLint and Prettier for the frontend (R30) ([8c11fde](https://github.com/ohtf/panic-button/commit/8c11fde4846bdc1e2a6a0073e92b553cc75e20e4))
+
+### CI
+
+- **release**: Publish to crates.io from the crates-io environment ([cdb0231](https://github.com/ohtf/panic-button/commit/cdb0231575485feaf2aa2d000e8ae5a7e4666687))
+
+### Documentation
+
+- **roadmap**: The former crates are not yanked yet ([e1a4c0d](https://github.com/ohtf/panic-button/commit/e1a4c0d8efd136a960b725915cedb570f2aadebc))
+
+- The staff guide prints on one A4 page (R57) ([355f3e8](https://github.com/ohtf/panic-button/commit/355f3e8dce6a44f358561189b3320011135f58d8))
+
+- **spec**: Q9, admin recovery on a computer outside the practice ([ed6f943](https://github.com/ohtf/panic-button/commit/ed6f943decf1ca305ffbdd111c429b405b6eba1f))
+
+- Documentation site with Zensical (R59) ([b62e056](https://github.com/ohtf/panic-button/commit/b62e056cead81f12f4c6f560f35226c9bca91afb))
+
+- V0.1.0 crates are on crates.io ([a19273e](https://github.com/ohtf/panic-button/commit/a19273e09caca7f2bfc16259f9cce5022fb9639f))
+
+- **agents**: Record publicity channels ([4fe5790](https://github.com/ohtf/panic-button/commit/4fe5790b5605edf12b978464a5b535568e2830d0))
+
+- **roadmap**: Panic-button-bin is on the AUR ([32dac3c](https://github.com/ohtf/panic-button/commit/32dac3c1e1524792855b9720f2341bec5539097d))
+
+- **install**: Checksums under releases; crates.io not yet published ([9489e19](https://github.com/ohtf/panic-button/commit/9489e1923ba266de90cb105a9d2708b802326f7d))
+
+### Features
+
+- **desktop**: Session detection, locked and remote (R32) ([c362a6d](https://github.com/ohtf/panic-button/commit/c362a6d2b7a6280ec7ed7b2ff5ac07a636084344))
+
+- Join by approval code (flow C, R30) ([5072fb7](https://github.com/ohtf/panic-button/commit/5072fb7b0f57b9a5d020b996dd4fcc21ebe42fc8))
+
+- **admin**: Create a new recovery kit with a new passphrase (R34) ([5d1fd34](https://github.com/ohtf/panic-button/commit/5d1fd34ab7a6100055ab57a503fe34f848490867))
+
+- **desktop**: Windows audio endpoint and mute override (R32) ([c4076d2](https://github.com/ohtf/panic-button/commit/c4076d21befcded1291d597fddfa6cac757944ee))
+
+- **desktop**: A muted computer shows amber on Linux and macOS (R32) ([46ccaa7](https://github.com/ohtf/panic-button/commit/46ccaa76294613d7cfce85304c3f5c41d0821bae))
+
+- **desktop**: Keyboard shortcut and remembered button position (R30) ([7cbc3cd](https://github.com/ohtf/panic-button/commit/7cbc3cd8aa9aecd028cc48a3eed086cc31b01236))
+
+- **scripts**: S/install for the command-line programs and, with --desktop, the desktop app as a system package ([bd612f8](https://github.com/ohtf/panic-button/commit/bd612f84ee41c338bc2a854d59f12cddd05a2c2e))
+
+### Refactor
+
+- One published crate, panic-button (ADR 0016) **[breaking]** ([0f7c947](https://github.com/ohtf/panic-button/commit/0f7c9471b215976ca566d807fb751a74883f8af1))
+
 ## [0.1.0] - 2026-11-15
 
 ### Bug fixes
+
+- **release**: Build only the three programs with cargo-dist (precise builds) ([b9d8bfe](https://github.com/ohtf/panic-button/commit/b9d8bfe4d603d2ee1ce67dd2ae856c14c7556c21))
 
 - **netns**: Always run the scenarios in a private network and mount namespace ([9ab75f4](https://github.com/ohtf/panic-button/commit/9ab75f4623ec2a28bc66a41b3217f5d23b3e6653))
 
