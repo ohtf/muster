@@ -4,7 +4,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_proto::relay::{Frame, decode_batch};
+use panic_button::proto::relay::{Frame, decode_batch};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(f) = Frame::from_bytes(data) {

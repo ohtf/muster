@@ -14,7 +14,7 @@ Not on Windows yet: the agent's control API there needs the named pipe (R32).
 On each machine (or build once and copy `panic-button` and `panic-button-agent`):
 
 ```sh
-cargo build --release -p panic-button-agent -p panic-button
+cargo build --release -p panic-button
 export PATH="$PWD/target/release:$PATH"
 ```
 

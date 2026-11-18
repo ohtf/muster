@@ -8,9 +8,11 @@
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use panic_button_core::io::{AlarmPhase, LocalAck, SenderPhase, StatusReason, UiEvent, UserAction};
-use panic_button_core::time::MINUTE;
-use panic_button_proto::{AudioStatus, MsgId, StatusLevel};
+use panic_button::core::io::{
+    AlarmPhase, LocalAck, SenderPhase, StatusReason, UiEvent, UserAction,
+};
+use panic_button::core::time::MINUTE;
+use panic_button::proto::{AudioStatus, MsgId, StatusLevel};
 use panic_button_sim::*;
 
 const WARMUP: u64 = 40_000;
@@ -65,7 +67,7 @@ fn others(n: usize, except: &[usize]) -> Vec<usize> {
     (0..n).filter(|i| !except.contains(i)).collect()
 }
 
-fn view_of(w: &World, node: usize, alarm: &MsgId) -> Option<panic_button_core::io::AlarmView> {
+fn view_of(w: &World, node: usize, alarm: &MsgId) -> Option<panic_button::core::io::AlarmView> {
     w.core(node)?
         .alarm_views(w.wall_of(node))
         .into_iter()
@@ -717,7 +719,7 @@ fn join_codes(w: &World, node: usize) -> Vec<String> {
         .collect()
 }
 
-fn join_requests_seen(w: &World, node: usize) -> Vec<(panic_button_proto::DeviceId, String)> {
+fn join_requests_seen(w: &World, node: usize) -> Vec<(panic_button::proto::DeviceId, String)> {
     w.ui_events(node)
         .filter_map(|(_, e)| match e {
             UiEvent::JoinRequested { device, code, .. } => Some((*device, code.clone())),

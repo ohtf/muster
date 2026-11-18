@@ -11,7 +11,7 @@
 //! xrdp session as remote. Elsewhere, or if nothing can be read, the session
 //! counts as active.
 
-use panic_button_proto::SessionState;
+use panic_button::proto::SessionState;
 
 #[cfg(windows)]
 pub async fn read() -> SessionState {

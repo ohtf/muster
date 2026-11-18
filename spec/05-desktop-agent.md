@@ -37,7 +37,7 @@
 
 ### Hold interaction
 
-State machine in `panic-button-core` (`HoldMachine`). The UI only reports pointer events:
+State machine in the `core` module (`HoldMachine`). The UI only reports pointer events:
 
 ```
 Idle --HoldStart(src)--> Holding{start, src}

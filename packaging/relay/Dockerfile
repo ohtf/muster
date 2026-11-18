@@ -14,7 +14,7 @@ COPY crates crates
 # A workspace member: cargo needs its manifest and sources to load the
 # workspace, though only the relay is built.
 COPY apps/desktop/src-tauri apps/desktop/src-tauri
-RUN cargo build --release --locked -p panic-button-relay \
+RUN cargo build --release --locked -p panic-button --bin panic-button-relay \
  && mkdir -p /out/var/lib/panic-button-relay /out/etc/panic-button-relay \
  && cp target/release/panic-button-relay /out/panic-button-relay
 

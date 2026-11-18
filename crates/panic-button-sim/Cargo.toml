@@ -15,9 +15,7 @@ publish = false
 workspace = true
 
 [dependencies]
-panic-button-core.workspace = true
-panic-button-crypto.workspace = true
-panic-button-proto.workspace = true
+panic-button.workspace = true
 rand_chacha = "0.10"
 
 [dev-dependencies]

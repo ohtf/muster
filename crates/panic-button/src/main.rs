@@ -15,5 +15,5 @@ fn reset_sigpipe() {
 
 fn main() -> anyhow::Result<()> {
     reset_sigpipe();
-    panic_button::run(panic_button::Cli::parse())
+    panic_button::cli::run(panic_button::cli::Cli::parse())
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
 
 // Shapes returned by the agent's control API and UI events
-// (crates/panic-button-agent/src/views.rs).
+// (crates/panic-button/src/agent/views.rs).
 
 export type Level = "green" | "amber" | "red";
 

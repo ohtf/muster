@@ -5,7 +5,7 @@
 # checked by s/desktop-check, since it needs WebKit and a built frontend.
 #
 # Pass cargo test arguments through, for example:
-#   s/test -p panic-button-core
+#   s/test -p panic-button-sim
 #   PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties
 #                                                (CI-scale property run)
 

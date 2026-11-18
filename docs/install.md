@@ -25,16 +25,16 @@ These are for IT staff and servers, not for practice staff:
 - `panic-button-agent`: Panic Button without a window, for a server or a Raspberry Pi that should receive and forward alarms.
 - `panic-button-relay`: the optional relay server (see [Running a relay](https://github.com/ohtf/panic-button/blob/main/packaging/relay/README.md)).
 
-Install them with Homebrew on Mac or Linux:
+From version 0.2.0 the three come together. Install them with Homebrew on Mac or Linux:
 
 ```sh
-brew install ohtf/tap/panic-button-cli ohtf/tap/panic-button-agent ohtf/tap/panic-button-relay
+brew install ohtf/tap/panic-button-cli
 ```
 
 or with the install script on the releases page (`panic-button-installer.sh`, and `.ps1` for Windows PowerShell), or with Rust's package manager:
 
 ```sh
-cargo install panic-button panic-button-agent panic-button-relay
+cargo install panic-button
 ```
 
 Each release includes `SHA256SUMS`, listing the checksum of every file.

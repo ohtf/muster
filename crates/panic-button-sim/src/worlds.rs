@@ -9,8 +9,8 @@
 use std::collections::BTreeSet;
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use panic_button_core::io::UserAction;
-use panic_button_proto::{
+use panic_button::core::io::UserAction;
+use panic_button::proto::{
     AlarmEvent, AlarmKind, AlarmRaised, EventDetail, EventKind, MsgId, Payload, Source,
 };
 use rand_chacha::ChaCha20Rng;
@@ -348,7 +348,7 @@ pub fn run_attack(p: &Params) -> Result<(), String> {
         w.inject_segment(t, 0, attacker, junk);
     }
     // Forged alarm: a stranger who has the group key but no cert.
-    let stranger = panic_button_crypto::DeviceKeys::from_secrets([0x55; 32], [0x66; 32]);
+    let stranger = panic_button::crypto::DeviceKeys::from_secrets([0x55; 32], [0x66; 32]);
     let fake = MsgId([0xfa; 16]);
     let forged = forge(
         &w,
@@ -389,7 +389,7 @@ pub fn run_attack(p: &Params) -> Result<(), String> {
     p3_no_duplicates(&w)?;
     p11_cancel_authority(&w, &BTreeSet::new())?;
     if w.trace.iter().any(|e| {
-        matches!(&e.ev, crate::world::TraceEv::Ui(panic_button_core::io::UiEvent::AlarmShown { alarm, .. }) if alarm.alarm_id == fake)
+        matches!(&e.ev, crate::world::TraceEv::Ui(panic_button::core::io::UiEvent::AlarmShown { alarm, .. }) if alarm.alarm_id == fake)
     }) {
         return Err("P2: forged alarm shown".into());
     }

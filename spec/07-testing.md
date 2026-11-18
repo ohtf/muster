@@ -14,9 +14,9 @@ Testing is part of the product. The claims "it works" and "it tells you when it 
 
 ## 1. Unit tests (examples, not exhaustive)
 
-- `panic-button-proto`: round-trip every message type; deterministic encoding; unknown keys ignored; duplicate keys rejected; size limits enforced; golden test vectors (committed hex files) so other implementations can check compatibility.
-- `panic-button-crypto`: seal and open; tag derivation; KeyShare; cert chain validation (each rule in `04-security.md`, positive and negative); non-cascade vs cascade revocation; recovery kit encrypt and decrypt; zeroize on drop (via test hooks).
-- `panic-button-core`: hold machine (every transition, including near miss boundaries at 299, 300, 1499 and 1500 ms); alarm state merging (permutations of event order give identical state); expiry; Cancelled only from the origin; status computation table tests (each red and amber reason).
+- `proto` module: round-trip every message type; deterministic encoding; unknown keys ignored; duplicate keys rejected; size limits enforced; golden test vectors (committed hex files) so other implementations can check compatibility.
+- `crypto` module: seal and open; tag derivation; KeyShare; cert chain validation (each rule in `04-security.md`, positive and negative); non-cascade vs cascade revocation; recovery kit encrypt and decrypt; zeroize on drop (via test hooks).
+- `core` module: hold machine (every transition, including near miss boundaries at 299, 300, 1499 and 1500 ms); alarm state merging (permutations of event order give identical state); expiry; Cancelled only from the origin; status computation table tests (each red and amber reason).
 
 ## 2. Simulator (`panic-button-sim`)
 

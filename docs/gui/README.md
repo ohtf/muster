@@ -1,6 +1,6 @@
 # The Panic Button desktop app
 
-The desktop app (`apps/desktop`) is a Tauri 2 shell with a Svelte 5 frontend around the embedded agent. Rust owns behaviour: the hold timer, delivery and status all come from `panic-button-core`. The webviews draw four windows:
+The desktop app (`apps/desktop`) is a Tauri 2 shell with a Svelte 5 frontend around the embedded agent. Rust owns behaviour: the hold timer, delivery and status all come from the `core` module of the `panic-button` crate. The webviews draw four windows:
 
 - **Button**: the floating red button (bottom right), with the status shape and a badge for how many are coming.
 - **Panel**: beside the button, the sender panel after you call for help ("Delivered to N devices", who is coming, Cancel, Resolved), and the drill toast.
@@ -32,7 +32,7 @@ PANIC_BUTTON_DATA_DIR=/tmp/panic-button-demo/a PANIC_BUTTON_CONFIG=/tmp/panic-bu
   PANIC_BUTTON_CONTROL_SOCKET=/tmp/panic-button-demo/a.sock s/gui-dev
 
 # Device B: a headless agent standing in for a second computer.
-cargo run --release -p panic-button-agent -- --headless --config /tmp/panic-button-demo/b.toml \
+cargo run --release -p panic-button --bin panic-button-agent -- --headless --config /tmp/panic-button-demo/b.toml \
   --policy /dev/null --data-dir /tmp/panic-button-demo/b --control-socket /tmp/panic-button-demo/b.sock \
   --label "Consulting Room 4" --allow-raise
 

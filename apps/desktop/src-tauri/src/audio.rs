@@ -22,8 +22,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
-use panic_button_core::io::AudioCmd;
-use panic_button_proto::{CueMode, SoundPattern};
+use panic_button::core::io::AudioCmd;
+use panic_button::proto::{CueMode, SoundPattern};
 use rodio::{Player, Source};
 
 const RATE: u32 = 48_000;

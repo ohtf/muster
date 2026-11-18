@@ -4,8 +4,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_crypto::TrustStore;
-use panic_button_proto::{Cbor, Cert, PracticeId};
+use panic_button::crypto::TrustStore;
+use panic_button::proto::{Cbor, Cert, PracticeId};
 
 fuzz_target!(|data: &[u8]| {
     // Interpret the input as a sequence of length-prefixed certs.

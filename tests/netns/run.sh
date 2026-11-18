@@ -11,7 +11,7 @@
 #
 # Re-executes itself in a private network and mount namespace (as root in
 # CI, or in an unprivileged user namespace where the kernel allows it). Needs ip, nft and the
-# release binaries (cargo build --release -p panic-button-agent -p panic-button).
+# release binaries (cargo build --release -p panic-button).
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ CLI=$BIN/panic-button
 RELAY=$BIN/panic-button-relay
 PORT=47474
 for b in "$AGENT" "$CLI" "$RELAY"; do
-  [[ -x $b ]] || { echo "missing $b: cargo build --release -p panic-button-agent -p panic-button -p panic-button-relay" >&2; exit 2; }
+  [[ -x $b ]] || { echo "missing $b: cargo build --release -p panic-button" >&2; exit 2; }
 done
 
 # Private /run so netns names do not clash with the host.

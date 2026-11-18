@@ -8,12 +8,12 @@
 
 use std::collections::BTreeMap;
 
-use panic_button_core::bootstrap::{enrol_with_token_state, new_device_keys, new_practice};
-use panic_button_core::persist::PersistedState;
-use panic_button_core::rng::CoreRng;
-use panic_button_crypto::token::{TokenRequest, create_token};
-use panic_button_crypto::{DeviceKeys, GroupKey, SigningSecret};
-use panic_button_proto::{Cbor, CertSerial, PracticeId, Token, TokenId};
+use panic_button::core::bootstrap::{enrol_with_token_state, new_device_keys, new_practice};
+use panic_button::core::persist::PersistedState;
+use panic_button::core::rng::CoreRng;
+use panic_button::crypto::token::{TokenRequest, create_token};
+use panic_button::crypto::{DeviceKeys, GroupKey, SigningSecret};
+use panic_button::proto::{Cbor, CertSerial, PracticeId, Token, TokenId};
 
 use crate::world::{WALL_BASE, WorldSpec};
 
@@ -112,15 +112,15 @@ pub fn setup(rng: &mut CoreRng, spec: &WorldSpec) -> Vec<PracticeSetup> {
             if spec.admins.contains(&m) {
                 // Promoted by the first admin.
                 let serial = CertSerial(rng.bytes());
-                let cert = panic_button_crypto::issue_cert(
+                let cert = panic_button::crypto::issue_cert(
                     &states[&admin_node].0,
-                    panic_button_proto::CertBody {
-                        version: panic_button_proto::cert::CERT_VERSION,
+                    panic_button::proto::CertBody {
+                        version: panic_button::proto::cert::CERT_VERSION,
                         practice_id: practice.practice_id,
                         serial,
                         subject: keys.device_id(),
                         subject_kx: keys.kx_pub(),
-                        role: panic_button_proto::Role::Admin,
+                        role: panic_button::proto::Role::Admin,
                         label: format!("N{m}"),
                         issued_at: WALL_BASE - 400,
                         expires_at: 0,

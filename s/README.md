@@ -7,7 +7,7 @@ The `s/` directory contains some simple convenience scripts to speed up and stan
 Run the full test suite, including simulator scenarios and properties.
 
 - `s/test` - everything
-- `s/test -p panic-button-core` - one crate
+- `s/test -p panic-button-sim` - one crate (`panic-button`, `panic-button-sim` or `panic-button-desktop`)
 - `PROPTEST_CASES=256 s/test --release -p panic-button-sim --test properties` - CI-scale property run
 - `PROPTEST_CASES=1000 s/test --release -p panic-button-sim --test properties` - long property run (about an hour)
 

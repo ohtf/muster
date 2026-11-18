@@ -9,15 +9,15 @@ use std::cmp::Reverse;
 use std::collections::{BTreeMap, BinaryHeap};
 use std::net::{Ipv4Addr, SocketAddrV4};
 
-use panic_button_core::config::LocalConfig;
-use panic_button_core::io::{
+use panic_button::core::config::LocalConfig;
+use panic_button::core::io::{
     AudioCmd, AuditEvent, InterfaceInfo, RelayLinkState, UdpDest, UdpKind, UiEvent, UserAction,
 };
-use panic_button_core::persist::PersistedState;
-use panic_button_core::rng::CoreRng;
-use panic_button_core::{Core, Identity, Input, Mono, Output};
-use panic_button_crypto::DeviceKeys;
-use panic_button_proto::{AudioStatus, DeviceId, MsgId, SessionState, StatusLevel};
+use panic_button::core::persist::PersistedState;
+use panic_button::core::rng::CoreRng;
+use panic_button::core::{Core, Identity, Input, Mono, Output};
+use panic_button::crypto::DeviceKeys;
+use panic_button::proto::{AudioStatus, DeviceId, MsgId, SessionState, StatusLevel};
 use rand_chacha::ChaCha20Rng;
 use rand_chacha::rand_core::{Rng, SeedableRng};
 
@@ -826,14 +826,14 @@ impl World {
 
     /// Message type of an envelope, for traffic analysis.
     pub fn classify(&self, bytes: &[u8]) -> String {
-        use panic_button_proto::{Cbor, Envelope, SignedMessage};
+        use panic_button::proto::{Cbor, Envelope, SignedMessage};
         match Envelope::from_cbor(bytes) {
             Ok(Envelope::Sealed(s)) => {
                 for p in &self.practices {
-                    if let Ok(m) = panic_button_crypto::open(&p.group_key, &s)
-                        && let Ok(b) = panic_button_proto::Body::from_cbor(&m.body)
+                    if let Ok(m) = panic_button::crypto::open(&p.group_key, &s)
+                        && let Ok(b) = panic_button::proto::Body::from_cbor(&m.body)
                     {
-                        if let panic_button_proto::Payload::AlarmEvent(e) = &b.payload {
+                        if let panic_button::proto::Payload::AlarmEvent(e) = &b.payload {
                             return format!("AlarmEvent/{:?}/{}", e.event, b.msg_id);
                         }
                         return format!("{:?}", b.msg_type());
@@ -843,9 +843,9 @@ impl World {
             }
             Ok(Envelope::Open(o)) => SignedMessage::from_cbor(&o.payload)
                 .ok()
-                .and_then(|m| panic_button_proto::Body::from_cbor(&m.body).ok())
+                .and_then(|m| panic_button::proto::Body::from_cbor(&m.body).ok())
                 .map(|b| match &b.payload {
-                    panic_button_proto::Payload::KeyShare(k) => format!(
+                    panic_button::proto::Payload::KeyShare(k) => format!(
                         "KeyShare/to {:?}/epoch {}/from {:?}",
                         self.node_of(&k.recipient),
                         k.epoch,
@@ -1214,7 +1214,7 @@ impl World {
         self.handle(
             node,
             Input::User(UserAction::RaiseNow {
-                source: panic_button_proto::Source::Button,
+                source: panic_button::proto::Source::Button,
             }),
         );
         let after = self.last_alarm_of(node);

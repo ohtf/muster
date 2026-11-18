@@ -12,5 +12,5 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-cargo build --release -p panic-button-agent -p panic-button -p panic-button-relay
+cargo build --release -p panic-button
 exec tests/netns/run.sh "$@"

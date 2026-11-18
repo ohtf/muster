@@ -25,7 +25,7 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 - The sender's "Delivered to N" count only ever comes from real Receipts (P10, H03).
 - Raising an alarm must never make an alarm-like sound on the sender's device (ADR 0008).
 - Pointer movement never cancels a hold (ADR 0009).
-- `panic-button-core` performs no I/O, reads no clocks and uses only injected randomness (ADR 0002).
+- The `core` module performs no I/O, reads no clocks and uses only injected randomness (ADR 0002).
 - Decoding code must never panic on untrusted input. It is fuzzed.
 - No patient data is ever handled, stored or transmitted.
 - Do not copy the visual design, colours, iconography, sounds or wording of any commercial panic alarm product. Generate sounds programmatically and release them under CC0.
@@ -35,7 +35,8 @@ Build in the milestone order in [spec/09-roadmap.md](spec/09-roadmap.md). Do not
 ## Toolchain and conventions
 
 - Rust edition 2024, toolchain pinned in `rust-toolchain.toml`. Cargo workspace at the repo root.
-- `#![forbid(unsafe_code)]` in `panic-button-proto`, `panic-button-crypto`, `panic-button-core`, `panic-button-sim` and `panic-button-relay`. Platform FFI (audio endpoint, DPAPI, session detection) lives in clearly named `platform` modules in `panic-button-agent` and `apps/desktop`, with `// SAFETY:` comments.
+- `#![forbid(unsafe_code)]` in the whole `panic-button` crate and in `panic-button-sim`. Platform FFI (audio endpoint, DPAPI, session detection) lives in clearly named `platform` modules in `apps/desktop`, with `// SAFETY:` comments. If the headless agent ever needs FFI, decide where in an ADR rather than relaxing the crate-wide rule.
+- One published crate, `panic-button` (ADR 0016). Modules keep the dependency direction in `spec/02-architecture.md`, checked by `crates/panic-button/tests/boundaries.rs`; add a crate only when it has real reuse value outside this project.
 - Libraries use `thiserror`. Binaries use `anyhow`. Logging uses `tracing`. CLIs use `clap` derive and follow house-style [rust-cli.md](https://github.com/pacharanero/house-style/blob/main/rust-cli.md).
 - Frontend (M4 onwards): TypeScript (strict), Svelte 5, Vite in `apps/desktop`. `eslint`, `prettier --check` and `svelte-check` must pass.
 - Dependencies must be AGPL-compatible. `cargo-deny` (licences, advisories, bans, sources) and `cargo audit` enforce this. Prefer well-maintained crates and check them against house-style [dependencies.md](https://github.com/pacharanero/house-style/blob/main/dependencies.md).

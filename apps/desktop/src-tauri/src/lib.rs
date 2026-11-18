@@ -19,10 +19,10 @@ mod windows;
 
 use std::path::{Path, PathBuf};
 
-use panic_button_agent::config::ConfigFile;
-use panic_button_agent::{AgentHandle, AgentOptions, paths};
-use panic_button_core::io::{Input, UiEvent};
-use panic_button_proto::{AudioStatus, SoundPattern};
+use panic_button::agent::config::ConfigFile;
+use panic_button::agent::{AgentHandle, AgentOptions, paths};
+use panic_button::core::io::{Input, UiEvent};
+use panic_button::proto::{AudioStatus, SoundPattern};
 use serde::Serialize;
 use serde_json::{Value, json};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -105,7 +105,7 @@ async fn start_agent(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
     let config = st.config.lock().await.clone();
-    let (h, _task) = panic_button_agent::start(AgentOptions {
+    let (h, _task) = panic_button::agent::start(AgentOptions {
         data_dir: st.data_dir.clone(),
         control_socket: st.control_socket.clone(),
         config,
@@ -145,7 +145,7 @@ async fn pump_events(app: AppHandle, h: AgentHandle) {
                 if matches!(e, UiEvent::StatusChanged(_)) {
                     refresh_tray(&app).await;
                 }
-                let _ = app.emit("panic-button", panic_button_agent::views::ui_event(&e));
+                let _ = app.emit("panic-button", panic_button::agent::views::ui_event(&e));
             }
             Err(RecvError::Lagged(_)) => {}
             Err(RecvError::Closed) => break,
@@ -264,7 +264,7 @@ async fn app_info(app: AppHandle, st: State<'_, Shared>) -> Result<AppInfo, Stri
     let running = st.agent.lock().await.is_some();
     let cfg = st.config.lock().await;
     Ok(AppInfo {
-        enrolled: panic_button_agent::setup::is_enrolled(&st.data_dir).map_err(err)?,
+        enrolled: panic_button::agent::setup::is_enrolled(&st.data_dir).map_err(err)?,
         running,
         version: env!("CARGO_PKG_VERSION"),
         data_dir: st.data_dir.display().to_string(),
@@ -305,7 +305,7 @@ async fn setup_practice(
     let dir = st.data_dir.clone();
     let kit = paths::expand(Path::new(kit_path.trim()));
     let p = tauri::async_runtime::spawn_blocking(move || {
-        panic_button_agent::setup::init_practice(&dir, &name, label.trim(), &passphrase, &kit)
+        panic_button::agent::setup::init_practice(&dir, &name, label.trim(), &passphrase, &kit)
     })
     .await
     .map_err(err)?
@@ -339,7 +339,7 @@ async fn new_recovery_kit(
     let old = paths::expand(Path::new(old_path.trim()));
     let new = paths::expand(Path::new(new_path.trim()));
     let k = tauri::async_runtime::spawn_blocking(move || {
-        panic_button_agent::setup::new_recovery_kit(Some(&dir), &old, &old_pass, &new, &new_pass)
+        panic_button::agent::setup::new_recovery_kit(Some(&dir), &old, &old_pass, &new, &new_pass)
     })
     .await
     .map_err(err)?
@@ -354,7 +354,7 @@ async fn join_with_token(
     token: String,
 ) -> Result<(), String> {
     let t = token.trim().to_owned();
-    panic_button_proto::Token::parse(&t)
+    panic_button::proto::Token::parse(&t)
         .map_err(|e| format!("That is not a valid enrolment code: {e}"))?;
     if let Some(h) = agent_handle(&app).await {
         h.call("enrol", json!({ "token": t }))
@@ -390,9 +390,9 @@ async fn create_token(st: State<'_, Shared>, days: u64, label: String) -> Result
     let dir = st.data_dir.clone();
     let relays = st.config.lock().await.network.relay_urls.clone();
     let t = tauri::async_runtime::spawn_blocking(move || {
-        panic_button_agent::setup::create_enrolment_token(
+        panic_button::agent::setup::create_enrolment_token(
             &dir,
-            &panic_button_agent::setup::TokenOptions {
+            &panic_button::agent::setup::TokenOptions {
                 days,
                 label,
                 relay_urls: relays,
@@ -624,7 +624,7 @@ pub fn run() {
             let handle = app.handle().clone();
             build_tray(&handle, allow_quit)?;
             shortcut::setup(&handle, hotkey.as_deref());
-            let enrolled = panic_button_agent::setup::is_enrolled(&data_dir).unwrap_or(false);
+            let enrolled = panic_button::agent::setup::is_enrolled(&data_dir).unwrap_or(false);
             app.manage(windows::Placer::new(&data_dir, wayland()));
             windows::create_all(&handle, !enrolled)?;
             tauri::async_runtime::spawn(windows::watch_button(handle.clone()));

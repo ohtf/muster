@@ -7,7 +7,7 @@
 
 #![allow(unsafe_code)]
 
-use panic_button_proto::SessionState;
+use panic_button::proto::SessionState;
 use windows::Win32::System::RemoteDesktop::{
     WTS_CURRENT_SESSION, WTS_SESSIONSTATE_LOCK, WTSFreeMemory, WTSINFOEXW,
     WTSQuerySessionInformationW, WTSSessionInfoEx,

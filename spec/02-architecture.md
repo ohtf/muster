@@ -29,17 +29,19 @@ Every device runs the same core. The relay is a separate, much simpler program t
 panic-button/
   Cargo.toml                 workspace
   crates/
-    panic-button-proto/            message types, CBOR encode/decode, versioning (no I/O)
-    panic-button-crypto/           keys, certs, sealing, signatures, recovery kit (no I/O)
-    panic-button-core/             sans-IO state machine: peers, alarms, hold logic, status, sync
-    panic-button-store/            SQLite persistence (rusqlite) for identity, certs, alarms, audit
-    panic-button-net/              tokio I/O drivers: UDP, TCP, mDNS, relay client, interface watch
-    panic-button-agent/            runtime glue: wires core + net + store + platform; control API; headless bin
-    panic-button-sim/              deterministic network simulator and property tests
-    panic-button-relay/            relay server binary
-    panic-button/              `panic-button` admin and diagnostics CLI
+    panic-button/            the one published crate (ADR 0016); modules in src/:
+      proto/                 message types, CBOR encode/decode, versioning (no I/O)
+      crypto/                keys, certs, sealing, signatures, recovery kit (no I/O)
+      core/                  sans-IO state machine: peers, alarms, hold logic, status, sync
+      store/                 SQLite persistence (rusqlite) for identity, certs, alarms, audit
+      net/                   tokio I/O drivers: UDP, TCP, mDNS, relay client, interface watch
+      agent/                 runtime glue: wires core + net + store + platform; control API
+      relay/                 relay server (`relay` feature, on by default)
+      cli/                   the `panic-button` admin and diagnostics CLI
+      main.rs, bin/          programs: panic-button, panic-button-agent, panic-button-relay
+    panic-button-sim/        deterministic network simulator and property tests (unpublished)
   apps/
-    desktop/                 Tauri 2 app (Rust side embeds panic-button-agent; Svelte 5 frontend)
+    desktop/                 Tauri 2 app (Rust side embeds the agent module; Svelte 5 frontend)
   packaging/
     windows/                 WiX fragments (firewall, properties), signing scripts
     macos/                   pkg scripts, entitlements, LaunchAgent plist, config profile example
@@ -57,7 +59,7 @@ panic-button/
 
 ## Sans-IO core
 
-`panic-button-core` contains all protocol and alarm logic and performs **no I/O, reads no clocks and uses no global randomness**. This is what makes the simulator deterministic and the properties testable.
+The `core` module contains all protocol and alarm logic and performs **no I/O, reads no clocks and uses no global randomness**. This is what makes the simulator deterministic and the properties testable.
 
 ```rust
 pub struct Core { /* state */ }
@@ -98,14 +100,14 @@ pub enum Output {
 Rules:
 - Time comes in as parameters. Randomness (message ids, nonces, jitter) comes from a `ChaCha20Rng` seeded at construction. The runtime seeds it from `OsRng`. The simulator seeds it deterministically.
 - Nonces for encryption come from the same RNG. In production it is seeded from `OsRng` and reseeded every 2^20 draws. Uniqueness of 24-byte random nonces is fine at this rate.
-- Crypto operations are called from the core through `panic-button-crypto`, which is pure.
+- Crypto operations are called from the core through the `crypto` module, which is pure.
 - The core enforces all limits (sizes, rates, timers) so the simulator tests them.
 
 ## Runtime (`panic-button-agent`)
 
 - Tokio multi-threaded runtime with a single core task that owns `Core` and receives inputs over an mpsc channel. Outputs are dispatched to I/O tasks.
 - I/O tasks: UDP socket (one socket bound to `0.0.0.0:port`, joined to the multicast group on every IPv4 interface), TCP listener plus connection pool, mDNS (`mdns-sd`), relay clients (one per configured URL), interface watcher (poll every 5 s plus OS notifications where available), audio status poller (every 10 s), session state watcher.
-- Store: `panic-button-store` with SQLite in WAL mode. Persist ops are applied in order and fsynced for security-relevant state (identity, certs, revocations, epochs, processed alarm ids) before the corresponding outputs are released. Alarm sending is **not** delayed by persistence: the alarm is sent first, then persisted.
+- Store: the `store` module, with SQLite in WAL mode. Persist ops are applied in order and fsynced for security-relevant state (identity, certs, revocations, epochs, processed alarm ids) before the corresponding outputs are released. Alarm sending is **not** delayed by persistence: the alarm is sent first, then persisted.
 - Local control API: JSON-RPC 2.0 over a Unix domain socket (`$XDG_RUNTIME_DIR/panic-button/control.sock`, mode 0600) or a Windows named pipe (`\\.\pipe\panic-button-<SID>`, ACL restricted to the current user and SYSTEM). The CLI and integration tests use it. Methods: `status`, `peers`, `alarms`, `raise` (test builds and headless only, unless policy allows), `respond`, `resolve`, `cancel`, `drill.run`, `drill.report`, admin methods, `diagnostics.export`.
 
 ## Desktop process model
@@ -140,9 +142,9 @@ Rules:
 | drills | drill reports | 400 days |
 | config | signed practice config, local prefs | permanent |
 
-## Crate dependency direction
+## Module dependency direction
 
-`proto` <- `crypto` <- `core` <- (`store`, `net`) <- `agent` <- (`apps/desktop`, `cli`). `sim` depends on `core` (+ `proto`, `crypto`). `relay` depends on `proto` and `crypto` only (it validates certs and revocations but never holds group keys).
+`proto` <- `crypto` <- `core` <- (`store`, `net`) <- `agent` <- (`apps/desktop`, `cli`). `relay` uses `proto` and `crypto` only (it validates certs and revocations but never holds group keys or alarm state). `proto`, `crypto` and `core` do no I/O. These were separate crates until ADR 0016; `crates/panic-button/tests/boundaries.rs` now enforces them. The simulator (`panic-button-sim`) and the desktop app are separate, unpublished crates that use the library without the `relay` feature.
 
 ## Suggested crates (check licences with cargo-deny)
 

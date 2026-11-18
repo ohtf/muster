@@ -4,7 +4,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_proto::{Cbor, Envelope};
+use panic_button::proto::{Cbor, Envelope};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(e) = Envelope::from_cbor(data) {

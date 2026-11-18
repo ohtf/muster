@@ -1,0 +1,351 @@
+// SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+
+//! `panic-button ctl ...`: commands to a running agent over its control socket.
+
+use anyhow::Context;
+use clap::Subcommand;
+use serde_json::{Value, json};
+
+use crate::cli::{Cli, emit};
+
+#[derive(Debug, Subcommand)]
+pub enum CtlCommand {
+    /// Status light and reasons.
+    Status,
+    /// Known peers and how they are reached.
+    Peers,
+    /// Known alarms.
+    Alarms,
+    /// Raise an alarm now (only if the agent allows it).
+    Raise,
+    /// Wait for the next alert to appear.
+    WaitAlarm {
+        /// For example 3s, 500ms, 2m.
+        #[arg(long, default_value = "10s")]
+        timeout: String,
+    },
+    /// Respond "I'm coming".
+    Respond { alarm_id: String },
+    /// "Seen - can't come".
+    Seen { alarm_id: String },
+    /// Mark an alarm resolved.
+    Resolve { alarm_id: String },
+    /// Cancel your own alarm as sent in error.
+    Cancel { alarm_id: String },
+    /// Run a drill now (admin).
+    Drill,
+    /// Remove a device (admin). `--compromised` also removes everything it enrolled.
+    Revoke {
+        device: String,
+        #[arg(long)]
+        compromised: bool,
+        #[arg(long, default_value = "")]
+        reason: String,
+    },
+    /// Make a device a Practice Admin (admin).
+    Promote { device: String },
+    /// Ask to join the practice on this network (a device with no practice
+    /// and no enrolment code). Prints the six-digit code a Practice Admin
+    /// checks before approving.
+    Join,
+    /// Whether this device is joining, its code, and the practice name once
+    /// an admin has approved.
+    JoinStatus,
+    /// Join the practice that approved this device.
+    JoinConfirm,
+    /// Stop asking to join.
+    JoinCancel,
+    /// Put a running agent that has no practice into one: with an enrolment
+    /// code from a file, or (without --token-file) the practice just
+    /// created in its data directory with `practice init`.
+    Enrol {
+        #[arg(long)]
+        token_file: Option<std::path::PathBuf>,
+    },
+    /// Devices asking to join (admin).
+    JoinRequests,
+    /// Approve a device asking to join, after checking its code (admin).
+    ApproveJoin { device: String },
+    /// Refuse a device asking to join (admin).
+    RejectJoin { device: String },
+    /// Set a device's label or room (admin; this device's own needs no
+    /// admin rights).
+    DeviceSettings {
+        device: String,
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long)]
+        room: Option<String>,
+    },
+    /// Dropped-message counters.
+    Diagnostics,
+    /// Every device in the practice, heard or not.
+    Devices,
+    /// Enrolment tokens and the devices each enrolled.
+    Tokens,
+    /// Revoke an enrolment token (admin). Devices it already enrolled stay.
+    TokenRevoke { token_id: String },
+    /// This device's audit log as CSV.
+    AuditExport,
+    /// Drill reports kept on this device.
+    DrillReports,
+    /// One drill report (`--format json` for the details).
+    DrillReport {
+        alarm_id: String,
+        /// Print the report as CSV (FR-DRL-007).
+        #[arg(long)]
+        csv: bool,
+    },
+}
+
+/// Parses durations like `3s`, `500ms`, `2m`.
+pub fn parse_duration_ms(s: &str) -> anyhow::Result<u64> {
+    let s = s.trim();
+    let (num, mult) = if let Some(n) = s.strip_suffix("ms") {
+        (n, 1)
+    } else if let Some(n) = s.strip_suffix('s') {
+        (n, 1000)
+    } else if let Some(n) = s.strip_suffix('m') {
+        (n, 60_000)
+    } else {
+        (s, 1000)
+    };
+    let n: u64 = num
+        .trim()
+        .parse()
+        .with_context(|| format!("bad duration {s:?}"))?;
+    Ok(n * mult)
+}
+
+fn status_text(v: &Value) -> String {
+    let mut s = format!(
+        "{}: {}",
+        v["level"].as_str().unwrap_or("unknown").to_uppercase(),
+        v["summary"].as_str().unwrap_or("")
+    );
+    for r in v["reasons"].as_array().into_iter().flatten() {
+        s.push_str(&format!("\n  - {}", r.as_str().unwrap_or("")));
+    }
+    s
+}
+
+fn join_text(v: &Value) -> String {
+    if v["enrolled"].as_bool() == Some(true) {
+        return format!("In practice {}.", v["practice"].as_str().unwrap_or(""));
+    }
+    match (v["code"].as_str(), v["approved"].as_str()) {
+        (_, Some(p)) => format!("Approved by {p}. Run `panic-button ctl join-confirm` to join."),
+        (Some(c), None) => format!(
+            "Asking to join. Code: {} {}\nA Practice Admin approves this device after checking the code.",
+            &c[..c.len().min(3)],
+            &c[c.len().min(3)..]
+        ),
+        (None, None) => "Not joining.".into(),
+    }
+}
+
+fn alarm_line(a: &Value) -> String {
+    format!(
+        "{}  {}  {}  {} ({})  delivered {}  coming {}",
+        a["alarm_id"].as_str().unwrap_or(""),
+        a["state"].as_str().unwrap_or(""),
+        a["room"].as_str().unwrap_or(""),
+        a["user"].as_str().unwrap_or(""),
+        a["device_label"].as_str().unwrap_or(""),
+        a["delivered"],
+        a["coming"].as_array().map(|c| c.len()).unwrap_or(0)
+    )
+}
+
+pub fn run(cli: &Cli, c: &CtlCommand) -> anyhow::Result<()> {
+    let (method, params): (&str, Value) = match c {
+        CtlCommand::Status => ("status", Value::Null),
+        CtlCommand::Peers => ("peers", Value::Null),
+        CtlCommand::Alarms => ("alarms", Value::Null),
+        CtlCommand::Raise => ("raise", Value::Null),
+        CtlCommand::WaitAlarm { timeout } => (
+            "wait_alarm",
+            json!({"timeout_ms": parse_duration_ms(timeout)?}),
+        ),
+        CtlCommand::Respond { alarm_id } => ("respond", json!({"alarm_id": alarm_id})),
+        CtlCommand::Seen { alarm_id } => ("seen", json!({"alarm_id": alarm_id})),
+        CtlCommand::Resolve { alarm_id } => ("resolve", json!({"alarm_id": alarm_id})),
+        CtlCommand::Cancel { alarm_id } => ("cancel", json!({"alarm_id": alarm_id})),
+        CtlCommand::Drill => ("drill.run", Value::Null),
+        CtlCommand::Revoke {
+            device,
+            compromised,
+            reason,
+        } => (
+            "admin.revoke",
+            json!({"device": device, "cascade": compromised, "reason": reason}),
+        ),
+        CtlCommand::Promote { device } => ("admin.promote", json!({"device": device})),
+        CtlCommand::Join => ("join.start", Value::Null),
+        CtlCommand::JoinStatus => ("join.status", Value::Null),
+        CtlCommand::JoinConfirm => ("join.confirm", Value::Null),
+        CtlCommand::JoinCancel => ("join.cancel", Value::Null),
+        CtlCommand::Enrol { token_file } => match token_file {
+            Some(f) => {
+                let t = std::fs::read_to_string(crate::agent::paths::expand(f))
+                    .with_context(|| format!("reading {}", f.display()))?;
+                ("enrol", json!({ "token": t.trim() }))
+            }
+            None => ("enrol", json!({})),
+        },
+        CtlCommand::JoinRequests => ("admin.join_requests", Value::Null),
+        CtlCommand::ApproveJoin { device } => ("admin.approve_join", json!({"device": device})),
+        CtlCommand::RejectJoin { device } => ("admin.reject_join", json!({"device": device})),
+        CtlCommand::DeviceSettings {
+            device,
+            label,
+            room,
+        } => (
+            "admin.device_settings",
+            json!({"device": device, "label": label, "room": room}),
+        ),
+        CtlCommand::Diagnostics => ("diagnostics", Value::Null),
+        CtlCommand::Devices => ("devices", Value::Null),
+        CtlCommand::Tokens => ("tokens", Value::Null),
+        CtlCommand::TokenRevoke { token_id } => ("token.revoke", json!({"token_id": token_id})),
+        CtlCommand::DrillReports => ("drill.reports", Value::Null),
+        CtlCommand::AuditExport => ("audit.export", Value::Null),
+        CtlCommand::DrillReport { alarm_id, .. } => ("drill.report", json!({"alarm_id": alarm_id})),
+    };
+    let sock = cli.control_socket();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let v = rt
+        .block_on(crate::agent::control::call(&sock, method, params))
+        .with_context(|| format!("calling the agent at {}", sock.display()))?;
+    if matches!(c, CtlCommand::AuditExport) && cli.format == crate::cli::Format::Text {
+        print!("{}", v["csv"].as_str().unwrap_or(""));
+        return Ok(());
+    }
+    if let CtlCommand::DrillReport { csv: true, .. } = c {
+        print!("{}", v["csv"].as_str().unwrap_or(""));
+        return Ok(());
+    }
+    let lines = |v: &Value, f: &dyn Fn(&Value) -> String| {
+        v.as_array()
+            .map(|a| a.iter().map(f).collect::<Vec<_>>().join("\n"))
+            .unwrap_or_default()
+    };
+    emit(cli.format, &v, |v| match c {
+        CtlCommand::Devices => lines(v, &|d| {
+            format!(
+                "{}  {:<6}  {}  {}  {}",
+                d["device_short"].as_str().unwrap_or(""),
+                d["role"].as_str().unwrap_or(""),
+                d["label"].as_str().unwrap_or("-"),
+                d["room"].as_str().unwrap_or("-"),
+                if d["this_device"].as_bool() == Some(true) {
+                    "(this device)"
+                } else {
+                    d["path"].as_str().unwrap_or("not heard")
+                }
+            )
+        }),
+        CtlCommand::Tokens => lines(v, &|t| {
+            let state = if t["revoked"].as_bool() == Some(true) {
+                "revoked"
+            } else if t["expired"].as_bool() == Some(true) {
+                "expired"
+            } else {
+                "valid"
+            };
+            format!(
+                "{}  {:<7}  {}  enrolled {}",
+                t["token_id"].as_str().unwrap_or(""),
+                state,
+                t["label"].as_str().unwrap_or(""),
+                t["enrolled"].as_array().map(|e| e.len()).unwrap_or(0)
+            )
+        }),
+        CtlCommand::DrillReports | CtlCommand::DrillReport { .. } => {
+            let one = |r: &Value| {
+                if r["skipped"].as_bool() == Some(true) {
+                    return format!(
+                        "{}  skipped (scheduled drill did not run)",
+                        r["alarm_id"].as_str().unwrap_or("")
+                    );
+                }
+                format!(
+                    "{}  received {} of {}",
+                    r["alarm_id"].as_str().unwrap_or(""),
+                    r["received"],
+                    r["expected"]
+                )
+            };
+            if v.is_array() { lines(v, &one) } else { one(v) }
+        }
+        CtlCommand::Status => status_text(v),
+        CtlCommand::Join
+        | CtlCommand::JoinStatus
+        | CtlCommand::JoinConfirm
+        | CtlCommand::Enrol { .. } => join_text(v),
+        CtlCommand::JoinRequests => lines(v, &|j| {
+            format!(
+                "{}  code {}  {}",
+                j["device"].as_str().unwrap_or(""),
+                j["code"].as_str().unwrap_or(""),
+                j["label"].as_str().unwrap_or("")
+            )
+        }),
+        CtlCommand::Alarms => v
+            .as_array()
+            .map(|a| a.iter().map(alarm_line).collect::<Vec<_>>().join("\n"))
+            .unwrap_or_default(),
+        CtlCommand::Raise | CtlCommand::WaitAlarm { .. } => alarm_line(v),
+        CtlCommand::Peers => v
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|p| {
+                        format!(
+                            "{}  {}  {}  {}",
+                            p["device_short"].as_str().unwrap_or(""),
+                            p["path"].as_str().unwrap_or(""),
+                            p["label"].as_str().unwrap_or("-"),
+                            p["room"].as_str().unwrap_or("-")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_default(),
+        _ => v.to_string(),
+    });
+    Ok(())
+}
+
+/// Calls the running agent and prints the result as JSON (text mode prints
+/// it pretty).
+pub fn call_and_emit(cli: &Cli, method: &str, params: Value) -> anyhow::Result<()> {
+    let sock = cli.control_socket();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let v = rt
+        .block_on(crate::agent::control::call(&sock, method, params))
+        .with_context(|| format!("calling the agent at {}", sock.display()))?;
+    emit(cli.format, &v, |v| {
+        serde_json::to_string_pretty(v).unwrap_or_default()
+    });
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn durations() {
+        assert_eq!(parse_duration_ms("3s").expect("3s"), 3000);
+        assert_eq!(parse_duration_ms("500ms").expect("ms"), 500);
+        assert_eq!(parse_duration_ms("2m").expect("m"), 120_000);
+        assert!(parse_duration_ms("x").is_err());
+    }
+}

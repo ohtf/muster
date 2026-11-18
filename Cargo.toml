@@ -29,12 +29,8 @@ todo = "warn"
 unwrap_used = "warn"
 
 [workspace.dependencies]
-panic-button-proto = { path = "crates/panic-button-proto", version = "0.1.0" }
-panic-button-crypto = { path = "crates/panic-button-crypto", version = "0.1.0" }
-panic-button-core = { path = "crates/panic-button-core", version = "0.1.0" }
-panic-button-store = { path = "crates/panic-button-store", version = "0.1.0" }
-panic-button-net = { path = "crates/panic-button-net", version = "0.1.0" }
-panic-button-agent = { path = "crates/panic-button-agent", version = "0.1.0" }
+# The simulator and the desktop app use the library without the relay.
+panic-button = { path = "crates/panic-button", version = "0.1.0", default-features = false }
 
 # Crypto-heavy tests and the simulator are much faster with optimised
 # dependencies.

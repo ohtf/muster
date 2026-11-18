@@ -4,12 +4,12 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_proto::{Body, Cbor, SignedMessage};
+use panic_button::proto::{Body, Cbor, SignedMessage};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = SignedMessage::from_cbor(data) {
-        let _ = panic_button_crypto::verify_signed(&s, false);
-        let _ = panic_button_crypto::verify_signed(&s, true);
+        let _ = panic_button::crypto::verify_signed(&s, false);
+        let _ = panic_button::crypto::verify_signed(&s, true);
     }
     if let Ok(b) = Body::from_cbor(data) {
         // Display strings are truncated on send, so compare after one

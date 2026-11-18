@@ -3,7 +3,7 @@
 
 [package]
 name = "panic-button"
-description = "The panic-button admin and diagnostics command-line tool."
+description = "A staff panic alarm over the local network: the panic-button admin CLI, the headless panic-button-agent and the panic-button-relay server."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,32 +13,77 @@ publish.workspace = true
 readme.workspace = true
 homepage.workspace = true
 keywords = ["panic-alarm", "staff-safety", "healthcare", "lan"]
-categories = ["command-line-utilities"]
+categories = ["command-line-utilities", "network-programming"]
+default-run = "panic-button"
 
 [[bin]]
 name = "panic-button"
 path = "src/main.rs"
+
+[[bin]]
+name = "panic-button-agent"
+path = "src/bin/panic-button-agent.rs"
+
+[[bin]]
+name = "panic-button-relay"
+path = "src/bin/panic-button-relay.rs"
+required-features = ["relay"]
+
+[features]
+default = ["relay"]
+# The relay server. The desktop app and the simulator leave it out.
+relay = ["dep:axum"]
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = "1"
+argon2 = "0.6"
+axum = { version = "0.8", features = ["ws"], optional = true }
+blake3 = "1"
+chacha20poly1305 = "0.11"
 clap = { version = "4", features = ["derive"] }
-panic-button-agent.workspace = true
-panic-button-core.workspace = true
-panic-button-crypto.workspace = true
-panic-button-proto.workspace = true
-panic-button-store.workspace = true
+data-encoding = "2"
+ed25519-dalek = "3"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+getrandom = "0.4.3"
+hkdf = "0.13"
+http = "1"
+hyper-util = { version = "0.1.21", default-features = false, features = ["client-proxy", "client-proxy-system"] }
+if-addrs = "0.15"
+jiff = "0.2.44"
+mdns-sd = "0.21"
+minicbor = { version = "2", features = ["alloc"] }
+rand_chacha = "0.10"
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "system-proxy"] }
+rusqlite = { version = "0.42.0", features = ["bundled"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-native-certs = "0.8.5"
+rustls-pki-types = { version = "1.16.0", features = ["std"] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt", "macros", "net", "io-util"] }
+sha2 = "0.11"
+socket2 = { version = "0.6", features = ["all"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "time", "sync", "macros", "io-util", "signal", "fs"] }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-native-roots", "connect"] }
+toml = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+x25519-dalek = { version = "3", features = ["static_secrets"] }
+zeroize = { version = "1", features = ["derive"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+nix = { version = "0.31", features = ["socket", "uio", "net"] }
 
 [dev-dependencies]
+hex = "0.4"
+proptest = "1"
 tempfile = "3.27.0"
 
 [package.metadata.dist]
-# The cask "panic-button" is the desktop app.
+# One formula with all three programs; the cask "panic-button" is the
+# desktop app.
 formula = "panic-button-cli"

@@ -4,12 +4,12 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_proto::Token;
+use panic_button::proto::Token;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(s) = std::str::from_utf8(data) {
         let _ = Token::parse(s);
-        let with_prefix = format!("{}{s}", panic_button_proto::token::TOKEN_PREFIX);
+        let with_prefix = format!("{}{s}", panic_button::proto::token::TOKEN_PREFIX);
         if let Ok(t) = Token::parse(&with_prefix) {
             let once = t.to_token_string();
             let again = Token::parse(&once).expect("re-parses");

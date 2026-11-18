@@ -11,13 +11,13 @@ use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
-use panic_button_core::bootstrap::{new_device_keys, new_practice};
-use panic_button_core::config::LocalConfig;
-use panic_button_core::io::{Input, Output, UdpKind, UiEvent};
-use panic_button_core::persist::PersistedState;
-use panic_button_core::rng::CoreRng;
-use panic_button_core::{Core, Identity, Mono};
-use panic_button_crypto::DeviceKeys;
+use panic_button::core::bootstrap::{new_device_keys, new_practice};
+use panic_button::core::config::LocalConfig;
+use panic_button::core::io::{Input, Output, UdpKind, UiEvent};
+use panic_button::core::persist::PersistedState;
+use panic_button::core::rng::CoreRng;
+use panic_button::core::{Core, Identity, Mono};
+use panic_button::crypto::DeviceKeys;
 
 const NOW: u64 = 1_763_100_000_000;
 

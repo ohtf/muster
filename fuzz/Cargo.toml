@@ -17,9 +17,7 @@ members = ["."]
 
 [dependencies]
 libfuzzer-sys = "0.4"
-panic-button-proto = { path = "../crates/panic-button-proto" }
-panic-button-crypto = { path = "../crates/panic-button-crypto" }
-panic-button-core = { path = "../crates/panic-button-core" }
+panic-button = { path = "../crates/panic-button", default-features = false }
 
 [[bin]]
 name = "envelope_decode"

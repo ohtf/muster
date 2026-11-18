@@ -3313,67 +3313,43 @@ name = "panic-button"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "argon2",
+ "axum",
+ "blake3",
+ "chacha20poly1305",
  "clap",
- "libc",
- "panic-button-agent",
- "panic-button-core",
- "panic-button-crypto",
- "panic-button-proto",
- "panic-button-store",
- "serde_json",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "panic-button-agent"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
+ "data-encoding",
+ "ed25519-dalek",
+ "futures-util",
  "getrandom 0.4.3",
+ "hex",
+ "hkdf",
+ "http",
+ "hyper-util",
+ "if-addrs",
  "jiff",
- "panic-button-core",
- "panic-button-crypto",
- "panic-button-net",
- "panic-button-proto",
- "panic-button-store",
+ "libc",
+ "mdns-sd",
+ "minicbor",
+ "nix",
+ "proptest",
+ "rand_chacha 0.10.0",
+ "reqwest",
+ "rusqlite",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-pki-types",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "socket2",
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-tungstenite 0.30.0",
  "toml 1.2.1+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "panic-button-core"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "panic-button-crypto",
- "panic-button-proto",
- "proptest",
- "rand_chacha 0.10.0",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "panic-button-crypto"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "blake3",
- "chacha20poly1305",
- "ed25519-dalek",
- "hex",
- "hkdf",
- "panic-button-proto",
- "proptest",
- "sha2 0.11.1",
- "thiserror 2.0.21",
  "x25519-dalek",
  "zeroize",
 ]
@@ -3383,9 +3359,7 @@ name = "panic-button-desktop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "panic-button-agent",
- "panic-button-core",
- "panic-button-proto",
+ "panic-button",
  "rodio",
  "serde",
  "serde_json",
@@ -3402,83 +3376,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "panic-button-net"
-version = "0.1.0"
-dependencies = [
- "futures-util",
- "getrandom 0.4.3",
- "http",
- "hyper-util",
- "if-addrs",
- "mdns-sd",
- "nix",
- "panic-button-core",
- "panic-button-proto",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "rustls-pki-types",
- "socket2",
- "thiserror 2.0.21",
- "tokio",
- "tokio-tungstenite 0.30.0",
- "tracing",
-]
-
-[[package]]
-name = "panic-button-proto"
-version = "0.1.0"
-dependencies = [
- "data-encoding",
- "hex",
- "minicbor",
- "proptest",
- "thiserror 2.0.21",
- "zeroize",
-]
-
-[[package]]
-name = "panic-button-relay"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "getrandom 0.4.3",
- "panic-button-crypto",
- "panic-button-proto",
- "rusqlite",
- "serde",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tokio-tungstenite 0.30.0",
- "toml 1.2.1+spec-1.1.0",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "panic-button-sim"
 version = "0.1.0"
 dependencies = [
- "panic-button-core",
- "panic-button-crypto",
- "panic-button-proto",
+ "panic-button",
  "proptest",
  "rand_chacha 0.10.0",
-]
-
-[[package]]
-name = "panic-button-store"
-version = "0.1.0"
-dependencies = [
- "panic-button-core",
- "panic-button-crypto",
- "panic-button-proto",
- "rusqlite",
- "tempfile",
- "thiserror 2.0.21",
 ]
 
 [[package]]

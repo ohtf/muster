@@ -331,4 +331,4 @@ These fill gaps the original text left open. They are normative for version 1.
 - **Token key 13 `issuer_chain` ([bstr], optional).** Raw certs from the enroller cert's issuer up to but not including the root, so a newly enrolled device can validate its own chain before it hears from an admin (otherwise it would show red, and its alarms would be held by peers that lack the admin cert, until an admin is reachable).
 - **Alarm digest** (replaces the formula in Anti-entropy): `BLAKE3("panic-button/v1/ad" || sorted concat of (alarm_id || msg_id) for the AlarmRaised and every AlarmEvent of each alarm raised, or closed, within the last ALARM_MAX_LIFE)[0..16]` (ADR 0013, item 9).
 - **Implementation decisions** affecting delivery, status and traffic are recorded in ADR 0013.
-- **Golden vectors** for every message type are in `crates/panic-button-proto/tests/vectors/`.
+- **Golden vectors** for every message type are in `crates/panic-button/tests/vectors/`.

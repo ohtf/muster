@@ -64,7 +64,7 @@ fn detail(seed: u64, max: usize, node: usize) {
     w.run_until(T0);
     let g = panic_button_sim::props::graph(&w);
     let c = w.core(node).expect("core");
-    let now = panic_button_core::Mono(w.now);
+    let now = panic_button::core::Mono(w.now);
     println!("node {node} status {:?}", c.status());
     println!(
         "out degree {} in degree {}",
@@ -91,7 +91,7 @@ fn detail(seed: u64, max: usize, node: usize) {
             println!(
                 "8's peer 4 at T0: {:?}",
                 p4.map(|p| (
-                    p.class(panic_button_core::Mono(w2.now)),
+                    p.class(panic_button::core::Mono(w2.now)),
                     p.heard,
                     p.udp_addr
                 ))
@@ -126,7 +126,7 @@ fn detail(seed: u64, max: usize, node: usize) {
                 c.trust().map(|t| t.is_member(&d, w2.wall_of(a))),
                 c.peers()
                     .get(&d)
-                    .map(|p| p.class(panic_button_core::Mono(w2.now)))
+                    .map(|p| p.class(panic_button::core::Mono(w2.now)))
             );
         }
         for (t, n, d) in w2.watched.iter().filter(|(t, _, _)| *t < T0 + 3000) {
@@ -216,7 +216,7 @@ fn p4(seed: u64, max: usize) {
     }
     if let Ok(n) = std::env::var("NODE").map(|v| v.parse::<usize>().unwrap_or(0)) {
         let c = w.core(n).expect("core");
-        let now = panic_button_core::Mono(w.now);
+        let now = panic_button::core::Mono(w.now);
         println!(
             "node {n} status {:?} diag {:?}",
             c.status(),
@@ -291,7 +291,7 @@ fn main() {
         let vid = w.device_id(victim);
         w.act_now(
             0,
-            panic_button_core::io::UserAction::Revoke {
+            panic_button::core::io::UserAction::Revoke {
                 device: vid,
                 cascade: false,
                 reason: "test".into(),

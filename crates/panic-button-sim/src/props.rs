@@ -9,10 +9,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use panic_button_core::io::{AlarmPhase, AuditEvent, UiEvent};
-use panic_button_core::time::{ALARM_MAX_LIFE, PEER_STALE};
-use panic_button_crypto::{DeviceKeys, seal, sign_body};
-use panic_button_proto::{Body, Cbor, MsgId, Payload, StatusLevel};
+use panic_button::core::io::{AlarmPhase, AuditEvent, UiEvent};
+use panic_button::core::time::{ALARM_MAX_LIFE, PEER_STALE};
+use panic_button::crypto::{DeviceKeys, seal, sign_body};
+use panic_button::proto::{Body, Cbor, MsgId, Payload, StatusLevel};
 
 use crate::world::{TraceEv, World};
 
@@ -333,7 +333,7 @@ pub fn p3_no_duplicates(w: &World) -> Check {
 
 type Fingerprint = (u8, usize, Vec<String>, Vec<String>);
 
-fn fingerprint(v: &panic_button_core::io::AlarmView) -> Fingerprint {
+fn fingerprint(v: &panic_button::core::io::AlarmView) -> Fingerprint {
     let phase = match v.state {
         AlarmPhase::Open | AlarmPhase::Expired => 0,
         AlarmPhase::Resolved { .. } => 1,
