@@ -20,6 +20,6 @@ The split did enforce three boundaries at compile time: `proto`, `crypto` and `c
 
 ## Consequences
 
-- One crates.io entry, one trusted-publisher configuration per workflow, and one cargo-dist package: one archive, install script and Homebrew formula (`panic-button-cli`) per platform with all three programs. The release workflow removes the old `panic-button-agent` and `panic-button-relay` formulae from the tap.
+- One crates.io entry, one trusted-publisher entry (`auto-tag.yml`, the only workflow that publishes), and one cargo-dist package: one archive, install script and Homebrew formula (`panic-button-cli`) per platform with all three programs. The release workflow removes the old `panic-button-agent` and `panic-button-relay` formulae from the tap.
 - The boundary test reads source text, so it is stricter than the old crate graph in one way (a forbidden name in a comment fails) and weaker in another (a path it does not know about could slip through). Code review covers the rest.
 - Until 0.2.0 is released, `cargo install panic-button` fails, because 0.1.0 depends on the yanked crates.
