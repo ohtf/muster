@@ -107,7 +107,7 @@ git-cliff --tag "$tag" -o CHANGELOG.md
 cargo update --workspace
 git add -u
 git add CHANGELOG.md
-git commit -m "chore(release): $tag"
+git commit -s -m "chore(release): $tag"
 
 if [[ "$mode" == "pr" ]]; then
   release_branch="release/$tag"
