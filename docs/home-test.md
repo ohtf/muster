@@ -12,6 +12,8 @@ Download them from the [releases page](https://github.com/ohtf/panic-button/rele
 - `panic-button-desktop_0.2.0_amd64.AppImage` for any 64-bit Linux;
 - `panic-button-desktop_0.2.0_amd64.deb` for Debian and Ubuntu.
 
+The Windows `.zip` on that page is the command-line programs for IT staff, not the app.
+
 On Arch you can install `panic-button-bin` from the AUR instead. [install.md](install.md) lists every other way.
 
 ## Installing on Windows

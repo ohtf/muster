@@ -15,6 +15,8 @@ This is the red button, the alerts and the settings window. Install it on every 
 | Arch, CachyOS, Manjaro | `yay -S panic-button-bin` (or any AUR helper) |
 | Other Linux | `panic-button-desktop_<version>_amd64.AppImage`. Make it executable and run it. |
 
+Every desktop app file starts with `panic-button-desktop`. The other files on the releases page, including the Windows `.zip`, are the command-line programs below, not the app.
+
 The Windows, Debian and Fedora packages start Panic Button whenever someone signs in. With the AppImage, see [home-test.md](home-test.md#installing-on-linux) for how to start it at sign-in.
 
 ## Command-line programs
@@ -31,7 +33,7 @@ From version 0.2.0 the three come together. Install them with Homebrew on Mac or
 brew install ohtf/tap/panic-button-cli
 ```
 
-or with the install script on the releases page (`panic-button-installer.sh`, and `.ps1` for Windows PowerShell), or with Rust's package manager:
+or with the install script on the releases page (`panic-button-installer.sh`, and `.ps1` for Windows PowerShell), or by downloading the archive for your computer (`panic-button-x86_64-pc-windows-msvc.zip` on Windows) and unpacking it, or with Rust's package manager:
 
 ```sh
 cargo install panic-button
