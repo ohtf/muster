@@ -83,7 +83,7 @@ Try a few things that went wrong for the commercial products: put a computer to 
 
 Mute a Windows computer, then call for help from another. The muted one should still sound the alarm. When you click I'm coming, it should go quiet and be muted again. On Linux, a muted computer should turn amber instead.
 
-Hold Ctrl, Shift and F12 together for one and a half seconds, in another program. It should call for help just like the button. On Wayland it will not; the Settings tab says so.
+Hold Ctrl, Shift and F12 together for one and a half seconds, in another program. It should call for help the same way as the button. On Wayland it will not; the Settings tab says so.
 
 Move the button with Shift and drag, then sign out and back in. It should come back where you left it.
 
