@@ -8,6 +8,9 @@
 #                        panic-button-agent, panic-button-relay) into
 #                        ~/.cargo/bin
 #   s/install --desktop  those, plus the desktop app as a system package
+#   s/install --user     those, plus the desktop app for your account only:
+#                        ~/.local/bin/panic-button-desktop and a launcher
+#                        entry, "Panic Button (from source)"; no sudo
 #
 # The desktop app is built as a deb and installed with the system's package
 # manager, so it starts at sign-in, appears in the app menu and can be removed
@@ -23,18 +26,24 @@
 # from the AUR is installed, pacman asks before replacing it with
 # panic-button-git.
 #
-# It asks for your sudo password for the last step. Quit the running app (tray
+# Remove a --user install with
+#   rm ~/.local/bin/panic-button-desktop \
+#      ~/.local/share/applications/panic-button-desktop.desktop \
+#      ~/.local/share/icons/hicolor/*/apps/panic-button-desktop.*
+#
+# --desktop asks for your sudo password for the last step. Quit the running app (tray
 # menu) and start it again afterwards to use the new build. Uncommitted
 # changes are included in the build but not in the package version.
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-desktop=false
+mode=cli
 case "${1:-}" in
   "") ;;
-  --desktop) desktop=true ;;
-  *) echo "usage: s/install [--desktop]" >&2; exit 2 ;;
+  --desktop) mode=desktop ;;
+  --user) mode=user ;;
+  *) echo "usage: s/install [--desktop | --user]" >&2; exit 2 ;;
 esac
 
 command -v cargo >/dev/null || { echo "cargo not found: install Rust from https://rustup.rs" >&2; exit 1; }
@@ -43,16 +52,18 @@ command -v cargo >/dev/null || { echo "cargo not found: install Rust from https:
 # separate panic-button-agent and panic-button-relay packages from before
 # version 0.2.0.
 cargo install --locked --force --target-dir target --path crates/panic-button
-$desktop || exit 0
+[[ $mode == cli ]] && exit 0
 
+system=other
 if command -v pacman >/dev/null; then
   system=arch
 elif command -v apt-get >/dev/null; then
   system=debian
 elif command -v dnf >/dev/null; then
   system=fedora
-else
-  echo "s/install --desktop knows pacman, apt and dnf. Elsewhere, build the AppImage and run it:" >&2
+fi
+if [[ $mode == desktop && $system == other ]]; then
+  echo "s/install --desktop knows pacman, apt and dnf. Elsewhere, use s/install --user, or build the AppImage and run it:" >&2
   echo "  (cd apps/desktop && npx tauri build --bundles appimage)" >&2
   exit 1
 fi
@@ -64,8 +75,41 @@ if ! pkg-config --exists webkit2gtk-4.1 libsoup-3.0 alsa 2>/dev/null; then
     arch) echo "  sudo pacman -S --needed webkit2gtk-4.1 libsoup3 alsa-lib libayatana-appindicator librsvg" >&2 ;;
     debian) echo "  sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev" >&2 ;;
     fedora) echo "  sudo dnf install webkit2gtk4.1-devel libayatana-appindicator-gtk3-devel librsvg2-devel alsa-lib-devel" >&2 ;;
+    other) echo "  (docs/gui/README.md lists the Debian package names)" >&2 ;;
   esac
   exit 1
+fi
+
+if [[ $mode == user ]]; then
+  (cd apps/desktop && { [[ -d node_modules ]] || npm ci; } && npx tauri build --no-bundle)
+  share="${XDG_DATA_HOME:-$HOME/.local/share}"
+  bin="$HOME/.local/bin/panic-button-desktop"
+  icons=apps/desktop/src-tauri/icons
+  install -Dm755 target/release/panic-button-desktop "$bin"
+  install -Dm644 "$icons/icon.svg" "$share/icons/hicolor/scalable/apps/panic-button-desktop.svg"
+  install -Dm644 "$icons/128x128.png" "$share/icons/hicolor/128x128/apps/panic-button-desktop.png"
+  install -Dm644 "$icons/32x32.png" "$share/icons/hicolor/32x32/apps/panic-button-desktop.png"
+  # Named after the window's app ID, so docks and taskbars match the running
+  # window to this entry.
+  entry="$share/applications/panic-button-desktop.desktop"
+  mkdir -p "$(dirname "$entry")"
+  cat > "$entry" <<ENTRY
+[Desktop Entry]
+Type=Application
+Name=Panic Button (from source)
+Comment=Call colleagues for help from this computer. Built from $(git describe --tags --always --dirty) on $(date +%F).
+Exec=$bin
+Icon=panic-button-desktop
+StartupWMClass=panic-button-desktop
+Categories=Utility;
+Terminal=false
+ENTRY
+  if command -v update-desktop-database >/dev/null; then
+    update-desktop-database "$share/applications" || true
+  fi
+  echo "Installed $bin and the launcher entry \"Panic Button (from source)\"."
+  echo "If Panic Button is running, quit it from the tray and start it again to use this build."
+  exit 0
 fi
 
 version="$(awk -F\" '/^version = / {print $2; exit}' Cargo.toml)"

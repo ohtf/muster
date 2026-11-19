@@ -16,7 +16,8 @@ Run the full test suite, including simulator scenarios and properties.
 Install from this checkout. The command-line programs go into `~/.cargo/bin`. With `--desktop`, the desktop app is also built and installed as a system package: `panic-button-git` on Arch (via the AUR PKGBUILD), the deb on Debian and Ubuntu, the rpm on Fedora. Run it again to replace the installed version. Asks for your sudo password at the end.
 
 - `s/install` - the command-line programs
-- `s/install --desktop` - and the desktop app
+- `s/install --desktop` - and the desktop app as a system package (sudo)
+- `s/install --user` - and the desktop app for your account only, with a launcher entry "Panic Button (from source)" (no sudo)
 
 ## `s/docs`
 
