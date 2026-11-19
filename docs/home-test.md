@@ -8,9 +8,9 @@ Use computers on the same home network. Panic Button finds the others on the net
 
 Download them from the [releases page](https://github.com/ohtf/panic-button/releases), under Assets:
 
-- `panic-button-desktop_0.1.0_x64_en-US.msi` for Windows;
-- `panic-button-desktop_0.1.0_amd64.AppImage` for any 64-bit Linux;
-- `panic-button-desktop_0.1.0_amd64.deb` for Debian and Ubuntu.
+- `panic-button-desktop_0.2.0_x64_en-US.msi` for Windows;
+- `panic-button-desktop_0.2.0_amd64.AppImage` for any 64-bit Linux;
+- `panic-button-desktop_0.2.0_amd64.deb` for Debian and Ubuntu.
 
 On Arch you can install `panic-button-bin` from the AUR instead. [install.md](install.md) lists every other way.
 
@@ -30,9 +30,9 @@ On Arch, or anything that is not Debian or Ubuntu, use the AppImage:
 
 ```sh
 mkdir -p ~/Applications
-mv ~/Downloads/panic-button-desktop_0.1.0_amd64.AppImage ~/Applications/
-chmod +x ~/Applications/panic-button-desktop_0.1.0_amd64.AppImage
-~/Applications/panic-button-desktop_0.1.0_amd64.AppImage
+mv ~/Downloads/panic-button-desktop_0.2.0_amd64.AppImage ~/Applications/
+chmod +x ~/Applications/panic-button-desktop_0.2.0_amd64.AppImage
+~/Applications/panic-button-desktop_0.2.0_amd64.AppImage
 ```
 
 If AppImageLauncher is installed, it asks whether to integrate the AppImage. Either answer works.
@@ -42,10 +42,10 @@ To start it when you sign in:
 ```sh
 mkdir -p ~/.config/autostart
 printf '[Desktop Entry]\nType=Application\nName=Panic Button\nExec=%s\n' \
-  ~/Applications/panic-button-desktop_0.1.0_amd64.AppImage > ~/.config/autostart/panic-button.desktop
+  ~/Applications/panic-button-desktop_0.2.0_amd64.AppImage > ~/.config/autostart/panic-button.desktop
 ```
 
-On Debian or Ubuntu, install the deb instead (`sudo apt install ./panic-button-desktop_0.1.0_amd64.deb`). It starts Panic Button at sign-in by itself.
+On Debian or Ubuntu, install the deb instead (`sudo apt install ./panic-button-desktop_0.2.0_amd64.deb`). It starts Panic Button at sign-in by itself.
 
 If a firewall is running (for example `ufw` or `firewalld`), allow UDP and TCP port 47474.
 
@@ -67,6 +67,8 @@ On each of the other computers:
 
 Send the code to yourself in whatever way is handy (a note, a message to yourself). Anyone who has it can join your test practice until it expires, which does not matter at home but would in a practice.
 
+Add at least one computer the other way, without a code: choose Join an existing practice, then Ask a Practice Admin to approve this computer. It shows a six-digit code. On the admin computer, the Admin tab lists it under Waiting to join; check the codes match and click Approve, then click Join on the new computer.
+
 Within half a minute, the small shape on each button should turn into a green circle. The Status tab on any computer lists the others.
 
 ## What to try
@@ -84,6 +86,10 @@ Mute a Windows computer, then call for help from another. The muted one should s
 Hold Ctrl, Shift and F12 together for one and a half seconds, in another program. It should call for help just like the button. On Wayland it will not; the Settings tab says so.
 
 Move the button with Shift and drag, then sign out and back in. It should come back where you left it.
+
+Lock one computer's screen (Windows key and L, or your desktop's lock shortcut), then call for help from another. The locked computer should still sound the alarm.
+
+If you can, connect to a Windows computer with Remote Desktop and open Panic Button there. The button should turn grey and say it cannot run inside a remote session.
 
 Rename a computer or change its room from the Admin tab on the admin computer, and check the change appears on the others.
 
