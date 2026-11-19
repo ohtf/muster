@@ -152,11 +152,11 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 
 ## First run
 
-1. Welcome: "Panic Button lets you call colleagues for help from this computer."
+1. Welcome: "Panic Button lets you call colleagues for help from this computer." The agent is already running with no practice. It counts the computers it hears on the network by practice tag (`Core::nearby`, the last minute) and, if there are any, the welcome screen leads with "Panic Button is running on N other computers on this network" and an Ask to join button, which starts flow C. The practice name is not shown until an admin approves (it is only in sealed messages). Otherwise it says it is looking, then after 20 s that it found none.
 2. If a token or config exists: enrol automatically and skip to step 4.
 3. Choose: "Join an existing practice" (shows join code and waits for admin approval, or "Paste an enrolment code") or "Set up a new practice" (name, passphrase, save kit, confirm).
 4. Room: "Which room is this computer in?" A text field with suggestions from rooms already known in the practice. Skipped if a room is set by policy.
-5. Practice run: "Try it now: press and hold the button for 1.5 seconds. This is a practice and will not alert anyone." This runs the hold machine locally and does not raise an alarm. It teaches the gesture and the cue.
+5. Practice run: "Try it now: press and hold the button for 1.5 seconds. This is a practice and will not alert anyone." This runs the hold machine locally and does not raise an alarm. It teaches the gesture and the cue. When the hold completes, the core shows the ring full (`HoldProgress` 1000, then `HoldEnded`) and sends `PracticeComplete`, which enables Finish. The cue stops at that moment, as it does for a real alarm (ADR 0008).
 6. Done. Show the button.
 
 ## Session and lifecycle

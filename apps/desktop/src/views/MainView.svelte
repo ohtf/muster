@@ -66,10 +66,12 @@ settings, admin and about; or first run if this computer is not set up.
   async function refresh() {
     try {
       info = await api.appInfo();
-      if (!info.running) {
-        firstRun = !info.enrolled;
+      // The agent also runs before this computer is in a practice.
+      if (!info.enrolled) {
+        firstRun = true;
         return;
       }
+      if (!info.running) return;
       const [s, p, a, c] = await Promise.all([api.status(), api.peers(), api.alarms(), api.config()]);
       status = s;
       peers = p.filter((x) => x.member).sort((x, y) => (x.room ?? "").localeCompare(y.room ?? ""));

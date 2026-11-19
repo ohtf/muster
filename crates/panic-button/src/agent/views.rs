@@ -142,6 +142,7 @@ pub fn ui_event(e: &UiEvent) -> Value {
             json!({"type": "hold_progress", "fraction": f64::from(*fraction_permille) / 1000.0})
         }
         UiEvent::HoldEnded => json!({"type": "hold_ended"}),
+        UiEvent::PracticeComplete => json!({"type": "practice_complete"}),
         UiEvent::NearMiss { duration_ms, .. } => {
             json!({"type": "near_miss", "duration_ms": duration_ms})
         }

@@ -176,6 +176,10 @@ pub struct Core {
     pub(crate) keyshare_envs: BTreeMap<MsgId, (DeviceId, u64, Vec<u8>)>,
     pub(crate) drills: BTreeMap<MsgId, DrillRun>,
     pub(crate) join_requests: BTreeMap<DeviceId, JoinReq>,
+    /// Unenrolled devices: sealed messages heard on the LAN, by practice
+    /// tag and sender address, for "Panic Button is running on N computers
+    /// on this network" in first run.
+    pub(crate) nearby: BTreeMap<PracticeTag, BTreeMap<SocketAddrV4, Mono>>,
     pub(crate) joining: Option<Joining>,
 
     pub(crate) relays: BTreeMap<RelayId, RelayInfo>,
@@ -268,6 +272,7 @@ impl Core {
             keyshare_envs: BTreeMap::new(),
             drills: BTreeMap::new(),
             join_requests: BTreeMap::new(),
+            nearby: BTreeMap::new(),
             joining: None,
             relays: BTreeMap::new(),
             interfaces: Vec::new(),
@@ -328,6 +333,27 @@ impl Core {
             .filter(|(_, j)| now.since(j.at) <= 4 * JOIN_RESEND)
             .map(|(d, j)| (*d, j.req.label.clone(), j.req.code.clone()))
             .collect()
+    }
+
+    /// Unenrolled devices: how many computers of each practice were heard
+    /// on the network in the last minute, largest first. Empty once
+    /// enrolled.
+    pub fn nearby(&self, now: Mono) -> Vec<usize> {
+        if self.practice.is_some() {
+            return Vec::new();
+        }
+        let mut v: Vec<usize> = self
+            .nearby
+            .values()
+            .map(|a| {
+                a.values()
+                    .filter(|at| now.since(**at) <= NEARBY_WINDOW)
+                    .count()
+            })
+            .filter(|n| *n > 0)
+            .collect();
+        v.sort_unstable_by(|a, b| b.cmp(a));
+        v
     }
 
     /// While joining by approval (flow C): this device's six-digit code,
@@ -694,6 +720,10 @@ impl Core {
         self.discovered.retain(|_, t| now.since(*t) <= HOUR);
         self.join_requests
             .retain(|_, j| now.since(j.at) <= JOIN_MAX);
+        for addrs in self.nearby.values_mut() {
+            addrs.retain(|_, at| now.since(*at) <= NEARBY_WINDOW);
+        }
+        self.nearby.retain(|_, addrs| !addrs.is_empty());
         self.near_misses.retain(|t| wall.saturating_sub(*t) <= DAY);
         self.peers.prune(wall);
         // Alarms: forget envelopes 24 h after close or expiry.
@@ -897,8 +927,16 @@ impl Core {
             HoldOutcome::Triggered { source, practice } => {
                 // Stop the cue before anything else (within 20 ms of trigger).
                 self.emit(Output::Audio(AudioCmd::StopCue));
+                // The hold machine is already idle, so the regular progress
+                // events have stopped short of full: show the ring full
+                // before it resets.
+                self.ui(UiEvent::HoldProgress {
+                    fraction_permille: 1000,
+                });
                 self.ui(UiEvent::HoldEnded);
-                if !practice {
+                if practice {
+                    self.ui(UiEvent::PracticeComplete);
+                } else {
                     self.raise(now, wall, source, false);
                 }
             }

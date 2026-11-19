@@ -69,7 +69,7 @@ On each of the other computers:
 
 Send the code to yourself in whatever way is handy (a note, a message to yourself). Anyone who has it can join your test practice until it expires, which does not matter at home but would in a practice.
 
-Add at least one computer the other way, without a code: choose Join an existing practice, then Ask a Practice Admin to approve this computer. It shows a six-digit code. On the admin computer, the Admin tab lists it under Waiting to join; check the codes match and click Approve, then click Join on the new computer.
+Add at least one computer the other way, without a code. Its welcome screen should say Panic Button is running on the other computers within half a minute; click Ask to join. It shows a six-digit code. On the admin computer, the Admin tab lists it under Waiting to join; check the codes match and click Approve, then click Join on the new computer.
 
 Within half a minute, the small shape on each button should turn into a green circle. The Status tab on any computer lists the others.
 

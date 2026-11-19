@@ -311,6 +311,8 @@ pub enum UiEvent {
         fraction_permille: u16,
     },
     HoldEnded,
+    /// A practice hold (first run) reached `hold_ms`. Nothing was raised.
+    PracticeComplete,
     NearMiss {
         source: Source,
         duration_ms: u64,

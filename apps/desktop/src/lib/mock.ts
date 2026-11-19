@@ -18,6 +18,7 @@ function emit(name: string, payload: unknown) {
 }
 const event = (e: PanicButtonEvent) => emit("panic-button", e);
 const join = {
+  nearby: [4],
   enrolled: false,
   practice: null as string | null,
   joining: false,
@@ -123,7 +124,11 @@ let practice = false;
 function endHold(triggered: boolean) {
   clearInterval(hold);
   hold = undefined;
+  // As the core does: a full ring on trigger, then the end, then the
+  // practice result.
+  if (triggered) event({ type: "hold_progress", fraction: 1 });
   event({ type: "hold_ended" });
+  if (triggered && practice) event({ type: "practice_complete" });
   if (triggered && !practice) {
     const own = alarm({ own: true, room: "Reception", user: "Jane Smith", raised_at: Date.now(), delivered: 0 });
     alarms.unshift(own);

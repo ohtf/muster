@@ -592,8 +592,6 @@ pub fn run() {
             windows::show_main(app);
         }));
     }
-    let token_configured =
-        config.enrolment.token.is_some() || config.enrolment.token_file.is_some();
     let hotkey = config.alarm.hotkey.clone();
     let result = builder
         .manage(Shared {
@@ -628,16 +626,17 @@ pub fn run() {
             app.manage(windows::Placer::new(&data_dir, wayland()));
             windows::create_all(&handle, !enrolled)?;
             tauri::async_runtime::spawn(windows::watch_button(handle.clone()));
-            if enrolled || token_configured {
-                let h = handle.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = start_agent(&h).await {
-                        tracing::error!("agent: {e}");
-                        let _ = h.emit("panic-button-error", e);
-                        windows::show_main(&h);
-                    }
-                });
-            }
+            // Always start the agent: with no practice yet, it listens so
+            // first run can say whether Panic Button is already running on
+            // this network, and the first-run choices enrol it in place.
+            let h = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = start_agent(&h).await {
+                    tracing::error!("agent: {e}");
+                    let _ = h.emit("panic-button-error", e);
+                    windows::show_main(&h);
+                }
+            });
             Ok(())
         })
         .on_window_event(|w, e| match e {

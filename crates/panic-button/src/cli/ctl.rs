@@ -141,7 +141,21 @@ fn join_text(v: &Value) -> String {
             &c[..c.len().min(3)],
             &c[c.len().min(3)..]
         ),
-        (None, None) => "Not joining.".into(),
+        (None, None) => {
+            let nearby: Vec<u64> = v["nearby"]
+                .as_array()
+                .map(|a| a.iter().filter_map(Value::as_u64).collect())
+                .unwrap_or_default();
+            match nearby.iter().sum::<u64>() {
+                0 => "Not joining. No Panic Button computers heard on this network.".into(),
+                n => format!(
+                    "Not joining. Heard {n} Panic Button computer{} on this network ({} practice{}). `panic-button ctl join` asks to join.",
+                    if n == 1 { "" } else { "s" },
+                    nearby.len(),
+                    if nearby.len() == 1 { "" } else { "s" }
+                ),
+            }
+        }
     }
 }
 

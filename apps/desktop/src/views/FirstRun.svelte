@@ -35,18 +35,44 @@ try a practice hold that alerts nobody.
   let approvedBy = $state<string | null>(null);
   let joinExpired = $state(false);
   let joinTimer: ReturnType<typeof setInterval> | undefined;
+  /** Computers heard on this network, per practice (not in a practice yet). */
+  let nearby = $state<number[]>([]);
+  let looked = $state(false);
+  const nearbyTotal = $derived(nearby.reduce((a, b) => a + b, 0));
+
+  async function look() {
+    try {
+      nearby = (await api.joinStatus()).nearby ?? [];
+    } catch {
+      /* the agent may still be starting */
+    }
+  }
 
   onMount(() => {
     // Enrolled already (for example by a token in the config): skip to the room.
-    if (info.enrolled || info.running) afterEnrol();
+    if (info.enrolled) afterEnrol();
     kitPath = `${info.home_dir}/Panic Button recovery kit.panic-button-kit`;
     const off = api.onEvent((e) => {
-      if (e.type === "hold_progress" && e.fraction >= 1 && step === "practice") practiced = true;
+      if (e.type === "practice_complete" && step === "practice") practiced = true;
       if (e.type === "join_approved" && step === "ask") approvedBy = e.practice;
     });
+    // A token in the config enrols the agent as it starts.
+    const offStarted = api.onStarted(async () => {
+      if (step === "welcome" && (await api.appInfo()).enrolled) afterEnrol();
+    });
+    // Other computers send a heartbeat every 15 s, so look every 2 s and
+    // say "none found" only after 20 s.
+    look();
+    const lookTimer = setInterval(() => {
+      if (step === "welcome" || step === "join" || step === "create") look();
+    }, 2000);
+    const lookedTimer = setTimeout(() => (looked = true), 20_000);
     return () => {
       off.then((f) => f());
+      offStarted.then((f) => f());
       clearInterval(joinTimer);
+      clearInterval(lookTimer);
+      clearTimeout(lookedTimer);
     };
   });
 
@@ -168,6 +194,20 @@ try a practice hold that alerts nobody.
   {#if step === "welcome"}
     <h1>Welcome to Panic Button</h1>
     <p class="lead">Panic Button lets you call colleagues for help from this computer.</p>
+    {#if nearbyTotal > 0}
+      <div class="found" role="status">
+        <p>
+          <strong>
+            Panic Button is running on {nearbyTotal}
+            {nearbyTotal === 1 ? "other computer" : "other computers"} on this network{nearby.length > 1
+              ? `, in ${nearby.length} practices`
+              : ""}.
+          </strong>
+          If this computer is in the same practice, ask to join. A Practice Admin approves it on their computer.
+        </p>
+        <button class="btn primary" onclick={ask}>Ask to join</button>
+      </div>
+    {/if}
     <div class="choices">
       <button class="choice" onclick={() => (step = "join")}>
         <strong>Join an existing practice</strong>
@@ -178,6 +218,13 @@ try a practice hold that alerts nobody.
         <span>This computer becomes the first Practice Admin.</span>
       </button>
     </div>
+    {#if nearbyTotal === 0}
+      <p class="muted" role="status">
+        {looked
+          ? "No other computers running Panic Button found on this network."
+          : "Looking for Panic Button on this network..."}
+      </p>
+    {/if}
   {:else if step === "join"}
     <h1>Join a practice</h1>
     <div class="field">
@@ -296,7 +343,7 @@ try a practice hold that alerts nobody.
     <div class="practice">
       <HoldButton size={96} practice label="Practice: press and hold" />
       <p aria-live="polite" class:ok={practiced}>
-        {practiced ? "That's it. Holding for the full time is what sends a real call for help." : ""}
+        {practiced ? "Done. Holding for the full time is what sends a real call for help." : ""}
       </p>
     </div>
     <div class="row">
@@ -307,6 +354,28 @@ try a practice hold that alerts nobody.
 </section>
 
 <style>
+  .found {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 1.2em;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--action-blue);
+    border-radius: 8px;
+    background: var(--paper);
+  }
+
+  .found p {
+    margin: 0;
+  }
+
+  .found .btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
   .alt {
     margin-top: 1.5em;
     color: var(--slate);

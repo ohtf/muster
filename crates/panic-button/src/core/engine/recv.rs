@@ -72,6 +72,32 @@ impl Core {
 
     /// Processes one envelope. `quiet` re-processes stored state at start-up
     /// (no sends, no alerts).
+    /// Unenrolled: remember a practice heard on the local network. Bounded,
+    /// so hostile traffic cannot grow it without limit.
+    fn note_nearby(
+        &mut self,
+        now: Mono,
+        tag: crate::proto::PracticeTag,
+        path: PathKind,
+        from: Option<SocketAddrV4>,
+    ) {
+        const MAX_PRACTICES: usize = 8;
+        const MAX_PER_PRACTICE: usize = 256;
+        let (Some(from), None) = (from, self.practice.as_ref()) else {
+            return;
+        };
+        if matches!(path, PathKind::Relay | PathKind::Sync) {
+            return;
+        }
+        if !self.nearby.contains_key(&tag) && self.nearby.len() >= MAX_PRACTICES {
+            return;
+        }
+        let addrs = self.nearby.entry(tag).or_default();
+        if addrs.contains_key(&from) || addrs.len() < MAX_PER_PRACTICE {
+            addrs.insert(from, now);
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn receive(
         &mut self,
@@ -111,6 +137,7 @@ impl Core {
             Envelope::Sealed(s) => {
                 // Cheap tag check before any crypto (FR-NET-004).
                 let Some((epoch, key)) = self.keys_by_tag.get(&s.tag).cloned() else {
+                    self.note_nearby(now, s.tag, path, from);
                     return self.drop_msg(DropReason::UnknownTag);
                 };
                 let signed = match open(&key, &s) {

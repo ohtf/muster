@@ -84,6 +84,9 @@ pub const SENDER_COULD_NOT_REACH: u64 = 15 * SECOND;
 /// Join requests are re-sent every 5 s for at most 10 minutes.
 pub const JOIN_RESEND: u64 = 5 * SECOND;
 pub const JOIN_MAX: u64 = 10 * MINUTE;
+/// How long an unenrolled device counts a computer it heard (four
+/// heartbeats).
+pub const NEARBY_WINDOW: u64 = MINUTE;
 /// Processed message ids are kept this long in memory.
 pub const PROCESSED_ID_TTL: u64 = DAY;
 /// Closed alarms and their envelopes are kept for sync this long.

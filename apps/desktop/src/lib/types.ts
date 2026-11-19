@@ -125,6 +125,8 @@ export interface AppInfo {
 
 /** Joining by approval (`join.status`). */
 export interface JoinView {
+  /** Not in a practice yet: computers heard on this network, per practice. */
+  nearby: number[];
   enrolled: boolean;
   practice: string | null;
   joining: boolean;
@@ -158,6 +160,7 @@ export type PanicButtonEvent =
   | { type: "hold_progress"; fraction: number }
   | { type: "hold_ended" }
   | { type: "near_miss"; duration_ms: number }
+  | { type: "practice_complete" }
   | { type: "join_requested"; device: string; label: string; code: string }
   | { type: "join_code"; code: string }
   | { type: "join_approved"; practice: string }

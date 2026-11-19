@@ -34,7 +34,7 @@ One code works for as many computers as you like until it expires. Anyone who ha
 
 If you are adding one computer and both are on the practice network, you do not need a code:
 
-1. On the new computer, choose Join an existing practice, then Ask a Practice Admin to approve this computer. It shows a six-digit code.
+1. On the new computer, the welcome screen says Panic Button is running on other computers on this network. Click Ask to join. (If it does not say so, choose Join an existing practice, then Ask a Practice Admin to approve this computer.) It shows a six-digit code.
 2. On your computer, the Admin tab shows the new computer under Waiting to join. Check the code matches the one on its screen, then click Approve. If the codes differ, click Reject.
 3. On the new computer, click Join and choose the room.
 

@@ -749,6 +749,14 @@ fn join_by_approval_on_the_lan() {
     let mut w = World::new(spec);
     w.run_until(WARMUP);
     assert!(!w.core(3).expect("core").is_enrolled());
+    // Before asking, a new computer counts the enrolled ones it can hear
+    // (one practice of three); the other new computers send nothing sealed.
+    assert_eq!(
+        w.core(3)
+            .expect("core")
+            .nearby(panic_button::core::Mono(w.now)),
+        vec![3]
+    );
 
     for i in 3..6 {
         w.act_now(
@@ -798,6 +806,12 @@ fn join_by_approval_on_the_lan() {
     w.act_now(3, UserAction::ConfirmJoin);
     w.run_for(30_000);
     assert!(w.core(3).expect("core").is_enrolled());
+    assert!(
+        w.core(3)
+            .expect("core")
+            .nearby(panic_button::core::Mono(w.now))
+            .is_empty()
+    );
     assert!(!w.core(4).expect("core").is_enrolled());
     assert!(!w.core(5).expect("core").is_enrolled());
     assert_status(&w, 0..4, StatusLevel::Green);
@@ -817,4 +831,68 @@ fn join_by_approval_on_the_lan() {
             "unenrolled node {i} alerted"
         );
     }
+}
+
+/// The first-run practice hold: when it completes, the ring is shown full,
+/// the UI is told the practice succeeded, and nothing is raised anywhere. A
+/// real hold also ends with a full ring.
+#[test]
+fn practice_hold_completes_without_raising() {
+    let mut w = World::new(WorldSpec::flat(3, 21));
+    w.run_until(WARMUP);
+    let t0 = w.now;
+    w.act_now(
+        0,
+        UserAction::HoldStart {
+            source: panic_button::proto::Source::Button,
+            practice: true,
+        },
+    );
+    w.run_for(3_000);
+    let after: Vec<&UiEvent> = w
+        .ui_events(0)
+        .filter(|(t, _)| *t >= t0)
+        .map(|(_, e)| e)
+        .collect();
+    let full = after.iter().position(
+        |e| matches!(e, UiEvent::HoldProgress { fraction_permille } if *fraction_permille == 1000),
+    );
+    let ended = after.iter().position(|e| matches!(e, UiEvent::HoldEnded));
+    let done = after
+        .iter()
+        .position(|e| matches!(e, UiEvent::PracticeComplete));
+    assert!(
+        full.is_some() && ended.is_some() && done.is_some(),
+        "{after:?}"
+    );
+    assert!(full < ended && ended < done, "order: {after:?}");
+    assert!(
+        w.last_alarm_of(0).is_none(),
+        "a practice hold raised an alarm"
+    );
+    for i in 1..3 {
+        assert!(
+            !w.ui_events(i)
+                .any(|(t, e)| t >= t0 && matches!(e, UiEvent::AlarmShown { .. })),
+            "node {i} alerted for a practice hold"
+        );
+    }
+
+    // A real hold ends with a full ring too, and raises.
+    let t1 = w.now;
+    w.act_now(
+        1,
+        UserAction::HoldStart {
+            source: panic_button::proto::Source::Button,
+            practice: false,
+        },
+    );
+    w.run_for(3_000);
+    assert!(w.ui_events(1).any(|(t, e)| t >= t1
+        && matches!(e, UiEvent::HoldProgress { fraction_permille } if *fraction_permille == 1000)));
+    assert!(
+        !w.ui_events(1)
+            .any(|(t, e)| t >= t1 && matches!(e, UiEvent::PracticeComplete))
+    );
+    assert!(w.last_alarm_of(1).is_some());
 }

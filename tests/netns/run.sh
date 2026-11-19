@@ -423,6 +423,14 @@ join() {
   NO_TOKEN=1 start n3
   wait_ready n1 n2 n3
   ctl n2 ctl join-confirm >/dev/null 2>&1 && fail "n2 joined before any approval"
+  # Before asking, n2 hears n1 (one practice, one computer).
+  local nearby=
+  for _ in $(seq 40); do
+    nearby=$(ctl n2 --format json ctl join-status | tr -d '\n ')
+    grep -q '"nearby":\[1\]' <<<"$nearby" && break
+    sleep 0.5
+  done
+  grep -q '"nearby":\[1\]' <<<"$nearby" || fail "n2 does not hear n1: $nearby"
   ctl n2 ctl join >/dev/null
   local code req=
   code=$(ctl n2 --format json ctl join-status | sed -n 's/.*"code": "\([0-9]*\)".*/\1/p')
@@ -447,7 +455,7 @@ join() {
   ctl n3 ctl enrol --token-file "$WORK/token" >/dev/null || fail "n3 enrol refused"
   for n in n1 n2 n3; do expect_level "$n" green 25; done
   raise_and_expect n3 3 n1 n2
-  pass "join: by approval code, and enrolling a running agent with a code"
+  pass "join: discovering a practice, by approval code, and enrolling a running agent with a code"
 }
 
 scenarios=("$@")

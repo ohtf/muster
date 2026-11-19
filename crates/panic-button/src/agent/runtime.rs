@@ -646,6 +646,7 @@ impl Runtime {
     fn join_view(&self) -> Value {
         let j = self.core.joining();
         json!({
+            "nearby": self.core.nearby(self.now()),
             "enrolled": self.core.is_enrolled(),
             "practice": self.core.practice().map(|p| p.name.clone()),
             "joining": j.is_some(),

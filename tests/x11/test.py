@@ -6,7 +6,8 @@
 # saved and restored per monitor layout, a saved position off every monitor
 # falls back to the corner, and the keyboard shortcut raises an alarm only
 # when held (with key auto-repeat on), muting the sound turns the status
-# amber, and an xrdp remote session is reported.
+# amber, an xrdp remote session is reported, and on first run the agent
+# runs before there is a practice.
 
 import json
 import os
@@ -64,6 +65,23 @@ def alarms():
     out = subprocess.run(["/w/panic-button", "--format", "json", "--control-socket", SOCK, "ctl", "alarms"],
                          capture_output=True, text=True)
     return json.loads(out.stdout or "[]")
+
+# A computer with no practice yet runs its agent at once (first run listens
+# for other Panic Button computers), and is not enrolled.
+fresh = dict(env, PANIC_BUTTON_DATA_DIR="/tmp/fresh", PANIC_BUTTON_CONTROL_SOCKET="/tmp/fresh.sock")
+fp = subprocess.Popen(["/w/panic-button-desktop"], env=fresh, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+view = {}
+for _ in range(40):
+    out = subprocess.run(["/w/panic-button", "--format", "json", "--control-socket", "/tmp/fresh.sock", "ctl",
+                          "join-status"], capture_output=True, text=True)
+    if out.returncode == 0:
+        view = json.loads(out.stdout)
+        break
+    time.sleep(0.5)
+check("first run: the agent runs before there is a practice",
+      view.get("enrolled") is False and view.get("nearby") == [], str(view))
+fp.terminate()
+fp.wait(10)
 
 subprocess.run(["/w/panic-button", "--data-dir", D, "practice", "init", "--name", "Test", "--label", "Desk",
                 "--recovery-kit", "/tmp/kit"], env=dict(env, PANIC_BUTTON_PASSPHRASE="correct horse battery"),

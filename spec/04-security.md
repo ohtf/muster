@@ -83,6 +83,7 @@ A token's enroller key can be used to self-issue member certs until the token ex
 
 ### C. Interactive enrolment (LAN)
 
+0. Before joining, the device can count the practices on its network from the practice tags of sealed envelopes it cannot open (`Core::nearby`). This reveals nothing a passive listener on the LAN does not already see: no names, ids or keys.
 1. The joining device broadcasts JoinRequest and shows its 6-digit code.
 2. Admin devices show "RECEPTION-PC2 wants to join (code 123 456). Check this code is shown on that computer." with Approve and Reject.
 3. On Approve, the admin issues a member cert and sends JoinApproval (cert chain, root pub, practice name, KeyShare of the current group key, current config).
