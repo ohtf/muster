@@ -59,22 +59,37 @@ The built-in sounds are in `sounds/` in the repository: `alarm-a.wav`, `alarm-b.
 
 ## Wayland
 
-On Wayland the app cannot place windows or keep them on top; the compositor decides. The status tab says so (`spec/05-desktop-agent.md`, Platform notes). On niri, a window rule keeps the button floating in the corner and on top:
+On Wayland the app cannot place windows or keep them on top; the compositor decides. The status tab says so (`spec/05-desktop-agent.md`, Platform notes).
+
+On niri (checked against 26.04), these rules float the button in the bottom-right corner without a focus ring or shadow, put the panel above it, and float the alert. None of them takes focus, so a key pressed while typing cannot answer an alert:
 
 ```kdl
 window-rule {
-    match app-id="panic-button-desktop" title="^Panic Button button$"
+    match app-id="^panic-button-desktop$" title="^Panic Button button$"
     open-floating true
     open-focused false
     default-floating-position x=24 y=24 relative-to="bottom-right"
+    focus-ring { off; }
+    border { off; }
+    shadow { off; }
 }
 window-rule {
-    match app-id="panic-button-desktop" title="^Panic Button panel$"
+    match app-id="^panic-button-desktop$" title="^Panic Button panel$"
     open-floating true
     open-focused false
     default-floating-position x=24 y=110 relative-to="bottom-right"
 }
+window-rule {
+    match app-id="^panic-button-desktop$" title="^Help needed$"
+    open-floating true
+    open-focused false
+}
 ```
+
+Two limits, because niri has no "always on top" or "all workspaces" rule yet (niri issue #932, PR #3205):
+
+- A floating window is above the tiled windows of its own workspace only, so the button stays on the workspace where it opened. `niri msg action move-window-to-workspace --window-id <id> --focus false <workspace>` can move it, so a script reading `niri msg event-stream` could bring it to each workspace you switch to.
+- A fullscreen window covers it (PR #4062 would add `float-above-fullscreen`).
 
 ## Not done yet
 
