@@ -245,6 +245,14 @@ impl ConfigFile {
         self
     }
 
+    /// Whether staff may quit the app (`ui.allow_quit`): off in the practice
+    /// profile, on in the home profile, unless set (`spec/08-deployment.md`).
+    pub fn allow_quit(&self) -> bool {
+        self.ui
+            .allow_quit
+            .unwrap_or(self.profile == Some(ProfileName::Home))
+    }
+
     pub fn port(&self) -> u16 {
         self.network
             .port
@@ -308,6 +316,16 @@ impl ConfigFile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn allow_quit_follows_the_profile_unless_set() {
+        let p = |t: &str| ConfigFile::parse(t, Path::new("c.toml")).expect("parse");
+        assert!(!p("").allow_quit());
+        assert!(!p("profile = \"practice\"").allow_quit());
+        assert!(p("profile = \"home\"").allow_quit());
+        assert!(p("[ui]\nallow_quit = true").allow_quit());
+        assert!(!p("profile = \"home\"\n[ui]\nallow_quit = false").allow_quit());
+    }
 
     fn parse(s: &str) -> Result<ConfigFile, ConfigError> {
         ConfigFile::parse(s, Path::new("test.toml"))

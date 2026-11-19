@@ -584,7 +584,7 @@ pub fn run() {
             ConfigFile::default()
         }
     };
-    let allow_quit = config.ui.allow_quit.unwrap_or(false) || custom_dir.is_some();
+    let allow_quit = config.allow_quit() || custom_dir.is_some();
     let (audio, audio_ok) = Audio::start(data_dir.join("sounds"));
     let mut builder = tauri::Builder::default();
     if custom_dir.is_none() {

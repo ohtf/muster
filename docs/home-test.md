@@ -73,6 +73,17 @@ Add at least one computer the other way, without a code. Its welcome screen shou
 
 Within half a minute, the small shape on each button should turn into a green circle. The Status tab on any computer lists the others.
 
+## Quitting during the test
+
+Panic Button has no Quit option by default, because a computer that has quit cannot receive alarms. To add one, create a settings file with these two lines:
+
+```toml
+[ui]
+allow_quit = true
+```
+
+Save it as `C:\ProgramData\Panic Button\config.toml` on Windows (Notepad needs to be run as administrator), or `/etc/panic-button/config.toml` on Linux. Then sign out and back in. The tray menu and the About tab then have Quit Panic Button, which asks you to confirm.
+
 ## What to try
 
 Call for help from each computer in turn. Hold the red button until the ring fills (one and a half seconds). Every other computer should show the red Help needed window and sound the alarm within two seconds. Click I'm coming on one of them, and check the computer you called from shows who is coming. Then click Resolved.
