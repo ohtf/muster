@@ -8,6 +8,8 @@ Stewarded by the [Open Health Technology Foundation](https://openhealthtechnolog
 
 Status: pre-alpha. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-roadmap.md) for progress.
 
+<img src="docs/assets/panic-button-logo.svg" width="144" height="144" alt="Panic Button logo: a big red button with a raised white hand">
+
 ## What it is not
 
 - Not a monitored alarm service, and not a route to 999. It alerts colleagues nearby only. Your practice's emergency procedures remain primary.
