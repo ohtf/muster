@@ -131,6 +131,12 @@ The guides for people who use Panic Button, in plain English for practice staff.
 - The agent applies the same hold machine (`source = hid`). Button presence is reported in the heartbeat and coverage ("button connected").
 - Compliance for sale: UKCA/CE (EMC), RoHS, WEEE producer registration. OHTF-branded units are sold to fund development. The trade mark policy controls the branding.
 
+### Basic mobile app
+
+Requested by Marcus Baw on 2026-11-19: an exceedingly basic Android and iOS app, well before the full 2.0 mobile work below. Open the app, press the alarm.
+
+- [ ] **R66 - Basic mobile app (Tauri mobile)**: one screen with the big red button and the hold ring, built from the existing Svelte frontend and the agent with Tauri's Android and iOS targets. It joins the practice like a desktop computer (enrolment code or approval code) and raises alarms over the practice Wi-Fi while the app is open, showing the same sender panel. It does not receive alarms in the background; that needs the push forwarder in 2.0. To check first: that Tauri mobile can run the agent's UDP, TCP and mDNS networking, and what iOS needs (the Local Network permission, and Apple's multicast entitlement or seed peers instead), and how the app says clearly that it cannot receive alarms.
+
 ### 2.0 Mobile
 
 - Android first: FCM high-priority messages via the push forwarder, plus an optional foreground-service mode that listens directly on practice Wi-Fi. UnifiedPush support so a practice can avoid Google and OHTF entirely.
