@@ -19,6 +19,10 @@
 #   Debian, Ubuntu        `sudo apt remove panic-button`
 #   Fedora                built as an rpm; `sudo dnf remove panic-button`
 #
+# Running it again replaces the previous install. On Arch, if panic-button-bin
+# from the AUR is installed, pacman asks before replacing it with
+# panic-button-git.
+#
 # It asks for your sudo password for the last step. Quit the running app (tray
 # menu) and start it again afterwards to use the new build. Uncommitted
 # changes are included in the build but not in the package version.
@@ -35,7 +39,10 @@ esac
 
 command -v cargo >/dev/null || { echo "cargo not found: install Rust from https://rustup.rs" >&2; exit 1; }
 
-cargo install --locked --target-dir target --path crates/panic-button
+# --force: replace whatever is installed under these names, including the
+# separate panic-button-agent and panic-button-relay packages from before
+# version 0.2.0.
+cargo install --locked --force --target-dir target --path crates/panic-button
 $desktop || exit 0
 
 if command -v pacman >/dev/null; then
