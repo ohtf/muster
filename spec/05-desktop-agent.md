@@ -164,7 +164,7 @@ Tabs: **Status** (status explanation, peers count by path, audio check with a "P
 
 - **Autostart:** Windows `HKLM\...\Run` entry written by the MSI (per machine, all users); macOS LaunchAgent; Linux XDG autostart, or a systemd user unit for the headless agent.
 - **Watchdog:**
-  - Windows: on first run per user, register a per-user Scheduled Task "Panic Button watchdog" (at logon, and repeating every 5 minutes) that runs `panic-button-desktop.exe --ensure-running`. That exits immediately if an instance is running (single-instance plugin).
+  - Windows: on every start, the app creates or updates a per-user Scheduled Task, "Panic Button watchdog (<user>)", repeating every 5 minutes, that runs `panic-button-desktop.exe --ensure-running` (`platform::windows_watchdog`). The Run key starts the app at sign-in, so the task needs no logon trigger (which would need administrator rights). If an instance is running, the new process hands over to it and exits; the running app ignores a hand-over with `--ensure-running` instead of showing its window. Task names include the user because they are shared by every account. The MSI deletes all `Panic Button watchdog*` tasks on uninstall, but not on upgrade.
   - macOS: LaunchAgent `KeepAlive = true`.
   - Linux: systemd user unit `Restart=always`, or XDG autostart plus a user timer.
 - **Remote sessions (Windows):** if `GetSystemMetrics(SM_REMOTESESSION)` is non-zero, or the session is not the console session, and `allow_remote_session = false`: show the button greyed with the tooltip "Panic Button cannot run inside a remote session. Ask IT to install it on this computer itself." Do not heartbeat as a participating device. Report `session = remote_session_disabled` if running.

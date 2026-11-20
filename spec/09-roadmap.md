@@ -68,7 +68,7 @@ Build in this order. Each milestone ends with green CI and a short demo note in 
 
 ### M7 Packaging
 
-- [ ] **R40 - Windows MSI** with properties, firewall, Run key, WebView2, signing (with a placeholder certificate in CI), Scheduled Task watchdog registration on first run.
+- [~] **R40 - Windows MSI** with properties, firewall, Run key, WebView2, signing (with a placeholder certificate in CI), Scheduled Task watchdog registration on first run. Done: firewall and Run key (R53); WebView2, which Tauri's MSI downloads and installs silently when missing (its default `webviewInstallMode`; computers without internet access would need the offline installer, about 127 MB more); the watchdog task (2026-11-20, compiled for Windows, not yet run there). Still to do: MSI properties for IT (token, room, relay) written to `config.toml`, and signing, which needs a certificate.
 - [ ] **R41 - macOS pkg** (signing and notarisation on tags), LaunchAgent.
 - [ ] **R42 - Linux** deb, AppImage and systemd units.
 - [ ] **R43 - M7 exit**: silent MSI install smoke test in CI. L9 passes in the lab.
