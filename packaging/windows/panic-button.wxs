@@ -11,6 +11,13 @@ Domain and Private profiles. FIREWALL_PUBLIC=1 adds the Public profile.
 The rules are removed on uninstall (upgrades remove the old version first,
 so the new version's rules survive).
 
+Settings for IT (spec/08-deployment.md, MSI): ENROLMENT_TOKEN,
+ENROLMENT_TOKEN_FILE, ROOM, RELAY_URL and SEED_PEERS are written into
+%ProgramData%\Panic Button\config.toml by panic-button-desktop.exe, run with
+its install-settings option (setup::write_install_settings); a token goes to
+enrol.token there. An invalid token fails the install. The token is kept
+out of the MSI log.
+
 Watchdog: the app registers a per-user Scheduled Task, "Panic Button watchdog
 (<user>)" (platform/windows_watchdog.rs). Uninstalling deletes them all; an
 upgrade leaves them, and the new version updates its own.
@@ -18,6 +25,13 @@ upgrade leaves them, and the new version updates its own.
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
     <Property Id="FIREWALL_PUBLIC" Secure="yes" />
+    <Property Id="ENROLMENT_TOKEN" Secure="yes" Hidden="yes" />
+    <Property Id="ENROLMENT_TOKEN_FILE" Secure="yes" />
+    <Property Id="ROOM" Secure="yes" />
+    <Property Id="RELAY_URL" Secure="yes" />
+    <Property Id="SEED_PEERS" Secure="yes" />
+    <!-- Holds the token on its way to the deferred action. -->
+    <Property Id="PanicButtonInstallSettings" Hidden="yes" />
     <Property Id="PANIC_BUTTON_FW_PROFILES" Value="domain,private" />
     <SetProperty Id="PANIC_BUTTON_FW_PROFILES" Value="any" After="CostFinalize" Sequence="execute">FIREWALL_PUBLIC = "1"</SetProperty>
 
@@ -43,6 +57,11 @@ upgrade leaves them, and the new version updates its own.
     <CustomAction Id="PanicButtonFirewallRemove" BinaryKey="WixCA" DllEntry="WixQuietExec64"
                   Execute="deferred" Impersonate="no" Return="ignore" />
 
+    <SetProperty Id="PanicButtonInstallSettings" Before="PanicButtonInstallSettings" Sequence="execute"
+                 Value="&quot;[INSTALLDIR]panic-button-desktop.exe&quot; --install-settings --token &quot;[ENROLMENT_TOKEN]&quot; --token-file &quot;[ENROLMENT_TOKEN_FILE]&quot; --room &quot;[ROOM]&quot; --relay-url &quot;[RELAY_URL]&quot; --seed-peers &quot;[SEED_PEERS]&quot;" />
+    <CustomAction Id="PanicButtonInstallSettings" BinaryKey="WixCA" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" />
+
     <SetProperty Id="PanicButtonWatchdogRemove" Before="PanicButtonWatchdogRemove" Sequence="execute"
                  Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -Command &quot;Get-ScheduledTask -TaskName 'Panic Button watchdog*' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false&quot;" />
     <CustomAction Id="PanicButtonWatchdogRemove" BinaryKey="WixCA" DllEntry="WixQuietExec64"
@@ -53,6 +72,7 @@ upgrade leaves them, and the new version updates its own.
       <Custom Action="PanicButtonFirewallRemove" After="InstallFiles" />
       <Custom Action="PanicButtonFirewallUdp" After="PanicButtonFirewallRemove">NOT (REMOVE ~= "ALL")</Custom>
       <Custom Action="PanicButtonFirewallTcp" After="PanicButtonFirewallUdp">NOT (REMOVE ~= "ALL")</Custom>
+      <Custom Action="PanicButtonInstallSettings" After="PanicButtonFirewallTcp">NOT (REMOVE ~= "ALL")</Custom>
       <Custom Action="PanicButtonWatchdogRemove" Before="RemoveFiles">REMOVE ~= "ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
     </InstallExecuteSequence>
   </Fragment>

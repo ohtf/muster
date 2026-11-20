@@ -569,6 +569,41 @@ fn init_logging(data_dir: &Path) -> Option<tracing_appender::non_blocking::Worke
     }
 }
 
+/// `--install-settings --token <t> --token-file <path> --room <r>
+/// --relay-url <url> --seed-peers <a,b>`: the MSI's public properties
+/// (`spec/08-deployment.md`), written into the machine config by
+/// `setup::write_install_settings`. Empty values are ignored. Returns the
+/// process exit code; a failure fails the install, with the reason in the
+/// MSI log.
+pub fn install_settings(args: &[String]) -> i32 {
+    let mut s = panic_button::agent::setup::InstallSettings::default();
+    let mut it = args.iter();
+    while let Some(flag) = it.next() {
+        let value = it.next().cloned().unwrap_or_default();
+        let slot = match flag.as_str() {
+            "--token" => &mut s.token,
+            "--token-file" => &mut s.token_file,
+            "--room" => &mut s.room,
+            "--relay-url" => &mut s.relay_url,
+            "--seed-peers" => &mut s.seed_peers,
+            _ => {
+                eprintln!("unknown setting {flag}");
+                return 2;
+            }
+        };
+        *slot = value;
+    }
+    let config = paths::default_config_file();
+    let enrol_token = paths::default_data_dir(false).join("enrol.token");
+    match panic_button::agent::setup::write_install_settings(&config, &enrol_token, &s) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Panic Button settings: {e:#}");
+            1
+        }
+    }
+}
+
 pub fn run() {
     let custom_dir = env_path("PANIC_BUTTON_DATA_DIR");
     let data_dir = custom_dir

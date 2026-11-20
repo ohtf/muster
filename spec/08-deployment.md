@@ -81,6 +81,7 @@ relay_urls = ["wss://relay.example-pcn.org.uk/v1/ws"]
 | `FIREWALL_PUBLIC` | `1` to also open the port on the Public firewall profile (default `0`; Domain and Private only) |
 
 - The MSI writes the properties into `%ProgramData%\Panic Button\config.toml`. ACL: Administrators and SYSTEM full, Users read. The token is written to `enrol.token` with Users read access (needed for per-user first run). The agent deletes it after enrolment.
+- As built: a deferred custom action runs `panic-button-desktop.exe --install-settings` as SYSTEM, which merges the properties into any existing config (`setup::write_install_settings`): a token, inline or read from `ENROLMENT_TOKEN_FILE`, is checked and copied to `enrol.token`, and the config names that file; `RELAY_URL` and `SEED_PEERS` are added to any already there. An invalid token fails the install. `ENROLMENT_TOKEN` and the action's command line are hidden from the MSI log. The files inherit `%ProgramData%`'s permissions, so users can read but not delete `enrol.token`; it stays until it expires or an administrator removes it.
 - Firewall: inbound rule for `panic-button-desktop.exe`, UDP and TCP on `network.port`, Domain and Private profiles (Public optional).
 - Autostart: `HKLM\Software\Microsoft\Windows\CurrentVersion\Run\Panic Button`.
 - WebView2: evergreen bootstrapper if missing.

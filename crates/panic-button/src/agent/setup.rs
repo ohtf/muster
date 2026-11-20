@@ -199,6 +199,141 @@ pub fn new_recovery_kit(
     })
 }
 
+/// Settings an installer passes in (the MSI's public properties,
+/// `spec/08-deployment.md`). Empty strings count as not given.
+#[derive(Debug, Clone, Default)]
+pub struct InstallSettings {
+    /// An enrolment token.
+    pub token: String,
+    /// A file holding an enrolment token, for example on a network share.
+    pub token_file: String,
+    pub room: String,
+    pub relay_url: String,
+    /// Comma-separated `host:port` list.
+    pub seed_peers: String,
+}
+
+impl InstallSettings {
+    fn is_empty(&self) -> bool {
+        [
+            &self.token,
+            &self.token_file,
+            &self.room,
+            &self.relay_url,
+            &self.seed_peers,
+        ]
+        .iter()
+        .all(|s| s.trim().is_empty())
+    }
+}
+
+/// Writes installer settings into the machine config at `config`, keeping
+/// whatever else is there. A token (inline or from a file) is checked and
+/// copied to `enrol_token`, which the config then names, so it is not
+/// written into the config itself. Relay URLs and seed peers are added to
+/// any already set. With no settings, nothing changes. The result must load
+/// as a valid config, or nothing is written.
+pub fn write_install_settings(
+    config: &Path,
+    enrol_token: &Path,
+    s: &InstallSettings,
+) -> anyhow::Result<()> {
+    use toml::{Table, Value};
+    if s.is_empty() {
+        return Ok(());
+    }
+    let mut doc: Table = match std::fs::read_to_string(config) {
+        Ok(text) => text
+            .parse()
+            .with_context(|| format!("reading {}", config.display()))?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Table::new(),
+        Err(e) => return Err(e).with_context(|| format!("reading {}", config.display())),
+    };
+    fn section<'a>(doc: &'a mut Table, name: &str) -> anyhow::Result<&'a mut Table> {
+        doc.entry(name)
+            .or_insert_with(|| Value::Table(Table::new()))
+            .as_table_mut()
+            .with_context(|| format!("[{name}] in the config is not a table"))
+    }
+    fn add_to_list(t: &mut Table, key: &str, items: &[String]) -> anyhow::Result<()> {
+        let list = t
+            .entry(key)
+            .or_insert_with(|| Value::Array(Vec::new()))
+            .as_array_mut()
+            .with_context(|| format!("{key} in the config is not a list"))?;
+        for i in items {
+            if !list.iter().any(|v| v.as_str() == Some(i)) {
+                list.push(Value::String(i.clone()));
+            }
+        }
+        Ok(())
+    }
+
+    let token = if !s.token.trim().is_empty() {
+        Some(s.token.trim().to_owned())
+    } else if !s.token_file.trim().is_empty() {
+        let p = Path::new(s.token_file.trim());
+        Some(
+            std::fs::read_to_string(p)
+                .with_context(|| format!("reading the enrolment token {}", p.display()))?
+                .trim()
+                .to_owned(),
+        )
+    } else {
+        None
+    };
+    if let Some(t) = &token {
+        crate::proto::Token::parse(t)
+            .map_err(|e| anyhow::anyhow!("that is not a valid enrolment token: {e}"))?;
+        let e = section(&mut doc, "enrolment")?;
+        e.remove("token");
+        e.insert(
+            "token_file".into(),
+            Value::String(enrol_token.display().to_string()),
+        );
+    }
+    if !s.room.trim().is_empty() {
+        section(&mut doc, "device")?.insert("room".into(), Value::String(s.room.trim().into()));
+    }
+    let relays: Vec<String> = [s.relay_url.trim()]
+        .into_iter()
+        .filter(|r| !r.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let seeds: Vec<String> = s
+        .seed_peers
+        .split(',')
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .map(str::to_owned)
+        .collect();
+    if !relays.is_empty() {
+        add_to_list(section(&mut doc, "network")?, "relay_urls", &relays)?;
+    }
+    if !seeds.is_empty() {
+        add_to_list(section(&mut doc, "network")?, "seed_peers", &seeds)?;
+    }
+
+    let text = toml::to_string(&doc)?;
+    crate::agent::config::ConfigFile::parse(&text, config)
+        .context("the installer settings do not make a valid config")?;
+    let write = |path: &Path, ext: &str, body: &str| -> anyhow::Result<()> {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let tmp = path.with_extension(ext);
+        std::fs::write(&tmp, body)?;
+        std::fs::rename(&tmp, path)?;
+        Ok(())
+    };
+    if let Some(t) = &token {
+        write(enrol_token, "token.tmp", &format!("{t}\n"))
+            .with_context(|| format!("writing {}", enrol_token.display()))?;
+    }
+    write(config, "toml.tmp", &text).with_context(|| format!("writing {}", config.display()))?;
+    Ok(())
+}
+
 /// A new enrolment token, as text to hand over.
 #[derive(Debug, Clone)]
 pub struct NewToken {
@@ -287,6 +422,96 @@ pub fn create_enrolment_token(dir: &Path, o: &TokenOptions) -> anyhow::Result<Ne
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn install_settings_write_and_merge() {
+        let d = tempfile::tempdir().expect("tempdir");
+        let dir = d.path().join("state");
+        init_practice(
+            &dir,
+            "Test Surgery",
+            "Reception",
+            "a long enough passphrase",
+            &d.path().join("kit"),
+        )
+        .expect("init");
+        let token = create_enrolment_token(
+            &dir,
+            &TokenOptions {
+                days: 1,
+                label: "msi".into(),
+                ..Default::default()
+            },
+        )
+        .expect("token")
+        .text;
+        let share = d.path().join("practice.token");
+        std::fs::write(&share, format!("{token}\n")).expect("write");
+        let cfg = d.path().join("pd").join("config.toml");
+        let enrol = d.path().join("pd").join("enrol.token");
+
+        // Nothing given: nothing written.
+        write_install_settings(&cfg, &enrol, &InstallSettings::default()).expect("empty");
+        assert!(!cfg.exists());
+
+        // A fresh install.
+        write_install_settings(
+            &cfg,
+            &enrol,
+            &InstallSettings {
+                token_file: share.display().to_string(),
+                room: "Consulting Room 4".into(),
+                relay_url: "wss://relay.example/v1/ws".into(),
+                seed_peers: " 10.0.0.5:47474, ,10.0.0.6:47474".into(),
+                ..Default::default()
+            },
+        )
+        .expect("fresh");
+        let c = crate::agent::config::ConfigFile::load(&cfg).expect("valid config");
+        assert_eq!(c.device.room.as_deref(), Some("Consulting Room 4"));
+        assert_eq!(c.enrolment.token_file.as_deref(), Some(enrol.as_path()));
+        assert_eq!(c.enrolment.token, None);
+        assert_eq!(
+            c.network.seed_peers,
+            vec!["10.0.0.5:47474", "10.0.0.6:47474"]
+        );
+        assert_eq!(
+            std::fs::read_to_string(&enrol).expect("token").trim(),
+            token
+        );
+
+        // An upgrade with one more relay keeps everything else.
+        let before = std::fs::read_to_string(&cfg).expect("read");
+        std::fs::write(&cfg, format!("profile = \"home\"\n{before}")).expect("write");
+        write_install_settings(
+            &cfg,
+            &enrol,
+            &InstallSettings {
+                relay_url: "wss://relay2.example/v1/ws".into(),
+                ..Default::default()
+            },
+        )
+        .expect("upgrade");
+        let c = crate::agent::config::ConfigFile::load(&cfg).expect("valid config");
+        assert!(c.allow_quit(), "the home profile was kept");
+        assert_eq!(c.device.room.as_deref(), Some("Consulting Room 4"));
+        assert_eq!(c.network.relay_urls.len(), 2);
+
+        // A bad token changes nothing.
+        let before = std::fs::read_to_string(&cfg).expect("read");
+        let e = write_install_settings(
+            &cfg,
+            &enrol,
+            &InstallSettings {
+                token: "not a token".into(),
+                room: "Elsewhere".into(),
+                ..Default::default()
+            },
+        )
+        .expect_err("bad token");
+        assert!(e.to_string().contains("not a valid enrolment token"), "{e}");
+        assert_eq!(std::fs::read_to_string(&cfg).expect("read"), before);
+    }
 
     #[test]
     fn new_recovery_kit_opens_with_the_new_passphrase_only() {
