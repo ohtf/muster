@@ -77,6 +77,7 @@ delivered.
 </script>
 
 <main>
+  <h1 class="visually-hidden">Panic Button</h1>
   <HoldButton disabled={!running} {moveMode} label={tooltip} onmoved={stopMove} />
   <span class="dot" aria-hidden="true"><StatusIcon {level} size={14} outline /></span>
   {#if own}

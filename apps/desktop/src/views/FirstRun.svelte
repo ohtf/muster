@@ -190,7 +190,7 @@ try a practice hold that alerts nobody.
   }
 </script>
 
-<section class="first-run">
+<main class="first-run">
   {#if step === "welcome"}
     <h1>Welcome to Panic Button</h1>
     <p class="lead">Panic Button lets you call colleagues for help from this computer.</p>
@@ -351,7 +351,7 @@ try a practice hold that alerts nobody.
       <button class="btn primary" disabled={!practiced} onclick={finish}>Finish</button>
     </div>
   {/if}
-</section>
+</main>
 
 <style>
   .found {

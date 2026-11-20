@@ -256,6 +256,8 @@ enrolment codes, and test alarms with their reports.
   });
 </script>
 
+<h1>Admin</h1>
+
 {#if joins.length}
   <section>
     <h2>Waiting to join</h2>
@@ -306,7 +308,13 @@ enrolment codes, and test alarms with their reports.
     </div>
   </div>
   <table>
-    <thead><tr><th>Status</th><th>Computer</th><th>Room</th><th>Person</th><th>Last heard</th><th></th></tr></thead>
+    <thead
+      ><tr
+        ><th>Status</th><th>Computer</th><th>Room</th><th>Person</th><th>Last heard</th><th
+          ><span class="visually-hidden">Actions</span></th
+        ></tr
+      ></thead
+    >
     <tbody>
       {#each shown as d (d.device)}
         <tr>
@@ -386,7 +394,13 @@ enrolment codes, and test alarms with their reports.
   {#if tokens.length}
     <h3>Enrolment codes</h3>
     <table>
-      <thead><tr><th>Label</th><th>State</th><th>Computers that joined with it</th><th></th></tr></thead>
+      <thead
+        ><tr
+          ><th>Label</th><th>State</th><th>Computers that joined with it</th><th
+            ><span class="visually-hidden">Actions</span></th
+          ></tr
+        ></thead
+      >
       <tbody>
         {#each tokens as t (t.token_id)}
           <tr>
@@ -518,7 +532,7 @@ enrolment codes, and test alarms with their reports.
   {#if drillSent}<span class="saved" role="status">Sent</span>{/if}
   {#if reports.length}
     <table>
-      <thead><tr><th>When</th><th>Reached</th><th></th></tr></thead>
+      <thead><tr><th>When</th><th>Reached</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
       <tbody>
         {#each reports as r (r.alarm_id)}
           <tr>
@@ -589,6 +603,12 @@ enrolment codes, and test alarms with their reports.
 </section>
 
 <style>
+  /* As the other tabs' headings (MainView). */
+  h1 {
+    font-size: 20px;
+    margin: 0 0 8px;
+  }
+
   section {
     background: var(--paper);
     border: 1px solid var(--line);
