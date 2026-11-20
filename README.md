@@ -8,6 +8,8 @@ Stewarded by the [Open Health Technology Foundation](https://openhealthtechnolog
 
 Status: pre-alpha. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-roadmap.md) for progress.
 
+Documentation for practice staff, Practice Admins and IT: https://ohtf.github.io/panic-button/
+
 <img src="docs/assets/panic-button-logo.svg" width="144" height="144" alt="Panic Button logo: a big red button with a white hand printed on its face">
 
 ## What it is not
@@ -31,7 +33,7 @@ Commercial on-screen panic alarms are expensive for what they are, Windows-only,
 
 ## Installing
 
-See [docs/install.md](docs/install.md). Panic Button is not yet ready for real practices.
+See [Installing](https://ohtf.github.io/panic-button/install/) on the docs site ([docs/install.md](docs/install.md) in the repository). Panic Button is not yet ready for real practices.
 
 ## Quick start (developers)
 
