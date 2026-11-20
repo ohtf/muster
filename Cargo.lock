@@ -3310,7 +3310,7 @@ dependencies = [
 
 [[package]]
 name = "panic-button"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "argon2",
@@ -3356,7 +3356,7 @@ dependencies = [
 
 [[package]]
 name = "panic-button-desktop"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "panic-button",
@@ -3377,7 +3377,7 @@ dependencies = [
 
 [[package]]
 name = "panic-button-sim"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "panic-button",
  "proptest",

@@ -5,6 +5,44 @@ All notable changes to Panic Button are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Releases are grouped from conventional-commit messages by [git-cliff](https://git-cliff.org).
 
+## [0.2.1] - 2026-11-20
+
+### Bug fixes
+
+- **desktop**: The home profile allows Quit, as the spec says; home test explains allow_quit ([53d5a1f](https://github.com/ohtf/panic-button/commit/53d5a1f750779697c5d4cbb54ad0bd54dc7a4ec4))
+
+- **scripts**: S/install replaces an existing install ([4238b96](https://github.com/ohtf/panic-button/commit/4238b965f4db2c1ab8ba56c3cac6a1b8120a4f66))
+
+### CI
+
+- **release**: Publish to crates.io by trusted publishing only (R65) ([b33dc0d](https://github.com/ohtf/panic-button/commit/b33dc0dae04543a069a21695b1862b16ba04f620))
+
+- **release**: Publish to crates.io only from Auto-tag ([8737225](https://github.com/ohtf/panic-button/commit/8737225df9c34a2a50b8e7e833e24071bab971f6))
+
+### Documentation
+
+- **install**: The Windows .zip is the command-line programs, not the app ([fd17704](https://github.com/ohtf/panic-button/commit/fd17704ec62c24a7a2b98bc1fa9245127351e64e))
+
+- **gui**: Fuller niri rules for the button, panel and alert, and their limits ([55e0578](https://github.com/ohtf/panic-button/commit/55e0578a3ce8342a6a89399a4eb9dc6c70ac98f4))
+
+- Add Panic Button logo to the README ([05ce98f](https://github.com/ohtf/panic-button/commit/05ce98f8777ddea5f160956bc3b6e9d2945bcb34))
+
+- **roadmap**: R66, a basic send-only mobile app with Tauri ([4139df0](https://github.com/ohtf/panic-button/commit/4139df005c44d741522419d19779e8460e5ea0e5))
+
+- **home-test**: Wording ([a1d1fad](https://github.com/ohtf/panic-button/commit/a1d1fad36e0611660fc71803fa4e8c32d804a372))
+
+- **home-test**: V0.2.0 downloads; try joining by approval, a locked screen and Remote Desktop ([3b7fc2b](https://github.com/ohtf/panic-button/commit/3b7fc2b686ba8e23e480c10b87618498e7b07a36))
+
+- **roadmap**: The former library crates are yanked (R65) ([c992f5d](https://github.com/ohtf/panic-button/commit/c992f5d94f9870e406ad9a65bbcfd4113697e244))
+
+- **roadmap**: V0.2.0 published to crates.io by trusted publishing (R65) ([f9a2024](https://github.com/ohtf/panic-button/commit/f9a20249753d11012ca0ad3735a6df61b2239743))
+
+### Features
+
+- First run finds Panic Button on the network and offers to join; fix the practice hold ([23a5ce2](https://github.com/ohtf/panic-button/commit/23a5ce2a208366c77058651fcaa20300415f694f))
+
+- **scripts**: S/install --user installs the desktop app for one account ([e4647e5](https://github.com/ohtf/panic-button/commit/e4647e534beb3cfbbf5921a590a5b602223b4988))
+
 ## [0.2.0] - 2026-11-18
 
 ### Bug fixes

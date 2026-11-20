@@ -6,7 +6,7 @@ resolver = "3"
 members = ["crates/*", "apps/desktop/src-tauri"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.90"
 # crates.io accepts only listed SPDX exceptions after WITH, so package
@@ -30,7 +30,7 @@ unwrap_used = "warn"
 
 [workspace.dependencies]
 # The simulator and the desktop app use the library without the relay.
-panic-button = { path = "crates/panic-button", version = "0.2.0", default-features = false }
+panic-button = { path = "crates/panic-button", version = "0.2.1", default-features = false }
 
 # Crypto-heavy tests and the simulator are much faster with optimised
 # dependencies.
