@@ -8,7 +8,7 @@ Stewarded by the [Open Health Technology Foundation](https://openhealthtechnolog
 
 Status: pre-alpha. Not yet suitable for use. See [spec/09-roadmap.md](spec/09-roadmap.md) for progress.
 
-<img src="docs/assets/panic-button-logo.svg" width="144" height="144" alt="Panic Button logo: a big red button with a raised white hand">
+<img src="docs/assets/panic-button-logo.svg" width="144" height="144" alt="Panic Button logo: a big red button with a white hand printed on its face">
 
 ## What it is not
 

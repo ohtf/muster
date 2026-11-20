@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later WITH LicenseRef-PanicButton-app-store-exception
+# Regenerate the desktop launcher and bundle icons from the README logo.
+# Install the desktop npm dependencies first. The flat tray icon is separate.
+
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)/apps/desktop"
+[[ -x node_modules/.bin/tauri ]] || { echo 'Run (cd apps/desktop && npm ci) first from the repository root.' >&2; exit 1; }
+
+out=$(mktemp -d "${TMPDIR:-/tmp}/panic-button-icons.XXXXXX")
+trap 'rm -r -- "$out"' EXIT
+node_modules/.bin/tauri icon ../../docs/assets/panic-button-logo.svg --output "$out"
+cp -- "$out"/{32x32.png,64x64.png,128x128.png,128x128@2x.png,icon.png,icon.ico,icon.icns} src-tauri/icons/

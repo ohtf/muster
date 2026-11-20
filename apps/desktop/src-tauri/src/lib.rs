@@ -478,6 +478,8 @@ struct TrayItems {
     drill: MenuItem<tauri::Wry>,
 }
 
+const TRAY_ICON: tauri::image::Image<'static> = tauri::include_image!("icons/tray.png");
+
 fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
     let status = MenuItem::with_id(app, "status", "Starting...", false, None::<&str>)?;
     let open = MenuItem::with_id(app, "open", "Open Panic Button", true, None::<&str>)?;
@@ -490,7 +492,8 @@ fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
         let q = MenuItem::with_id(app, "quit", "Quit Panic Button", true, None::<&str>)?;
         menu.append(&q)?;
     }
-    let mut b = TrayIconBuilder::with_id("panic-button")
+    TrayIconBuilder::with_id("panic-button")
+        .icon(TRAY_ICON)
         .menu(&menu)
         .tooltip("Panic Button")
         .on_menu_event(|app, e| match e.id().as_ref() {
@@ -516,11 +519,8 @@ fn build_tray(app: &AppHandle, allow_quit: bool) -> tauri::Result<()> {
                 windows::show_main(app);
             }
             _ => {}
-        });
-    if let Some(icon) = app.default_window_icon() {
-        b = b.icon(icon.clone());
-    }
-    b.build(app)?;
+        })
+        .build(app)?;
     app.manage(TrayItems { status, drill });
     Ok(())
 }
@@ -655,5 +655,17 @@ pub fn run() {
     if let Err(e) = result {
         tracing::error!("Panic Button could not start: {e}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TRAY_ICON;
+
+    #[test]
+    fn tray_uses_a_separate_icon_from_the_app() {
+        let app_icon = tauri::include_image!("icons/32x32.png");
+        assert_eq!((TRAY_ICON.width(), TRAY_ICON.height()), (32, 32));
+        assert_ne!(TRAY_ICON.rgba(), app_icon.rgba());
     }
 }

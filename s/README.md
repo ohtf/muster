@@ -70,6 +70,12 @@ Lint (ESLint, Prettier), type-check and build the frontend, then clippy and test
 
 - `s/desktop-check`
 
+## `s/app-icons`
+
+Regenerate the desktop launcher and bundle icons from [the README logo](../docs/assets/panic-button-logo.svg) after installing the desktop npm dependencies. The system tray uses its own flat `tray.png`, which this script leaves alone.
+
+- `s/app-icons`
+
 ## `s/x11-test`
 
 Build the release desktop app and CLI, then check them on a real X server in an Arch container (Xvfb, with and without a window manager): the button's size and corner, that a moved button is remembered per monitor layout, and that holding the keyboard shortcut raises an alarm. Needs Docker. Part of `s/check-deep`.

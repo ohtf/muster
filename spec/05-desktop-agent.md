@@ -3,6 +3,7 @@
 ## Visual identity
 
 - Do not imitate any commercial product (no green circular "button" trade dress). The button is a big red button, the generic emergency-stop shape everyone recognises, with an original glyph (a simple raised hand) in white.
+- The desktop launcher and GitHub README share the [perspective logo](../docs/assets/panic-button-logo.svg). The tray and floating button keep the flat red button with a white hand.
 - **Red means alarm, and only alarm.** Red is used for the button, the alert window and alarm states. Everything else (main window, admin, sender panel) is neutral, with blue for actions, so red never becomes background noise.
 
 | Token | Hex | Use | Contrast |

@@ -86,7 +86,7 @@ if [[ $mode == user ]]; then
   bin="$HOME/.local/bin/panic-button-desktop"
   icons=apps/desktop/src-tauri/icons
   install -Dm755 target/release/panic-button-desktop "$bin"
-  install -Dm644 "$icons/icon.svg" "$share/icons/hicolor/scalable/apps/panic-button-desktop.svg"
+  install -Dm644 docs/assets/panic-button-logo.svg "$share/icons/hicolor/scalable/apps/panic-button-desktop.svg"
   install -Dm644 "$icons/128x128.png" "$share/icons/hicolor/128x128/apps/panic-button-desktop.png"
   install -Dm644 "$icons/32x32.png" "$share/icons/hicolor/32x32/apps/panic-button-desktop.png"
   # Named after the window's app ID, so docks and taskbars match the running

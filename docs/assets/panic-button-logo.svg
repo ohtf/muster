@@ -34,8 +34,8 @@
   </g>
   <path d="M68 94c3-10 11-18 23-24m-3 84c10 4 23 7 36 7" fill="none" stroke="#FF8D9E" stroke-width="5" stroke-linecap="round"/>
 
-  <!-- The app's raised hand, simplified for the logo. -->
-  <g fill="#FFF8F5" stroke="#FFF8F5" stroke-linecap="round">
+  <!-- Foreshorten the hand to match the elliptical cap (102 high by 154 wide). -->
+  <g transform="translate(128 98) scale(1.1 0.73) translate(-123 -101)" fill="#FFF8F5" stroke="#FFF8F5" stroke-linecap="round">
     <path stroke-width="9" d="M112 105V83m12 20V75m12 28V78m12 27V86"/>
     <path stroke-width="10" d="m98 99 17 19"/>
     <path stroke="none" d="M107 101h45.5v8a22.75 22.75 0 0 1-45.5 0Z"/>

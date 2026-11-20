@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- SPDX-FileCopyrightText: 2026 Open Health Technology Foundation contributors -->
   <!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
+  <!-- Flat tray artwork, separate from the perspective launcher logo. -->
   <circle cx="256" cy="256" r="240" fill="#9E0B23"/>
   <circle cx="256" cy="248" r="220" fill="#C8102E"/>
   <g transform="translate(64 56) scale(16)" fill="#FFFFFF">
