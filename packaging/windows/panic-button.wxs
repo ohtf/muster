@@ -10,6 +10,10 @@ Firewall: inbound UDP and TCP on port 47474 for panic-button-desktop.exe, on the
 Domain and Private profiles. FIREWALL_PUBLIC=1 adds the Public profile.
 The rules are removed on uninstall (upgrades remove the old version first,
 so the new version's rules survive).
+
+Watchdog: the app registers a per-user Scheduled Task, "Panic Button watchdog
+(<user>)" (platform/windows_watchdog.rs). Uninstalling deletes them all; an
+upgrade leaves them, and the new version updates its own.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
@@ -39,11 +43,17 @@ so the new version's rules survive).
     <CustomAction Id="PanicButtonFirewallRemove" BinaryKey="WixCA" DllEntry="WixQuietExec64"
                   Execute="deferred" Impersonate="no" Return="ignore" />
 
+    <SetProperty Id="PanicButtonWatchdogRemove" Before="PanicButtonWatchdogRemove" Sequence="execute"
+                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -Command &quot;Get-ScheduledTask -TaskName 'Panic Button watchdog*' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false&quot;" />
+    <CustomAction Id="PanicButtonWatchdogRemove" BinaryKey="WixCA" DllEntry="WixQuietExec64"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
     <InstallExecuteSequence>
       <!-- Remove any earlier rules first, so a repair does not duplicate them. -->
       <Custom Action="PanicButtonFirewallRemove" After="InstallFiles" />
       <Custom Action="PanicButtonFirewallUdp" After="PanicButtonFirewallRemove">NOT (REMOVE ~= "ALL")</Custom>
       <Custom Action="PanicButtonFirewallTcp" After="PanicButtonFirewallUdp">NOT (REMOVE ~= "ALL")</Custom>
+      <Custom Action="PanicButtonWatchdogRemove" Before="RemoveFiles">REMOVE ~= "ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
     </InstallExecuteSequence>
   </Fragment>
 </Wix>

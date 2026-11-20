@@ -588,9 +588,15 @@ pub fn run() {
     let (audio, audio_ok) = Audio::start(data_dir.join("sounds"));
     let mut builder = tauri::Builder::default();
     if custom_dir.is_none() {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            windows::show_main(app);
+        // Opening Panic Button again shows its window; the Windows
+        // watchdog's every-5-minutes start (--ensure-running) shows nothing.
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _| {
+            if !args.iter().any(|a| a == "--ensure-running") {
+                windows::show_main(app);
+            }
         }));
+        #[cfg(windows)]
+        std::thread::spawn(platform::windows_watchdog::register);
     }
     let hotkey = config.alarm.hotkey.clone();
     let result = builder

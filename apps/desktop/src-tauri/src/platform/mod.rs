@@ -8,3 +8,5 @@
 pub mod windows_audio;
 #[cfg(windows)]
 pub mod windows_session;
+#[cfg(windows)]
+pub mod windows_watchdog;
